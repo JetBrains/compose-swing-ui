@@ -19,7 +19,6 @@ import org.jetbrains.compose.swing.style.ComponentStyleScope
 import org.jetbrains.compose.swing.style.SwingStyle
 import org.jetbrains.compose.swing.style.nestingStyleKind
 import org.jetbrains.compose.swing.style.styleable
-import java.awt.event.ActionListener
 import javax.swing.JCheckBoxMenuItem
 import javax.swing.KeyStroke
 
@@ -62,41 +61,6 @@ public fun CheckBoxMenuItem(
     )
 }
 
-/**
- * A JCheckBoxMenuItem driven by a raw [ActionListener] instead of an `onCheckedChange` lambda. The
- * listener is attached as-is and removed on the same instance; pass a stable instance (e.g.
- * `remember {}`) to avoid churn.
- *
- * @param text the text of the menu item
- * @param checked whether the menu item is checked
- * @param actionListener the listener notified when the item is toggled
- * @param modifier the [SwingModifier] applied to the underlying component
- * @param style the [SwingStyle] applied to the underlying component
- * @param accelerator the key combination that activates the item without navigating the menu
- *   hierarchy, displayed next to its text; `null` (the default) leaves the item without one
- * @see javax.swing.JCheckBoxMenuItem
- */
-@Composable
-public fun CheckBoxMenuItem(
-    text: @Nls String,
-    checked: Boolean,
-    actionListener: ActionListener,
-    modifier: SwingModifier = SwingModifier,
-    style: SwingStyle<CheckableStyleScope> = SwingStyle,
-    accelerator: KeyStroke? = null,
-) {
-    val mirror = rememberMirrorState(checked)
-    CheckBoxMenuItemNode(
-        text = text,
-        modifier =
-            modifier.actionListener(actionListener),
-        style = style,
-        checked = checked,
-        accelerator = accelerator,
-        mirror = mirror,
-    )
-}
-
 /** [CheckableStyleScope] for CheckBoxMenuItem styles. The declared checked state supplies `isChecked`. */
 private val CheckBoxMenuItemKind =
     nestingStyleKind<CheckableStyleScope, Boolean>({ base, checked ->
@@ -108,11 +72,11 @@ private val CheckBoxMenuItemKind =
     }
 
 /**
- * The `JCheckBoxMenuItem` node both [CheckBoxMenuItem] overloads render. [checked] is settled against the
+ * The `JCheckBoxMenuItem` node [CheckBoxMenuItem] renders. [checked] is settled against the
  * item through [mirror] rather than applied on change: the user can toggle the item out from under the
  * declaration, and a declaration equal to the last one still has to stand.
  *
- * Inlined into its caller, so the two share one restart scope.
+ * Inlined into its caller, so it shares the caller's restart scope.
  */
 @Suppress("NOTHING_TO_INLINE")
 @Composable

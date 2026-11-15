@@ -7,9 +7,10 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.assertUnadoptedChangeIsNeverPainted
 import org.jetbrains.compose.swing.countTests
 import org.jetbrains.compose.swing.fixtures.components.selection.ListBoxFixture
-import org.jetbrains.compose.swing.fixtures.components.selection.ListBoxListenerFixture
 import org.jetbrains.compose.swing.fixtures.components.selection.ListBoxModelFixture
 import org.jetbrains.compose.swing.fixtures.components.selection.ListBoxStateFixture
+import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.listener.listSelectionListener
 import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.test.interaction.assertProperty
@@ -153,7 +154,7 @@ class ListBoxBehaviorTest {
                 val list = event.source as JList<*>
                 if (!event.valueIsAdjusting) positions += list.anchorSelectionIndex to list.leadSelectionIndex
             }
-        setContent { ListBox(items = listOf("a", "b", "c"), listSelectionListener = listener) }
+        setContent { ListBox(items = listOf("a", "b", "c"), modifier = SwingModifier.listSelectionListener(listener)) }
 
         // A range is anchored where it began and led by where it reached, and a list's selection event is
         // sourced at the list itself - so both positions are read back off it along with the selection.
@@ -210,12 +211,6 @@ class ListBoxBehaviorTest {
 
     @TestFactory
     fun listBoxCounts() = ListBoxFixture.countTests()
-
-    @TestFactory
-    fun listBoxListenerRawSwing() = ListBoxListenerFixture.rawSwingTests()
-
-    @TestFactory
-    fun listBoxListenerCounts() = ListBoxListenerFixture.countTests()
 
     @TestFactory
     fun listBoxModelRawSwing() = ListBoxModelFixture.rawSwingTests()

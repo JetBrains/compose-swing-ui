@@ -3,11 +3,11 @@ package org.jetbrains.compose.swing.components.selection
 
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import io.mockk.every
 import io.mockk.mockk
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.listener.treeExpansionListener
 import org.jetbrains.compose.swing.modifier.listener.treeWillExpandListener
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
@@ -17,7 +17,6 @@ import org.junit.jupiter.api.TestFactory
 import javax.swing.JTree
 import javax.swing.event.TreeExpansionEvent
 import javax.swing.event.TreeExpansionListener
-import javax.swing.event.TreeSelectionListener
 import javax.swing.event.TreeWillExpandListener
 import javax.swing.tree.DefaultMutableTreeNode
 import javax.swing.tree.ExpandVetoException
@@ -358,34 +357,33 @@ class TreeExpansionVetoTest {
     fun aNodeRefusedWhileOpeningForASelectionIsNotAnnounced() = runComposeSwingTest {
         val nested = Section("root", listOf(Section("fruit", listOf(Section("apple", listOf(Section("seed")))))))
         val opened = mutableListOf<TreePath>()
+        val expansionListener =
+            object : TreeExpansionListener {
+                override fun treeExpanded(event: TreeExpansionEvent) {
+                    opened += event.path
+                }
+
+                override fun treeCollapsed(event: TreeExpansionEvent): Unit = Unit
+            }
+        // Refuses the node two levels down, so the tree opens the one above it and no further.
+        val willExpandListener =
+            object : TreeWillExpandListener {
+                override fun treeWillExpand(event: TreeExpansionEvent) {
+                    if (event.path.pathCount == 3) throw ExpandVetoException(event)
+                }
+
+                override fun treeWillCollapse(event: TreeExpansionEvent): Unit = Unit
+            }
         setContent {
             Tree(
                 root = nested,
                 children = { it.children },
-                treeSelectionListener = remember { TreeSelectionListener { } },
                 label = { it.name },
                 selectedPaths = setOf(listOf(0, 0, 0)),
-                treeExpansionListener =
-                    remember {
-                        object : TreeExpansionListener {
-                            override fun treeExpanded(event: TreeExpansionEvent) {
-                                opened += event.path
-                            }
-
-                            override fun treeCollapsed(event: TreeExpansionEvent): Unit = Unit
-                        }
-                    },
-                // Refuses the node two levels down, so the tree opens the one above it and no further.
-                treeWillExpandListener =
-                    remember {
-                        object : TreeWillExpandListener {
-                            override fun treeWillExpand(event: TreeExpansionEvent) {
-                                if (event.path.pathCount == 3) throw ExpandVetoException(event)
-                            }
-
-                            override fun treeWillCollapse(event: TreeExpansionEvent): Unit = Unit
-                        }
-                    },
+                modifier =
+                    SwingModifier
+                        .treeExpansionListener(expansionListener)
+                        .treeWillExpandListener(willExpandListener),
             )
         }
 
@@ -403,9 +401,8 @@ class TreeExpansionVetoTest {
             Tree(
                 root = sample,
                 children = { it.children },
-                treeSelectionListener = remember { TreeSelectionListener { } },
                 label = { it.name },
-                treeWillExpandListener = listener,
+                modifier = SwingModifier.treeWillExpandListener(listener),
             )
         }
 

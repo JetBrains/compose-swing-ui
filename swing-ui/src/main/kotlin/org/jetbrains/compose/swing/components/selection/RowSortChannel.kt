@@ -330,9 +330,8 @@ internal fun rememberRowSortChannel(listener: RowSorterListener?): RowSortChanne
 }
 
 /**
- * A stable [RowSorterListener] that forwards the order the rows were sorted into to [onSortChange], bridging
- * a lambda-based table overload to the raw-listener overload it delegates to. A sort event's source is the
- * sorter, so the order is read back from it.
+ * A stable [RowSorterListener] that forwards the order the rows were sorted into to [onSortChange]. A sort
+ * event's source is the sorter, so the order is read back from it.
  *
  * Only a change of the sort order describes that order; the event a re-sort of unchanged keys publishes
  * carries no new one.

@@ -15,6 +15,8 @@ import org.jetbrains.compose.swing.components.text.TextArea
 import org.jetbrains.compose.swing.components.text.TextPane
 import org.jetbrains.compose.swing.components.text.rememberDocumentState
 import org.jetbrains.compose.swing.foundation.layout.ColumnScope
+import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.listener.hyperlinkListener
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
 import org.jetbrains.compose.swing.samples.widgets.SectionColumn
 import org.jetbrains.compose.swing.samples.widgets.SectionHeading
@@ -25,11 +27,12 @@ import java.awt.Dimension
 import java.net.URI
 import javax.swing.event.HyperlinkEvent
 import javax.swing.event.HyperlinkListener
+import javax.swing.text.StyledEditorKit
 
 // The rich-text editors. Markup and the rendering of it are two different things, so they get a card
 // each: a source area above the pane that renders what it holds, then a pane over an HTML document
-// state, where the rendered content itself is what the user types into. TextPane closes on a styled
-// document bound to a remember { mutableStateOf(...) } value.
+// state, where the rendered content itself is what the user types into. TextPane is driven by a
+// DocumentState, the state holding the document the pane renders.
 @Preview
 @Composable
 internal fun RichTextSection() {
@@ -120,7 +123,8 @@ private fun ColumnScope.BaseUrlCard() {
             markup =
                 "<p>The relative link below resolves against the base \"$baseUrl\": " +
                     "<a href=\"guide.html\">guide.html</a></p>",
-            hyperlinkListener = listener,
+            onLinkActivate = {},
+            modifier = SwingModifier.hyperlinkListener(listener),
             contentType = "text/html",
             baseUrl = baseUrl,
         )
@@ -131,20 +135,14 @@ private fun ColumnScope.BaseUrlCard() {
 @Composable
 private fun ColumnScope.TextPaneCard() {
     ExampleCard("TextPane") {
-        var notes by remember { mutableStateOf("A styled-document editor.\nType here.") }
+        val notes = rememberDocumentState(remember { StyledEditorKit() }, "A styled-document editor.\nType here.")
         var editable by remember { mutableStateOf(true) }
 
         CheckBox(text = "Editable", checked = editable, onCheckedChange = { editable = it })
         ScrollPane(style = { preferredSize(Dimension(360, 100)) }) {
-            Viewport {
-                TextPane(
-                    value = notes,
-                    onValueChange = { notes = it },
-                    editable = editable,
-                )
-            }
+            Viewport { TextPane(state = notes, editable = editable) }
         }
-        Label("Length: ${notes.length}")
+        Label("Length: ${notes.text.length}")
     }
 }
 

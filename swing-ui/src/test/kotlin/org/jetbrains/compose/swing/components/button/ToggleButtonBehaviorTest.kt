@@ -3,12 +3,10 @@ package org.jetbrains.compose.swing.components.button
 
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.assertUnadoptedChangeIsNeverPainted
 import org.jetbrains.compose.swing.click
 import org.jetbrains.compose.swing.countTests
-import org.jetbrains.compose.swing.fixtures.components.button.ToggleButtonActionListenerFixture
 import org.jetbrains.compose.swing.fixtures.components.button.ToggleButtonFixture
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.name
@@ -24,7 +22,6 @@ import org.junit.jupiter.api.Named
 import org.junit.jupiter.api.TestFactory
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
-import java.awt.event.ActionListener
 import javax.swing.JToggleButton
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -131,18 +128,16 @@ class ToggleButtonBehaviorTest {
     }
 
     @Test
-    fun theRawListenerOverloadAppliesTextAndSelectedStateAndFires() = runComposeSwingTest {
+    fun theTextAndSelectedStateApplyAndTheCallbackFires() = runComposeSwingTest {
         var text by mutableStateOf("Bold")
         var selected by mutableStateOf(false)
         var tip by mutableStateOf<String?>("Bold text")
         val reported = mutableListOf<Boolean>()
         setContent {
-            val listener =
-                remember { ActionListener { event -> reported += (event.source as JToggleButton).isSelected } }
             ToggleButton(
                 text = text,
                 selected = selected,
-                actionListener = listener,
+                onSelectedChange = { reported += it },
                 modifier = tip?.let { SwingModifier.name(it) } ?: SwingModifier,
             )
         }
@@ -158,43 +153,14 @@ class ToggleButtonBehaviorTest {
         toggle.assertTextEquals("Strong")
         toggle.assert(SwingMatcher.isSelected())
         toggle.assertProperty(null, "dropping the element restores the name the button had without it") { name }
-        toggle.assertProperty(1, "a stable listener instance stays attached exactly once") { actionListeners.size }
+        toggle.assertProperty(1, "a stable callback stays attached exactly once") { actionListeners.size }
 
         selected = false
         awaitIdle()
         toggle.assert(SwingMatcher.isSelected(false))
 
         toggle.performClick()
-        assertEquals(listOf(true), reported, "the raw listener sees the state the click produced")
-    }
-
-    @Test
-    fun swappingTheRawListenerHandsClicksToTheNewInstance() = runComposeSwingTest {
-        var second by mutableStateOf(false)
-        var first = 0
-        var latest = 0
-        setContent {
-            val firstListener = remember { ActionListener { first++ } }
-            val secondListener = remember { ActionListener { latest++ } }
-            ToggleButton(
-                text = "Bold",
-                selected = false,
-                actionListener = if (second) secondListener else firstListener,
-            )
-        }
-
-        onNodeOfType<JToggleButton>().performClick()
-        assertEquals(1, first, "the declared listener receives the click")
-
-        second = true
-        awaitIdle()
-        onNodeOfType<JToggleButton>().assertProperty(1, "the replaced listener must be detached, not stacked") {
-            actionListeners.size
-        }
-
-        onNodeOfType<JToggleButton>().performClick()
-        assertEquals(1, latest, "the newly declared listener receives the click")
-        assertEquals(1, first, "the listener that left the declaration no longer fires")
+        assertEquals(listOf(true), reported, "the callback sees the state the click produced")
     }
 
     @Test
@@ -249,12 +215,6 @@ class ToggleButtonBehaviorTest {
 
     @TestFactory
     fun toggleButtonCounts() = ToggleButtonFixture.countTests()
-
-    @TestFactory
-    fun toggleButtonActionListenerRawSwing() = ToggleButtonActionListenerFixture.rawSwingTests()
-
-    @TestFactory
-    fun toggleButtonActionListenerCounts() = ToggleButtonActionListenerFixture.countTests()
 
     companion object {
         @JvmStatic

@@ -135,6 +135,7 @@ import javax.swing.text.DefaultHighlighter
 import javax.swing.text.DefaultStyledDocument
 import javax.swing.text.JTextComponent
 import javax.swing.text.PlainDocument
+import javax.swing.text.StyledEditorKit
 import javax.swing.tree.DefaultMutableTreeNode
 import javax.swing.tree.DefaultTreeModel
 import kotlin.test.Test
@@ -362,7 +363,13 @@ class WidgetIdentityTest {
                 applied = {
                     assertProperty("b") { this.text }
                 },
-            ) { TextPane(value = if (it) "b" else "a", onValueChange = {}) },
+            ) { changed ->
+                val state = rememberDocumentState(remember { StyledEditorKit() }, "a")
+                TextPane(state = state)
+                LaunchedEffect(changed) {
+                    if (changed) state.edit { setText("b") }
+                }
+            },
             case<JComponent>(
                 "Layer",
                 applied = {
@@ -883,20 +890,6 @@ class WidgetIdentityTest {
                     TextArea(state = rememberDocumentState(if (changed) after else before))
                 }
             },
-            run {
-                val before = PlainDocument()
-                val after = PlainDocument()
-                case<JTextComponent>(
-                    "PasswordField document swap",
-                    applied = {
-                        assertProperty(after, "the declared document reaches the widget") {
-                            this.document
-                        }
-                    },
-                ) { changed ->
-                    PasswordField(state = rememberDocumentState(if (changed) after else before))
-                }
-            },
         )
 
         private fun editorPaneDocumentSwapCases(): List<Case> = listOf(
@@ -926,18 +919,6 @@ class WidgetIdentityTest {
                     },
                 ) { changed ->
                     TextPane(state = rememberDocumentState(if (changed) after else before))
-                }
-            },
-            case<JPasswordField>(
-                "PasswordField state-driven edit",
-                applied = {
-                    assertProperty("ab") { this.password.concatToString() }
-                },
-            ) { changed ->
-                val state = rememberDocumentState("a")
-                PasswordField(state = state)
-                LaunchedEffect(changed) {
-                    if (changed) state.edit { append("b") }
                 }
             },
         )

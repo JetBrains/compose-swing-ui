@@ -18,6 +18,7 @@ import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.foundation.layout.ColumnScope
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.listener.internalFrameListener
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
 import org.jetbrains.compose.swing.samples.widgets.SectionColumn
 import org.jetbrains.compose.swing.samples.widgets.SectionHeading
@@ -134,7 +135,7 @@ private fun ColumnScope.DesktopPaneCard() {
 
 @Composable
 private fun ColumnScope.HoistedInternalFrameCard() {
-    ExampleCard("DesktopPane (hoisted frame state, InternalFrameListener)") {
+    ExampleCard("DesktopPane (hoisted frame state, internalFrameListener modifier)") {
         // A plain bounds frame is placed once and thereafter left to the user; a frame declared with
         // an InternalFrameState instead has geometry and window state that are two-way, so the buttons
         // and check boxes below move, resize, iconify and maximize it exactly as dragging its title
@@ -142,9 +143,8 @@ private fun ColumnScope.HoistedInternalFrameCard() {
         val frame = rememberInternalFrameState(bounds = Rectangle(20, 20, 200, 120))
         var open by remember { mutableStateOf(true) }
         var lastEvent by remember { mutableStateOf("none") }
-        // The raw-listener overload attaches this adapter as-is, so unlike onClose it never gets a
-        // synthesized closing handler: internalFrameClosing must be overridden here for the close
-        // control to do anything, since the frame's own close operation stays do-nothing either way.
+        // The modifier attaches this adapter as-is, alongside the frame's own onClose handler: the
+        // adapter's internalFrameClosing also closes the frame by dropping it from the composition.
         val listener =
             remember {
                 object : InternalFrameAdapter() {
@@ -196,7 +196,8 @@ private fun ColumnScope.HoistedInternalFrameCard() {
                 InternalFrame(
                     title = "Hoisted",
                     state = frame,
-                    internalFrameListener = listener,
+                    onClose = { },
+                    modifier = SwingModifier.internalFrameListener(listener),
                     controls =
                         InternalFrameControls(
                             closable = true,

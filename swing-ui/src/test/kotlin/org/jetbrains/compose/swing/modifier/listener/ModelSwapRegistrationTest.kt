@@ -30,7 +30,7 @@ class ModelSwapRegistrationTest {
     fun aSliderMirrorRidesARangeModelSwap() = runComposeSwingTest {
         setContent {
             Panel {
-                Slider(value = 10, changeListener = { }, min = 0, max = 100)
+                Slider(value = 10, onValueChange = { }, min = 0, max = 100)
             }
         }
         val slider = onNodeOfType<JSlider>().fetch<JSlider>()

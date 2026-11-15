@@ -19,7 +19,6 @@ import org.jetbrains.compose.swing.style.ComponentStyleScope
 import org.jetbrains.compose.swing.style.SwingStyle
 import org.jetbrains.compose.swing.style.nestingStyleKind
 import org.jetbrains.compose.swing.style.styleable
-import java.awt.event.ActionListener
 import javax.swing.JToggleButton
 
 /**
@@ -63,37 +62,6 @@ public fun ToggleButton(
     )
 }
 
-/**
- * A [ToggleButton] driven by a raw [ActionListener] instead of an `onSelectedChange` lambda. The
- * listener is attached as-is and removed on the same instance; pass a stable instance (e.g.
- * `remember {}`) to avoid churn.
- *
- * @param text the text to display on the button
- * @param selected whether the button is in its selected state
- * @param actionListener the listener notified when the button is toggled
- * @param modifier the [SwingModifier] applied to the underlying component
- * @param style the [SwingStyle] applied to the underlying component
- * @see javax.swing.JToggleButton
- */
-@Composable
-public fun ToggleButton(
-    text: @Nls String,
-    selected: Boolean,
-    actionListener: ActionListener,
-    modifier: SwingModifier = SwingModifier,
-    style: SwingStyle<SelectableStyleScope> = SwingStyle,
-) {
-    val mirror = rememberMirrorState(selected)
-    ToggleButtonNode(
-        text = text,
-        modifier =
-            modifier.actionListener(actionListener),
-        style = style,
-        selected = selected,
-        mirror = mirror,
-    )
-}
-
 /** [SelectableStyleScope] for ToggleButton styles. The declared selected state supplies `isSelected`. */
 private val ToggleButtonKind =
     nestingStyleKind<SelectableStyleScope, Boolean>({ base, selected ->
@@ -105,11 +73,11 @@ private val ToggleButtonKind =
     }
 
 /**
- * The `JToggleButton` node both [ToggleButton] overloads render. [selected] is settled against the button
+ * The `JToggleButton` node [ToggleButton] renders. [selected] is settled against the button
  * through [mirror] rather than applied on change: the user can toggle the button out from under the
  * declaration, and a declaration equal to the last one still has to stand.
  *
- * Inlined into its caller, so the two share one restart scope.
+ * Inlined into its caller, so it shares the caller's restart scope.
  */
 @Suppress("NOTHING_TO_INLINE")
 @Composable

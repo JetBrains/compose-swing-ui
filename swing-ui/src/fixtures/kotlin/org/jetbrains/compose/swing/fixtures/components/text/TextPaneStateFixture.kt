@@ -9,6 +9,7 @@ import org.jetbrains.compose.swing.fixtures.ComposableFixture
 import org.jetbrains.compose.swing.style.SwingStyle
 import org.jetbrains.compose.swing.style.enabled
 import org.jetbrains.compose.swing.style.foreground
+import java.awt.Color
 import javax.swing.JTextPane
 import javax.swing.text.DefaultStyledDocument
 
@@ -21,7 +22,7 @@ public data class TextPaneStateParameters(
 
 /**
  * A [TextPane] driven by a document state against a raw [JTextPane] adopting a fresh document of the same
- * text. The enabled state, foreground color and editable setting are those of [TextPaneFixture.initial].
+ * text. The pane is enabled and editable and its foreground is blue.
  */
 public object TextPaneStateFixture : ComposableFixture<TextPaneStateParameters, JTextPane>(
     initial =
@@ -29,6 +30,8 @@ public object TextPaneStateFixture : ComposableFixture<TextPaneStateParameters, 
             text = "Before",
         ),
 ) {
+    private val color: Color = Color.BLUE
+
     /** The single-change copies of [initial], one for each parameter. */
     override val alternatives: List<TextPaneStateParameters> =
         listOf(
@@ -41,22 +44,21 @@ public object TextPaneStateFixture : ComposableFixture<TextPaneStateParameters, 
     /** Composes a [TextPane] rendering a document state over a document remembered for [text]. */
     @Composable
     public fun Content(text: String) {
-        val settings = TextPaneFixture.initial
         val document = remember(text) { DefaultStyledDocument().apply { insertString(0, text, null) } }
         val state = rememberDocumentState(document = document)
         TextPane(
             state = state,
             style =
                 SwingStyle {
-                    enabled(settings.enabled)
-                    foreground(settings.color)
+                    enabled(true)
+                    foreground(color)
                 },
-            editable = settings.editable,
+            editable = true,
         )
     }
 
-    /** Builds a bare [JTextPane] with the editable setting of [TextPaneFixture.initial] already applied. */
-    override fun createRawSwing(): JTextPane = JTextPane().apply { isEditable = TextPaneFixture.initial.editable }
+    /** Builds a bare [JTextPane], which is editable. */
+    override fun createRawSwing(): JTextPane = JTextPane()
 
     /**
      * Applies the values of [parameters] to [component] with their Swing setters, placing the caret at the end of the
@@ -68,7 +70,7 @@ public object TextPaneStateFixture : ComposableFixture<TextPaneStateParameters, 
     ) {
         component.styledDocument = DefaultStyledDocument().apply { insertString(0, parameters.text, null) }
         component.caretPosition = parameters.text.length
-        component.isEnabled = TextPaneFixture.initial.enabled
-        component.foreground = TextPaneFixture.initial.color
+        component.isEnabled = true
+        component.foreground = color
     }
 }

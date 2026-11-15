@@ -8,6 +8,7 @@ import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.text.PasswordField
 import org.jetbrains.compose.swing.components.text.TextArea
 import org.jetbrains.compose.swing.components.text.TextField
+import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JPasswordField
@@ -89,7 +90,13 @@ class TextSwapBaselineTest {
     fun aListenerDrivenPasswordFieldIsMeasuredAgainstTheDocumentItWasGiven() = runComposeSwingTest {
         val declared = "hello".toCharArray()
         setContent {
-            Panel { PasswordField(value = declared, documentListener = DocumentChangeListener()) }
+            Panel {
+                PasswordField(
+                    value = declared,
+                    onValueChange = {},
+                    modifier = SwingModifier.documentListener(DocumentChangeListener()),
+                )
+            }
         }
         val field = onNodeOfType<JPasswordField>().fetch<JPasswordField>()
 

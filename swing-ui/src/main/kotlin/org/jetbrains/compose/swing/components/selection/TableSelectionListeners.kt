@@ -12,8 +12,7 @@ import javax.swing.event.ListSelectionListener
 
 /*
  * How a table's row selection travels in both directions: out to the caller's listener as the user moves
- * it, and into the [MirrorState] mirroring what the table is left holding - plus the bridge that turns a
- * lambda-based overload's callback into the raw listener that plumbing takes.
+ * it, and into the [MirrorState] mirroring what the table is left holding.
  */
 
 /**
@@ -120,10 +119,9 @@ private class UserSelectionListenerElement(
 }
 
 /**
- * The [ListSelectionListener] forwarding each settled row selection to [onSelectionChange], bridging a
- * lambda-based [Table] overload to the raw-listener overload it delegates to. A selection event is handed
- * on with the table as its source, so the settled selection is read back from the table - in the model's
- * row space - once the value stops adjusting.
+ * The [ListSelectionListener] forwarding each settled row selection to [onSelectionChange]. A selection
+ * event is handed on with the table as its source, so the settled selection is read back from the table -
+ * in the model's row space - once the value stops adjusting.
  *
  * Rebuilt per pass rather than remembered: every place a [Table] takes it reads it live -
  * [UserSelectionListenerElement] holds it in a node field, and the rest call it while the pass that built

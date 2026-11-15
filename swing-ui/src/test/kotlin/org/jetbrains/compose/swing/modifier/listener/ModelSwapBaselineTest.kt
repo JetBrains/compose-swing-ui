@@ -10,6 +10,8 @@ import org.jetbrains.compose.swing.components.selection.Table
 import org.jetbrains.compose.swing.components.selection.TableColumnLayout
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.components.text.documentChangeListener
+import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.DefaultBoundedRangeModel
@@ -95,7 +97,11 @@ class ModelSwapBaselineTest {
         var declared by mutableStateOf("first")
         setContent {
             Panel {
-                TextField(value = declared, documentListener = documentChangeListener { })
+                TextField(
+                    value = declared,
+                    onValueChange = { },
+                    modifier = SwingModifier.documentListener(documentChangeListener { }),
+                )
             }
         }
         val field = onNodeOfType<JTextField>().fetch<JTextField>()
@@ -116,7 +122,7 @@ class ModelSwapBaselineTest {
         var declared by mutableStateOf(10)
         setContent {
             Panel {
-                Slider(value = declared, changeListener = { }, max = 100)
+                Slider(value = declared, onValueChange = { }, max = 100)
             }
         }
         val slider = onNodeOfType<JSlider>().fetch<JSlider>()
@@ -131,6 +137,31 @@ class ModelSwapBaselineTest {
         declared = 70
         awaitIdle()
         assertEquals(70, slider.value, "and a later declaration lands on it too")
+    }
+
+    @Test
+    fun aModelSliderIsMeasuredAgainstTheModelItWasGiven() = runComposeSwingTest {
+        var model by mutableStateOf(DefaultBoundedRangeModel(10, 0, 0, 100))
+        val heard = mutableListOf<Int>()
+        setContent {
+            Panel {
+                Slider(model = model, onValueChange = { heard += it })
+            }
+        }
+        onNodeOfType<JSlider>().assertProperty(10, "the slider starts on the model's value") { value }
+
+        // The replacement arrives holding a value of its own; the slider shows it without reporting it.
+        model = DefaultBoundedRangeModel(55, 0, 0, 100)
+        awaitIdle()
+        onNodeOfType<JSlider>().assertProperty(
+            55,
+            "a range model the slider is given is rendered as it stands",
+        ) { value }
+        assertTrue(heard.isEmpty(), "and arriving is not a change the caller hears of")
+
+        model.value = 70
+        awaitIdle()
+        assertEquals(listOf(70), heard, "a later change is measured against the model that arrived")
     }
 }
 

@@ -5,6 +5,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.listener.actionListener
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.event.ActionListener
@@ -57,7 +59,12 @@ class ComboBoxStateListItemsTest {
     fun addingToADeclaredStateListReachesARawListenerComboBox() = runComposeSwingTest {
         val items = mutableStateListOf("Ada")
         setContent {
-            ComboBox(items = items, selectedItem = "Ada", actionListener = ActionListener { })
+            ComboBox(
+                items = items,
+                selectedItem = "Ada",
+                onSelectionChange = {},
+                modifier = SwingModifier.actionListener(ActionListener { }),
+            )
         }
 
         val comboBox = onNodeOfType<JComboBox<*>>().fetch()

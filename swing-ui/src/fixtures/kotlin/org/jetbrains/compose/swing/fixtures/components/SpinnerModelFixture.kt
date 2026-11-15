@@ -5,6 +5,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import org.jetbrains.compose.swing.components.Spinner
 import org.jetbrains.compose.swing.fixtures.ComposableFixture
+import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.listener.changeListener
 import javax.swing.JSpinner
 import javax.swing.SpinnerNumberModel
 import javax.swing.event.ChangeListener
@@ -19,8 +21,8 @@ public data class SpinnerModelParameters(
 )
 
 /**
- * A [Spinner] over a model remembered for a value, driven by a raw change listener, against a raw [JSpinner] over a
- * fresh model of that value with the same listener.
+ * A [Spinner] over a model remembered for a value, with a change listener attached through the modifier, against a
+ * raw [JSpinner] over a fresh model of that value with the same listener.
  */
 public object SpinnerModelFixture : ComposableFixture<SpinnerModelParameters, JSpinner>(
     initial =
@@ -48,7 +50,7 @@ public object SpinnerModelFixture : ComposableFixture<SpinnerModelParameters, JS
     ) {
         Spinner(
             model = remember(value) { SpinnerNumberModel().apply { this.value = value } },
-            changeListener = changeListener,
+            modifier = SwingModifier.changeListener(changeListener),
         )
     }
 

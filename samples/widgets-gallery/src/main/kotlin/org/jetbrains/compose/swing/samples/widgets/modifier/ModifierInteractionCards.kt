@@ -25,6 +25,7 @@ import org.jetbrains.compose.swing.modifier.interaction.buttonGroup
 import org.jetbrains.compose.swing.modifier.interaction.focusRequester
 import org.jetbrains.compose.swing.modifier.interaction.initialFocus
 import org.jetbrains.compose.swing.modifier.interaction.rememberFocusRequester
+import org.jetbrains.compose.swing.modifier.listener.actionListener
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
 import org.jetbrains.compose.swing.samples.widgets.WrappedCaption
 import org.jetbrains.compose.swing.style.enabled
@@ -150,10 +151,16 @@ internal fun ColumnScope.ActionCommandCard() {
         var lastCommand by remember { mutableStateOf("none") }
         val listener = remember { ActionListener { event -> lastCommand = event.actionCommand } }
         Panel {
-            Button("Print", actionListener = listener, style = { actionCommand("print-doc") })
+            Button(
+                "Print",
+                onClick = { },
+                modifier = SwingModifier.actionListener(listener),
+                style = { actionCommand("print-doc") },
+            )
             Button(
                 "Print Preview",
-                actionListener = listener,
+                onClick = { },
+                modifier = SwingModifier.actionListener(listener),
                 style = { actionCommand("print-preview-doc") },
             )
         }

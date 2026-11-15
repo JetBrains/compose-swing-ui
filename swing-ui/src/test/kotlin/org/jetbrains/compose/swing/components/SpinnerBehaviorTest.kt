@@ -11,6 +11,8 @@ import org.jetbrains.compose.swing.fixtures.components.SpinnerDateFixture
 import org.jetbrains.compose.swing.fixtures.components.SpinnerFixture
 import org.jetbrains.compose.swing.fixtures.components.SpinnerListFixture
 import org.jetbrains.compose.swing.fixtures.components.SpinnerModelFixture
+import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.listener.changeListener
 import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
@@ -170,7 +172,7 @@ class SpinnerBehaviorTest {
         val model = SpinnerNumberModel(5, 0, 10, 1)
         val received = mutableListOf<Any?>()
         val listener = ChangeListener { event -> received += (event.source as JSpinner).value }
-        setContent { Spinner(model = model, changeListener = listener) }
+        setContent { Spinner(model = model, modifier = SwingModifier.changeListener(listener)) }
         awaitIdle()
 
         onNodeOfType<JSpinner>().performAccessibleAction(AccessibleAction.INCREMENT)
@@ -184,7 +186,10 @@ class SpinnerBehaviorTest {
         val firstModel = SpinnerNumberModel(1, 0, 10, 1)
         val secondModel = SpinnerNumberModel(7, 0, 10, 1)
         setContent {
-            Spinner(model = if (useFirst) firstModel else secondModel, changeListener = ChangeListener {})
+            Spinner(
+                model = if (useFirst) firstModel else secondModel,
+                modifier = SwingModifier.changeListener(ChangeListener {}),
+            )
         }
         awaitIdle()
 
@@ -510,7 +515,10 @@ class SpinnerBehaviorTest {
         setContent {
             var counter by mutableStateOf(model.value, neverEqualPolicy())
             observed += counter.n
-            Spinner(model = model, changeListener = { counter = model.value })
+            Spinner(
+                model = model,
+                modifier = SwingModifier.changeListener(ChangeListener { counter = model.value }),
+            )
         }
         awaitIdle()
         assertEquals(0, observed.last(), "the reader starts at the value the model holds")
@@ -528,7 +536,10 @@ class SpinnerBehaviorTest {
         val model = ClampingSpinnerModel(maximum = 3)
         var stateValue by mutableStateOf<Number>(0)
         setContent {
-            Spinner(model = model, changeListener = { stateValue = model.value as Number })
+            Spinner(
+                model = model,
+                modifier = SwingModifier.changeListener(ChangeListener { stateValue = model.held }),
+            )
         }
         awaitIdle()
 
@@ -583,7 +594,8 @@ private class InPlaceSteppingSpinnerModel : AbstractSpinnerModel() {
 private class ClampingSpinnerModel(
     private val maximum: Int,
 ) : AbstractSpinnerModel() {
-    private var held = 0
+    var held = 0
+        private set
 
     override fun getValue(): Any = held
 

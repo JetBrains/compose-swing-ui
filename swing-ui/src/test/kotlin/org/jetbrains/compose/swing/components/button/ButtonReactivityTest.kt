@@ -11,13 +11,12 @@ import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.performClick
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
-import java.awt.event.ActionListener
 import javax.swing.JButton
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- * Parameter-level coverage for both [Button] overloads: every declared parameter reaches the live
+ * Parameter-level coverage for [Button]: every declared parameter reaches the live
  * `JButton` on every recomposition, in both directions.
  *
  * Each test drives a parameter from composition state through at least two distinct values and back,
@@ -104,62 +103,58 @@ class ButtonReactivityTest {
     }
 
     @Test
-    fun theRawListenerOverloadAppliesTheTextAndFiresItsListener() = runComposeSwingTest {
+    fun theTextAppliesAndTheClickCallbackKeepsFiring() = runComposeSwingTest {
         var text by mutableStateOf("Save")
         var fired = 0
-        setContent {
-            val listener = remember { ActionListener { fired++ } }
-            Button(text = text, actionListener = listener)
-        }
+        setContent { Button(text = text, onClick = { fired++ }) }
 
         val button = onNodeOfType<JButton>()
         button.assertTextEquals("Save")
         button.performClick()
-        assertEquals(1, fired, "the raw listener receives the click")
+        assertEquals(1, fired, "the click runs the callback")
 
         text = "Apply"
         awaitIdle()
         button.assertTextEquals("Apply")
-        button.assertProperty(1, "a stable listener instance stays attached exactly once") { actionListeners.size }
+        button.assertProperty(1, "a stable callback stays attached exactly once") { actionListeners.size }
 
         button.performClick()
-        assertEquals(2, fired, "the raw listener keeps receiving clicks after recomposition")
+        assertEquals(2, fired, "the callback keeps receiving clicks after recomposition")
     }
 
     @Test
-    fun swappingTheRawListenerHandsClicksToTheNewInstance() = runComposeSwingTest {
+    fun swappingTheCallbackHandsClicksToTheNewInstance() = runComposeSwingTest {
         var second by mutableStateOf(false)
         var first = 0
         var latest = 0
         setContent {
-            val firstListener = remember { ActionListener { first++ } }
-            val secondListener = remember { ActionListener { latest++ } }
-            Button(text = "Run", actionListener = if (second) secondListener else firstListener)
+            val firstCallback = remember<() -> Unit> { { first++ } }
+            val secondCallback = remember<() -> Unit> { { latest++ } }
+            Button(text = "Run", onClick = if (second) secondCallback else firstCallback)
         }
 
         onNodeOfType<JButton>().performClick()
-        assertEquals(1, first, "the declared listener receives the click")
+        assertEquals(1, first, "the declared callback receives the click")
 
         second = true
         awaitIdle()
-        onNodeOfType<JButton>().assertProperty(1, "the replaced listener must be detached, not stacked") {
+        onNodeOfType<JButton>().assertProperty(1, "the replaced callback must be detached, not stacked") {
             actionListeners.size
         }
 
         onNodeOfType<JButton>().performClick()
-        assertEquals(1, latest, "the newly declared listener receives the click")
-        assertEquals(1, first, "the listener that left the declaration no longer fires")
+        assertEquals(1, latest, "the newly declared callback receives the click")
+        assertEquals(1, first, "the callback that left the declaration no longer fires")
     }
 
     @Test
-    fun theModifierFollowsTheStateOnTheRawListenerOverload() = runComposeSwingTest {
+    fun theModifierFollowsTheStateOnTheCallbackOverload() = runComposeSwingTest {
         var tip by mutableStateOf<String?>("Runs the task")
         var fired = 0
         setContent {
-            val listener = remember { ActionListener { fired++ } }
             Button(
                 text = "Run",
-                actionListener = listener,
+                onClick = { fired++ },
                 modifier = tip?.let { SwingModifier.name(it) } ?: SwingModifier,
             )
         }

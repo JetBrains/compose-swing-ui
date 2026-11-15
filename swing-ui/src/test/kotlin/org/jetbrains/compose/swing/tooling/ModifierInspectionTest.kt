@@ -48,7 +48,10 @@ import org.jetbrains.compose.swing.modifier.interaction.inputVerifier
 import org.jetbrains.compose.swing.modifier.interaction.orderedFocusTraversal
 import org.jetbrains.compose.swing.modifier.keyboard.onKeyStroke
 import org.jetbrains.compose.swing.modifier.layout.layoutConstraint
+import org.jetbrains.compose.swing.modifier.listener.changeListener
+import org.jetbrains.compose.swing.modifier.listener.documentListener
 import org.jetbrains.compose.swing.modifier.listener.mouseListener
+import org.jetbrains.compose.swing.modifier.listener.propertyChangeListener
 import org.jetbrains.compose.swing.node.SwingComponentNode
 import org.jetbrains.compose.swing.node.SwingNodeHolder
 import org.jetbrains.compose.swing.runSwingTest
@@ -62,7 +65,6 @@ import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.BorderLayout
 import java.awt.Color
 import java.awt.Component
-import java.beans.PropertyChangeListener
 import javax.swing.JComponent
 import javax.swing.JLabel
 import javax.swing.JPanel
@@ -288,11 +290,14 @@ class ModifierInspectionTest {
                     onSelectionChange = {},
                     modifier = SwingModifier.testTag("combo"),
                 )
-                Slider(value = 0, changeListener = ChangeListener { }, modifier = SwingModifier.testTag("slider"))
+                Slider(
+                    value = 0,
+                    onValueChange = {},
+                    modifier = SwingModifier.testTag("slider").changeListener(ChangeListener { }),
+                )
                 Spinner(
                     model = SpinnerNumberModel(),
-                    changeListener = ChangeListener { },
-                    modifier = SwingModifier.testTag("spinner"),
+                    modifier = SwingModifier.testTag("spinner").changeListener(ChangeListener { }),
                     editor = { Label("value") },
                 )
                 Table(
@@ -309,13 +314,16 @@ class ModifierInspectionTest {
                 )
                 FormattedTextField(
                     value = "v",
-                    valuePropertyChangeListener = PropertyChangeListener { },
-                    modifier = SwingModifier.testTag("formattedRaw"),
+                    onValueChange = {},
+                    modifier = SwingModifier.testTag("formattedRaw").propertyChangeListener("value") { },
                 )
                 PasswordField(
                     value = charArrayOf('a'),
-                    documentListener = mockk<DocumentListener>(relaxed = true),
-                    modifier = SwingModifier.testTag("password"),
+                    onValueChange = {},
+                    modifier =
+                        SwingModifier
+                            .testTag("password")
+                            .documentListener(mockk<DocumentListener>(relaxed = true)),
                 )
                 TextArea(state = rememberDocumentState("v"), modifier = SwingModifier.testTag("area"), tabSize = 4)
             }
@@ -464,8 +472,7 @@ class ModifierInspectionTest {
                 )
                 Spinner(
                     model = SpinnerNumberModel(),
-                    changeListener = ChangeListener { },
-                    modifier = SwingModifier.testTag("spinner"),
+                    modifier = SwingModifier.testTag("spinner").changeListener(ChangeListener { }),
                     editor = { Label("value") },
                 )
             }

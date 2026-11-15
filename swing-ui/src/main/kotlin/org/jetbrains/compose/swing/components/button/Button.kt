@@ -15,7 +15,6 @@ import org.jetbrains.compose.swing.style.ComponentStyleScope
 import org.jetbrains.compose.swing.style.SwingStyle
 import org.jetbrains.compose.swing.style.nestingStyleKind
 import org.jetbrains.compose.swing.style.styleable
-import java.awt.event.ActionListener
 import javax.swing.JButton
 
 /**
@@ -38,28 +37,6 @@ public fun Button(
     ButtonNode(text = text, modifier = modifier.actionListener { onClick() }, style = style)
 }
 
-/**
- * A [Button] driven by a raw [ActionListener] instead of an `onClick` lambda.
- *
- * The [actionListener] is attached as-is and removed on the same instance; pass a stable instance
- * (e.g. `remember {}`) to avoid a detach/re-attach on every recomposition.
- *
- * @param text the text to display on the button
- * @param actionListener the listener notified when the button is activated
- * @param modifier the [SwingModifier] applied to the underlying component
- * @param style the [SwingStyle] applied to the underlying component
- * @see javax.swing.JButton
- */
-@Composable
-public fun Button(
-    text: @Nls String,
-    actionListener: ActionListener,
-    modifier: SwingModifier = SwingModifier,
-    style: SwingStyle<ButtonStyleScope> = SwingStyle,
-) {
-    ButtonNode(text = text, modifier = modifier.actionListener(actionListener), style = style)
-}
-
 /** [ButtonStyleScope] for Button styles. No component state is supplied. */
 private val ButtonKind =
     nestingStyleKind<ButtonStyleScope, Unit>({ base, _ -> object : ButtonStyleScope, ComponentStyleScope by base {} }) {
@@ -67,9 +44,9 @@ private val ButtonKind =
     }
 
 /**
- * The `JButton` node both [Button] overloads render; [modifier] already carries the button's wiring.
+ * The `JButton` node [Button] renders; [modifier] already carries the button's wiring.
  *
- * Inlined into its caller, so the two share one restart scope.
+ * Inlined into its caller, so it shares the caller's restart scope.
  */
 @Suppress("NOTHING_TO_INLINE")
 @Composable

@@ -6,9 +6,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.countTests
 import org.jetbrains.compose.swing.fixtures.components.selection.TableFixture
-import org.jetbrains.compose.swing.fixtures.components.selection.TableListenerFixture
 import org.jetbrains.compose.swing.fixtures.components.selection.TableModelFixture
-import org.jetbrains.compose.swing.fixtures.components.selection.TableModelListenerFixture
 import org.jetbrains.compose.swing.fixtures.components.selection.TableModelStateFixture
 import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.test.interaction.assertProperty
@@ -743,22 +741,10 @@ class TableRowSortingTest {
     fun tableCounts() = TableFixture.countTests()
 
     @TestFactory
-    fun tableListenerRawSwing() = TableListenerFixture.rawSwingTests()
-
-    @TestFactory
-    fun tableListenerCounts() = TableListenerFixture.countTests()
-
-    @TestFactory
     fun tableModelRawSwing() = TableModelFixture.rawSwingTests()
 
     @TestFactory
     fun tableModelStateRawSwing() = TableModelStateFixture.rawSwingTests()
-
-    @TestFactory
-    fun tableModelListenerRawSwing() = TableModelListenerFixture.rawSwingTests()
-
-    @TestFactory
-    fun tableModelListenerCounts() = TableModelListenerFixture.countTests()
 }
 
 private fun tableModel(vararg names: String): DefaultTableModel =

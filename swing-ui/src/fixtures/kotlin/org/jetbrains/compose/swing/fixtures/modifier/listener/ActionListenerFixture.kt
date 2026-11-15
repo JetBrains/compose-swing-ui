@@ -4,6 +4,8 @@ package org.jetbrains.compose.swing.fixtures.modifier.listener
 import androidx.compose.runtime.Composable
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.fixtures.ComposableFixture
+import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.listener.actionListener
 import java.awt.event.ActionEvent
 import java.awt.event.ActionListener
 import javax.swing.JButton
@@ -28,10 +30,10 @@ public object ActionListenerFixture : ComposableFixture<ActionListenerParameters
     @Composable
     override fun Content(parameters: ActionListenerParameters): Unit = Content(parameters.onAction)
 
-    /** Composes a button that runs [onAction] on each action event, through the [Button] action listener overload. */
+    /** Composes a button that runs [onAction] on each action event, through `SwingModifier.actionListener`. */
     @Composable
     public fun Content(onAction: (ActionEvent) -> Unit) {
-        Button("Action", actionListener = ActionListener(onAction))
+        Button("Action", onClick = {}, modifier = SwingModifier.actionListener(ActionListener(onAction)))
     }
 
     /** Builds a bare [JButton] before any of the fixture's callbacks are applied. */

@@ -1,12 +1,14 @@
 // Copyright 2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.jetbrains.compose.swing.modifier.listener
 
+import androidx.compose.runtime.remember
 import org.jetbrains.compose.swing.components.desktop.DesktopPane
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.layout.ToolBar
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.components.text.TextPane
+import org.jetbrains.compose.swing.components.text.rememberDocumentState
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.onNodeOfType
@@ -24,6 +26,7 @@ import javax.swing.JToolBar
 import javax.swing.JTree
 import javax.swing.event.InternalFrameEvent
 import javax.swing.text.SimpleAttributeSet
+import javax.swing.text.StyledEditorKit
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -39,8 +42,7 @@ class MultiMethodLambdaListenerTest {
         setContent {
             Panel {
                 TextPane(
-                    value = "",
-                    onValueChange = {},
+                    state = rememberDocumentState(remember { StyledEditorKit() }, ""),
                     modifier = SwingModifier.documentListener { calls++ },
                 )
             }
@@ -61,8 +63,7 @@ class MultiMethodLambdaListenerTest {
         setContent {
             Panel {
                 TextPane(
-                    value = "",
-                    onValueChange = {},
+                    state = rememberDocumentState(remember { StyledEditorKit() }, ""),
                     modifier =
                         SwingModifier.documentListener(
                             onInsert = { reported += "insert" },
@@ -92,8 +93,7 @@ class MultiMethodLambdaListenerTest {
         setContent {
             Panel {
                 TextField(
-                    value = "",
-                    onValueChange = {},
+                    state = rememberDocumentState(remember { StyledEditorKit() }, ""),
                     modifier = SwingModifier.documentListener(onInsert = { inserts++ }),
                 )
             }
@@ -111,8 +111,7 @@ class MultiMethodLambdaListenerTest {
         setContent {
             Panel {
                 TextField(
-                    value = "",
-                    onValueChange = {},
+                    state = rememberDocumentState(remember { StyledEditorKit() }, ""),
                     modifier = SwingModifier.mouseListener { calls++ },
                 )
             }
@@ -136,8 +135,7 @@ class MultiMethodLambdaListenerTest {
         setContent {
             Panel {
                 TextField(
-                    value = "",
-                    onValueChange = {},
+                    state = rememberDocumentState(remember { StyledEditorKit() }, ""),
                     modifier =
                         SwingModifier.mouseListener(
                             onMouseClicked = { reported += "clicked" },
@@ -171,8 +169,7 @@ class MultiMethodLambdaListenerTest {
         setContent {
             Panel {
                 TextField(
-                    value = "",
-                    onValueChange = {},
+                    state = rememberDocumentState(remember { StyledEditorKit() }, ""),
                     modifier =
                         SwingModifier.focusListener(
                             onFocusGained = { reported += "gained" },
@@ -201,8 +198,7 @@ class MultiMethodLambdaListenerTest {
         setContent {
             Panel {
                 TextField(
-                    value = "",
-                    onValueChange = {},
+                    state = rememberDocumentState(remember { StyledEditorKit() }, ""),
                     modifier = SwingModifier.focusListener { calls++ },
                 )
             }
@@ -331,8 +327,7 @@ class MultiMethodLambdaListenerTest {
         setContent {
             Panel {
                 TextField(
-                    value = "",
-                    onValueChange = {},
+                    state = rememberDocumentState(remember { StyledEditorKit() }, ""),
                     modifier =
                         SwingModifier
                             .mouseMotionListener(
@@ -365,8 +360,7 @@ class MultiMethodLambdaListenerTest {
         setContent {
             Panel {
                 TextField(
-                    value = "",
-                    onValueChange = {},
+                    state = rememberDocumentState(remember { StyledEditorKit() }, ""),
                     modifier =
                         SwingModifier
                             .keyListener(
@@ -405,8 +399,7 @@ class MultiMethodLambdaListenerTest {
         setContent {
             Panel {
                 TextField(
-                    value = "",
-                    onValueChange = {},
+                    state = rememberDocumentState(remember { StyledEditorKit() }, ""),
                     modifier =
                         SwingModifier
                             .componentListener(

@@ -9,6 +9,9 @@ import org.jetbrains.compose.swing.UserChange
 import org.jetbrains.compose.swing.assertUnadoptedChangeIsNeverPainted
 import org.jetbrains.compose.swing.assertUnadoptedChangeIsPutBack
 import org.jetbrains.compose.swing.deliverEvent
+import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.listener.documentListener
+import org.jetbrains.compose.swing.modifier.listener.propertyChangeListener
 import org.jetbrains.compose.swing.node.MirrorState
 import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.test.interaction.assertProperty
@@ -23,7 +26,6 @@ import javax.swing.JFormattedTextField
 import javax.swing.JPasswordField
 import javax.swing.JTextArea
 import javax.swing.JTextField
-import javax.swing.JTextPane
 import javax.swing.event.DocumentEvent
 import javax.swing.event.DocumentListener
 import javax.swing.text.AbstractDocument
@@ -201,31 +203,6 @@ class DeclaredTextPushTest {
     }
 
     @Test
-    fun textPaneReportsNoEditForAnAppliedValue() = runComposeSwingTest {
-        var value by mutableStateOf("hello")
-        val reported = mutableListOf<String>()
-        setContent { TextPane(value = value, onValueChange = { reported += it }) }
-        awaitIdle()
-        mainClock.autoAdvance = false
-
-        val pane = onNodeOfType<JTextPane>().fetch()
-        value = "world"
-        awaitIdle()
-
-        onNodeOfType<JTextPane>().assertTextEquals("hello")
-
-        mainClock.advanceTimeByFrame()
-
-        onNodeOfType<JTextPane>().assertTextEquals("world")
-        assertEquals(emptyList(), reported, "applying a value is not an edit")
-
-        mainClock.autoAdvance = true
-        pane.type("!")
-        awaitIdle()
-        assertEquals(listOf("world!"), reported, "a keystroke is reported once, with the new text")
-    }
-
-    @Test
     fun formattedTextFieldReportsNoCommitForAnAppliedValue() = runComposeSwingTest {
         var value by mutableStateOf(1 as Any?)
         val reported = mutableListOf<Any?>()
@@ -262,7 +239,12 @@ class DeclaredTextPushTest {
         val listener = PropertyChangeListener { event -> seen += event.newValue }
         setContent {
             val factory = remember { integerFactory() }
-            FormattedTextField(value = value, valuePropertyChangeListener = listener, formatterFactory = factory)
+            FormattedTextField(
+                value = value,
+                onValueChange = {},
+                modifier = SwingModifier.propertyChangeListener("value", listener),
+                formatterFactory = factory,
+            )
         }
 
         seen.clear()
@@ -292,7 +274,9 @@ class DeclaredTextPushTest {
                     seen += "changed@${e.document.length}"
                 }
             }
-        setContent { TextField(value = value, documentListener = listener) }
+        setContent {
+            TextField(value = value, onValueChange = {}, modifier = SwingModifier.documentListener(listener))
+        }
         awaitIdle()
         mainClock.autoAdvance = false
 
@@ -415,16 +399,6 @@ class DeclaredTextPushTest {
     }
 
     @Test
-    fun aTextPaneEditTheCallerDoesNotAdoptIsSettledBack() = runComposeSwingTest {
-        setContent { TextPane(value = "hello", onValueChange = {}) }
-
-        onNodeOfType<JTextPane>().fetch().type("!")
-        awaitIdle()
-
-        onNodeOfType<JTextPane>().assertTextEquals("hello")
-    }
-
-    @Test
     fun aCommitTheCallerDoesNotAdoptIsSettledBack() = runComposeSwingTest {
         setContent {
             val factory = remember { integerFactory() }
@@ -447,7 +421,9 @@ class DeclaredTextPushTest {
     fun aRawTextFieldEditTheCallerDoesNotAdoptIsSettledBack() = runComposeSwingTest {
         val seen = mutableListOf<String>()
         val listener = documentChangeListener { seen += it.document.fullText() }
-        setContent { TextField(value = "hello", documentListener = listener) }
+        setContent {
+            TextField(value = "hello", onValueChange = {}, modifier = SwingModifier.documentListener(listener))
+        }
 
         onNodeOfType<JTextField>().fetch().type("!")
         awaitIdle()
@@ -459,23 +435,14 @@ class DeclaredTextPushTest {
     @Test
     fun aRawTextAreaEditTheCallerDoesNotAdoptIsSettledBack() = runComposeSwingTest {
         val listener = documentChangeListener {}
-        setContent { TextArea(value = "hello", documentListener = listener) }
+        setContent {
+            TextArea(value = "hello", onValueChange = {}, modifier = SwingModifier.documentListener(listener))
+        }
 
         onNodeOfType<JTextArea>().fetch().type("!")
         awaitIdle()
 
         onNodeOfType<JTextArea>().assertTextEquals("hello")
-    }
-
-    @Test
-    fun aRawTextPaneEditTheCallerDoesNotAdoptIsSettledBack() = runComposeSwingTest {
-        val listener = documentChangeListener {}
-        setContent { TextPane(value = "hello", documentListener = listener) }
-
-        onNodeOfType<JTextPane>().fetch().type("!")
-        awaitIdle()
-
-        onNodeOfType<JTextPane>().assertTextEquals("hello")
     }
 
     @Test
@@ -485,7 +452,8 @@ class DeclaredTextPushTest {
             val factory = remember { integerFactory() }
             FormattedTextField(
                 value = 1,
-                valuePropertyChangeListener = listener,
+                onValueChange = {},
+                modifier = SwingModifier.propertyChangeListener("value", listener),
                 formatterFactory = factory,
             )
         }
@@ -600,17 +568,6 @@ class DeclaredTextPushTest {
             declared = "Ada",
             content = { report -> TextArea(value = "Ada", onValueChange = { report() }) },
             change = { area -> area.type("m") },
-            read = { it.text },
-        )
-    }
-
-    @Test
-    fun aTextPaneEditTheUserMakesAndTheCallerRefusesIsNeverPainted() = runSwingTest {
-        assertUnadoptedChangeIsNeverPainted(
-            type = JTextPane::class.java,
-            declared = "Ada",
-            content = { report -> TextPane(value = "Ada", onValueChange = { report() }) },
-            change = { pane -> pane.type("m") },
             read = { it.text },
         )
     }

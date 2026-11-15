@@ -42,7 +42,11 @@ class UncaughtFailureTest {
         val failures = ArrayDeque(listOf<Throwable>(first, second))
         val value = mutableStateOf(50)
         setContent {
-            Slider(value = value.value, changeListener = ChangeListener { throw failures.removeFirst() })
+            Slider(
+                value = value.value,
+                onValueChange = {},
+                modifier = SwingModifier.changeListener(ChangeListener { throw failures.removeFirst() }),
+            )
         }
 
         value.value = 75

@@ -19,7 +19,6 @@ import org.jetbrains.compose.swing.style.ComponentStyleScope
 import org.jetbrains.compose.swing.style.SwingStyle
 import org.jetbrains.compose.swing.style.nestingStyleKind
 import org.jetbrains.compose.swing.style.styleable
-import java.awt.event.ActionListener
 import javax.swing.JRadioButtonMenuItem
 import javax.swing.KeyStroke
 
@@ -63,41 +62,6 @@ public fun RadioButtonMenuItem(
     )
 }
 
-/**
- * A JRadioButtonMenuItem driven by a raw [ActionListener] instead of an `onSelectedChange` lambda. The
- * listener is attached as-is and removed on the same instance; pass a stable instance (e.g.
- * `remember {}`) to avoid churn.
- *
- * @param text the text of the menu item
- * @param selected whether the menu item is selected
- * @param actionListener the listener notified when the item is activated
- * @param modifier the [SwingModifier] applied to the underlying component
- * @param style the [SwingStyle] applied to the underlying component
- * @param accelerator the key combination that activates the item without navigating the menu
- *   hierarchy, displayed next to its text; `null` (the default) leaves the item without one
- * @see javax.swing.JRadioButtonMenuItem
- */
-@Composable
-public fun RadioButtonMenuItem(
-    text: @Nls String,
-    selected: Boolean,
-    actionListener: ActionListener,
-    modifier: SwingModifier = SwingModifier,
-    style: SwingStyle<SelectableStyleScope> = SwingStyle,
-    accelerator: KeyStroke? = null,
-) {
-    val mirror = rememberMirrorState(selected)
-    RadioButtonMenuItemNode(
-        text = text,
-        modifier =
-            modifier.actionListener(actionListener),
-        style = style,
-        selected = selected,
-        accelerator = accelerator,
-        mirror = mirror,
-    )
-}
-
 /** [SelectableStyleScope] for RadioButtonMenuItem styles. The declared selected state supplies `isSelected`. */
 private val RadioButtonMenuItemKind =
     nestingStyleKind<SelectableStyleScope, Boolean>({ base, selected ->
@@ -109,11 +73,11 @@ private val RadioButtonMenuItemKind =
     }
 
 /**
- * The `JRadioButtonMenuItem` node both [RadioButtonMenuItem] overloads render. [selected] is settled
+ * The `JRadioButtonMenuItem` node [RadioButtonMenuItem] renders. [selected] is settled
  * against the item through [mirror] rather than applied on change: the user can take the item out from
  * under the declaration, and a declaration equal to the last one still has to stand.
  *
- * Inlined into its caller, so the two share one restart scope.
+ * Inlined into its caller, so it shares the caller's restart scope.
  */
 @Suppress("NOTHING_TO_INLINE")
 @Composable

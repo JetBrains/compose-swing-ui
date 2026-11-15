@@ -269,13 +269,11 @@ public fun <T : Any> Spinner(
 }
 
 /**
- * A `JSpinner` over a caller-owned [model], driven by a raw [changeListener] rather than by a value the
- * spinner reports back. The [changeListener] is attached as-is and removed on the same instance; pass a
- * stable instance (e.g. `remember {}`) to avoid churn. Swapping the [model] instance installs the new
- * model verbatim.
+ * A `JSpinner` over a caller-owned [model]. The model owns the value, so this overload is
+ * observation-only: it renders the model without reporting changes back. A listener goes through
+ * `SwingModifier.changeListener`. Swapping the [model] instance installs the new model verbatim.
  *
  * @param model the model the spinner renders.
- * @param changeListener the listener notified when the spinner's value changes.
  * @param modifier the [SwingModifier] applied to the underlying component.
  * @param style the [SwingStyle] applied to the underlying component.
  * @param format the pattern the spinner formats and parses its values with - a `DecimalFormat` pattern
@@ -293,7 +291,6 @@ public fun <T : Any> Spinner(
 @Composable
 public fun Spinner(
     model: SpinnerModel,
-    changeListener: ChangeListener,
     modifier: SwingModifier = SwingModifier,
     style: SwingStyle<SwingComponentStyleScope> = SwingStyle,
     format: String? = null,
@@ -304,7 +301,7 @@ public fun Spinner(
 ) {
     SpinnerNode(
         model = model,
-        modifier = modifier.changeListener(changeListener),
+        modifier = modifier,
         style = style,
         format = format,
         editor = editor,
@@ -312,8 +309,8 @@ public fun Spinner(
 }
 
 /**
- * The `JSpinner` node both [Spinner] overloads render. [modifier] already carries every listener the
- * spinner needs, the caller's own raw listener included where a raw overload is driving it.
+ * The `JSpinner` node every [Spinner] overload renders. [modifier] already carries every listener the
+ * spinner needs.
  *
  * Inlined into its caller, so the two share one restart scope.
  */

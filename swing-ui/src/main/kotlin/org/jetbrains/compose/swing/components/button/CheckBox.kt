@@ -19,7 +19,6 @@ import org.jetbrains.compose.swing.style.ComponentStyleScope
 import org.jetbrains.compose.swing.style.SwingStyle
 import org.jetbrains.compose.swing.style.nestingStyleKind
 import org.jetbrains.compose.swing.style.styleable
-import java.awt.event.ActionListener
 import javax.swing.JCheckBox
 
 /**
@@ -58,37 +57,6 @@ public fun CheckBox(
     )
 }
 
-/**
- * A [CheckBox] driven by a raw [ActionListener] instead of an `onCheckedChange` lambda. The
- * [actionListener] is attached as-is and removed on the same instance; pass a stable instance
- * (e.g. `remember {}`) to avoid churn.
- *
- * @param text the text to display next to the checkbox
- * @param checked the checked state the box is held at
- * @param actionListener the listener notified when the checkbox is toggled
- * @param modifier the [SwingModifier] applied to the underlying component
- * @param style the [SwingStyle] applied to the underlying component
- * @see javax.swing.JCheckBox
- */
-@Composable
-public fun CheckBox(
-    text: @Nls String,
-    checked: Boolean,
-    actionListener: ActionListener,
-    modifier: SwingModifier = SwingModifier,
-    style: SwingStyle<CheckableStyleScope> = SwingStyle,
-) {
-    val mirror = rememberMirrorState(checked)
-    CheckBoxNode(
-        text = text,
-        modifier =
-            modifier.actionListener(actionListener),
-        style = style,
-        checked = checked,
-        mirror = mirror,
-    )
-}
-
 /** [CheckableStyleScope] for CheckBox styles. The declared checked state supplies `isChecked`. */
 private val CheckBoxKind =
     nestingStyleKind<CheckableStyleScope, Boolean>({ base, checked ->
@@ -100,11 +68,11 @@ private val CheckBoxKind =
     }
 
 /**
- * The `JCheckBox` node both [CheckBox] overloads render. [checked] is settled against the box through
+ * The `JCheckBox` node [CheckBox] renders. [checked] is settled against the box through
  * [mirror] rather than applied on change: the user can toggle the box out from under the declaration, and
  * a declaration equal to the last one still has to stand.
  *
- * Inlined into its caller, so the two share one restart scope.
+ * Inlined into its caller, so it shares the caller's restart scope.
  */
 @Suppress("NOTHING_TO_INLINE")
 @Composable

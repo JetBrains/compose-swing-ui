@@ -9,7 +9,6 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.swing.countTests
 import org.jetbrains.compose.swing.fixtures.components.text.TextFieldFixture
-import org.jetbrains.compose.swing.fixtures.components.text.TextFieldListenerFixture
 import org.jetbrains.compose.swing.fixtures.components.text.TextFieldStateFixture
 import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.test.interaction.assertProperty
@@ -374,10 +373,4 @@ class TextFieldStateTest {
 
     @TestFactory
     fun textFieldCounts() = TextFieldFixture.countTests()
-
-    @TestFactory
-    fun textFieldListenerRawSwing() = TextFieldListenerFixture.rawSwingTests()
-
-    @TestFactory
-    fun textFieldListenerCounts() = TextFieldListenerFixture.countTests()
 }

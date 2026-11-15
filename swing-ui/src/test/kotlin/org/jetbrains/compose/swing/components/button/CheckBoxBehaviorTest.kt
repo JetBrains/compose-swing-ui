@@ -3,14 +3,12 @@ package org.jetbrains.compose.swing.components.button
 
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import kotlinx.coroutines.DisposableHandle
 import org.jetbrains.compose.swing.assertUnadoptedChangeIsNeverPainted
 import org.jetbrains.compose.swing.click
 import org.jetbrains.compose.swing.core.SwingRecomposer
 import org.jetbrains.compose.swing.countTests
-import org.jetbrains.compose.swing.fixtures.components.button.CheckBoxActionListenerFixture
 import org.jetbrains.compose.swing.fixtures.components.button.CheckBoxFixture
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.name
@@ -27,7 +25,6 @@ import org.jetbrains.compose.swing.test.interaction.performClick
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.TestFactory
-import java.awt.event.ActionListener
 import javax.swing.JCheckBox
 import javax.swing.JPanel
 import kotlin.test.Test
@@ -179,17 +176,16 @@ class CheckBoxBehaviorTest {
     }
 
     @Test
-    fun theRawListenerOverloadAppliesTextAndCheckedStateAndFires() = runComposeSwingTest {
+    fun theTextCheckedStateAndModifierFollowTheStateAndAClickReportsTheNewState() = runComposeSwingTest {
         var text by mutableStateOf("Word wrap")
         var checked by mutableStateOf(false)
         var tip by mutableStateOf<String?>("Wraps long lines")
         val reported = mutableListOf<Boolean>()
         setContent {
-            val listener = remember { ActionListener { event -> reported += (event.source as JCheckBox).isSelected } }
             CheckBox(
                 text = text,
                 checked = checked,
-                actionListener = listener,
+                onCheckedChange = { reported += it },
                 modifier = tip?.let { SwingModifier.name(it) } ?: SwingModifier,
             )
         }
@@ -205,43 +201,14 @@ class CheckBoxBehaviorTest {
         checkBox.assert(SwingMatcher.isSelected())
         checkBox.assertTextEquals("Wrap lines")
         checkBox.assertProperty(null, "dropping the element restores the name the box had without it") { name }
-        checkBox.assertProperty(1, "a stable listener instance stays attached exactly once") { actionListeners.size }
+        checkBox.assertProperty(1, "recomposition keeps exactly one action listener attached") { actionListeners.size }
 
         checked = false
         awaitIdle()
         checkBox.assert(SwingMatcher.isSelected(false))
 
         checkBox.performClick()
-        assertEquals(listOf(true), reported, "the raw listener sees the state the click produced")
-    }
-
-    @Test
-    fun swappingTheRawListenerHandsClicksToTheNewInstance() = runComposeSwingTest {
-        var second by mutableStateOf(false)
-        var first = 0
-        var latest = 0
-        setContent {
-            val firstListener = remember { ActionListener { first++ } }
-            val secondListener = remember { ActionListener { latest++ } }
-            CheckBox(
-                text = "Word wrap",
-                checked = false,
-                actionListener = if (second) secondListener else firstListener,
-            )
-        }
-
-        onNodeOfType<JCheckBox>().performClick()
-        assertEquals(1, first, "the declared listener receives the click")
-
-        second = true
-        awaitIdle()
-        onNodeOfType<JCheckBox>().assertProperty(1, "the replaced listener must be detached, not stacked") {
-            actionListeners.size
-        }
-
-        onNodeOfType<JCheckBox>().performClick()
-        assertEquals(1, latest, "the newly declared listener receives the click")
-        assertEquals(1, first, "the listener that left the declaration no longer fires")
+        assertEquals(listOf(true), reported, "the click reports the state it produced, once")
     }
 
     @Test
@@ -369,10 +336,4 @@ class CheckBoxBehaviorTest {
 
     @TestFactory
     fun checkBoxCounts() = CheckBoxFixture.countTests()
-
-    @TestFactory
-    fun checkBoxActionListenerRawSwing() = CheckBoxActionListenerFixture.rawSwingTests()
-
-    @TestFactory
-    fun checkBoxActionListenerCounts() = CheckBoxActionListenerFixture.countTests()
 }

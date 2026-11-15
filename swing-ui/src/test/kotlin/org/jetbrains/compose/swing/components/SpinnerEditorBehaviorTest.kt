@@ -9,6 +9,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.core.COMPOSITION_KEY
+import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.listener.changeListener
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.util.get
@@ -270,9 +272,11 @@ class SpinnerEditorBehaviorTest {
     }
 
     @Test
-    fun theRawListenerOverloadRendersThroughItsOwnFormat() = runComposeSwingTest {
+    fun aModelDrivenSpinnerRendersThroughTheDeclaredFormat() = runComposeSwingTest {
         val model = SpinnerNumberModel(1.5, null, null, 0.5)
-        setContent { Spinner(model = model, changeListener = ChangeListener {}, format = "#0.00") }
+        setContent {
+            Spinner(model = model, modifier = SwingModifier.changeListener(ChangeListener {}), format = "#0.00")
+        }
 
         val editor =
             assertIs<JSpinner.NumberEditor>(
@@ -287,7 +291,9 @@ class SpinnerEditorBehaviorTest {
         val number = SpinnerNumberModel(5, 0, 10, 1)
         val dates = SpinnerDateModel()
         var numeric by mutableStateOf(true)
-        setContent { Spinner(if (numeric) number else dates, changeListener = ChangeListener {}) }
+        setContent {
+            Spinner(if (numeric) number else dates, modifier = SwingModifier.changeListener(ChangeListener {}))
+        }
         awaitIdle()
 
         val spinner = onNodeOfType<JSpinner>().fetch()
@@ -305,7 +311,13 @@ class SpinnerEditorBehaviorTest {
         val dates = SpinnerDateModel()
         var format by mutableStateOf<String?>("#0.00")
         var numeric by mutableStateOf(true)
-        setContent { Spinner(if (numeric) number else dates, changeListener = ChangeListener {}, format = format) }
+        setContent {
+            Spinner(
+                if (numeric) number else dates,
+                modifier = SwingModifier.changeListener(ChangeListener {}),
+                format = format,
+            )
+        }
         awaitIdle()
 
         val spinner = onNodeOfType<JSpinner>().fetch()
@@ -346,7 +358,9 @@ class SpinnerEditorBehaviorTest {
         val model = SpinnerListModel(listOf("red", "green"))
         val failure =
             assertFailsWith<IllegalArgumentException> {
-                setContent { Spinner(model = model, changeListener = ChangeListener {}, format = "#0.00") }
+                setContent {
+                    Spinner(model = model, modifier = SwingModifier.changeListener(ChangeListener {}), format = "#0.00")
+                }
             }
 
         assertTrue(

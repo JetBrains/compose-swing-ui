@@ -7,7 +7,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.countTests
 import org.jetbrains.compose.swing.fixtures.components.text.FormattedTextFieldFixture
-import org.jetbrains.compose.swing.fixtures.components.text.FormattedTextFieldListenerFixture
 import org.jetbrains.compose.swing.fixtures.components.text.FormattedTextFieldStateFixture
 import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.test.interaction.assertProperty
@@ -271,12 +270,6 @@ class FormattedTextFieldTest {
         setContent { FormattedTextField(value = null, onValueChange = {}) }
         onNodeOfType<JFormattedTextField>().assertTreeMatches(JFormattedTextField())
     }
-
-    @TestFactory
-    fun formattedTextFieldListenerRawSwing() = FormattedTextFieldListenerFixture.rawSwingTests()
-
-    @TestFactory
-    fun formattedTextFieldListenerCounts() = FormattedTextFieldListenerFixture.countTests()
 
     @TestFactory
     fun formattedTextFieldStateRawSwing() = FormattedTextFieldStateFixture.rawSwingTests()

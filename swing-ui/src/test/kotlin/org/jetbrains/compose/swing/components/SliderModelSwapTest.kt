@@ -4,6 +4,8 @@ package org.jetbrains.compose.swing.components
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.listener.changeListener
 import org.jetbrains.compose.swing.test.interaction.performSetValue
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -77,7 +79,7 @@ class SliderModelSwapTest {
         val heard = mutableListOf<Int>()
         val listener = ChangeListener { event -> heard += (event.source as JSlider).value }
         setContent {
-            Slider(model = model, changeListener = listener)
+            Slider(model = model, modifier = SwingModifier.changeListener(listener))
         }
 
         model = model(70)

@@ -4,6 +4,8 @@ package org.jetbrains.compose.swing.fixtures.modifier.listener
 import androidx.compose.runtime.Composable
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.fixtures.ComposableFixture
+import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.listener.actionListener
 import java.awt.event.ActionListener
 import javax.swing.JButton
 
@@ -33,7 +35,7 @@ public object ActionListenerListenerFixture : ComposableFixture<ActionListenerLi
     /** Composes a button that attaches [listener] as its action listener. */
     @Composable
     public fun Content(listener: ActionListener) {
-        Button(text = "Action", actionListener = listener)
+        Button(text = "Action", onClick = {}, modifier = SwingModifier.actionListener(listener))
     }
 
     /** Builds a bare [JButton] before any of the fixture's listeners are applied. */

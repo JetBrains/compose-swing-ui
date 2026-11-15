@@ -4,6 +4,8 @@ package org.jetbrains.compose.swing.components.text
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.listener.propertyChangeListener
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -101,7 +103,13 @@ class FormattedTextFieldValueClassTest {
                 if (event.newValue == 10L) error("the caller refuses this value")
                 value = event.newValue
             }
-        setContent { FormattedTextField(value = value, valuePropertyChangeListener = listener) }
+        setContent {
+            FormattedTextField(
+                value = value,
+                onValueChange = { value = it },
+                modifier = SwingModifier.propertyChangeListener("value", listener),
+            )
+        }
         val field = onNodeOfType<JFormattedTextField>().fetch()
 
         value = 10L

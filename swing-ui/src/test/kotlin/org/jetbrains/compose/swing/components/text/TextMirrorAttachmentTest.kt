@@ -4,8 +4,11 @@ package org.jetbrains.compose.swing.components.text
 import androidx.compose.runtime.ReusableContentHost
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.assertDeclaredChainCarriedOnce
+import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.listener.documentListener
 import org.jetbrains.compose.swing.node.MirrorState
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -17,6 +20,7 @@ import javax.swing.event.DocumentListener
 import javax.swing.text.AbstractDocument
 import javax.swing.text.Document
 import javax.swing.text.PlainDocument
+import javax.swing.text.StyledEditorKit
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -37,7 +41,15 @@ class TextMirrorAttachmentTest {
     fun aTextFieldHoldsTheCallersInstanceAndTakesItsMirrorAway() = runComposeSwingTest {
         var shown by mutableStateOf(true)
         val listener = documentChangeListener {}
-        setContent { if (shown) TextField(value = "hello", documentListener = listener) }
+        setContent {
+            if (shown) {
+                TextField(
+                    value = "hello",
+                    onValueChange = {},
+                    modifier = SwingModifier.documentListener(listener),
+                )
+            }
+        }
         val document = onNodeOfType<JTextField>().fetch().document
 
         val mounted = document.registeredListeners()
@@ -51,7 +63,15 @@ class TextMirrorAttachmentTest {
     fun aTextAreaHoldsTheCallersInstanceAndTakesItsMirrorAway() = runComposeSwingTest {
         var shown by mutableStateOf(true)
         val listener = documentChangeListener {}
-        setContent { if (shown) TextArea(value = "hello", documentListener = listener) }
+        setContent {
+            if (shown) {
+                TextArea(
+                    value = "hello",
+                    onValueChange = {},
+                    modifier = SwingModifier.documentListener(listener),
+                )
+            }
+        }
         val document = onNodeOfType<JTextArea>().fetch().document
 
         val mounted = document.registeredListeners()
@@ -65,7 +85,14 @@ class TextMirrorAttachmentTest {
     fun aTextPaneHoldsTheCallersInstanceAndTakesItsMirrorAway() = runComposeSwingTest {
         var shown by mutableStateOf(true)
         val listener = documentChangeListener {}
-        setContent { if (shown) TextPane(value = "hello", documentListener = listener) }
+        setContent {
+            if (shown) {
+                TextPane(
+                    state = rememberDocumentState(remember { StyledEditorKit() }, "hello"),
+                    modifier = SwingModifier.documentListener(listener),
+                )
+            }
+        }
         val document = onNodeOfType<JTextPane>().fetch().document
 
         val mounted = document.registeredListeners()
@@ -80,7 +107,13 @@ class TextMirrorAttachmentTest {
         var shown by mutableStateOf(true)
         val listener = documentChangeListener {}
         setContent {
-            if (shown) PasswordField(value = "hunter2".toCharArray(), documentListener = listener)
+            if (shown) {
+                PasswordField(
+                    value = "hunter2".toCharArray(),
+                    onValueChange = {},
+                    modifier = SwingModifier.documentListener(listener),
+                )
+            }
         }
         val document = onNodeOfType<JPasswordField>().fetch().document
 
@@ -97,7 +130,11 @@ class TextMirrorAttachmentTest {
         val listener = documentChangeListener {}
         setContent {
             ReusableContentHost(active = active) {
-                TextField(value = "hello", documentListener = listener)
+                TextField(
+                    value = "hello",
+                    onValueChange = {},
+                    modifier = SwingModifier.documentListener(listener),
+                )
             }
         }
 

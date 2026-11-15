@@ -8,7 +8,6 @@ import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.selection.firstLabelText
 import org.jetbrains.compose.swing.components.selection.renderCell
 import org.jetbrains.compose.swing.countTests
-import org.jetbrains.compose.swing.fixtures.components.ComboBoxModelActionListenerFixture
 import org.jetbrains.compose.swing.fixtures.components.ComboBoxModelFixture
 import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.test.SwingMatcher
@@ -16,7 +15,6 @@ import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.TestFactory
-import java.awt.event.ActionListener
 import javax.swing.DefaultComboBoxModel
 import javax.swing.JComboBox
 import javax.swing.JLabel
@@ -81,18 +79,6 @@ class ComboBoxModelBehaviorTest {
             reported,
             "installing a new model adopts its selection silently, firing no onSelectionChange",
         )
-    }
-
-    @Test
-    fun rawActionListenerOverloadReportsSelection() = runComposeSwingTest {
-        val model = DefaultComboBoxModel(arrayOf("Red", "Green", "Blue"))
-        val reported = mutableListOf<Int>()
-        val listener = ActionListener { event -> reported += (event.source as JComboBox<*>).selectedIndex }
-        setContent { ComboBox(model = model, actionListener = listener) }
-
-        onNodeOfType<JComboBox<*>>().fetch().selectedIndex = 1
-        awaitIdle()
-        assertEquals(listOf(1), reported, "the raw action listener should fire with the settled selection")
     }
 
     @Test
@@ -235,10 +221,4 @@ class ComboBoxModelBehaviorTest {
 
     @TestFactory
     fun comboBoxModelCounts() = ComboBoxModelFixture.countTests()
-
-    @TestFactory
-    fun comboBoxModelActionListenerRawSwing() = ComboBoxModelActionListenerFixture.rawSwingTests()
-
-    @TestFactory
-    fun comboBoxModelActionListenerCounts() = ComboBoxModelActionListenerFixture.countTests()
 }

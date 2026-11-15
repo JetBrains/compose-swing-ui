@@ -9,7 +9,6 @@ import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.components.style.TextFieldStyleScope
 import org.jetbrains.compose.swing.components.style.TextFields
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.listener.documentListener
 import org.jetbrains.compose.swing.node.MirrorState
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.rememberMirrorState
@@ -18,7 +17,6 @@ import org.jetbrains.compose.swing.style.SwingStyle
 import org.jetbrains.compose.swing.style.nestingStyleKind
 import org.jetbrains.compose.swing.style.styleable
 import javax.swing.JTextField
-import javax.swing.event.DocumentListener
 
 /**
  * A single line of editable plain text. The `JTextField` shows the text [value] declares, and every
@@ -64,52 +62,9 @@ public fun TextField(
 }
 
 /**
- * A [TextField] driven by a raw [DocumentListener] instead of an `onValueChange` lambda. The
- * [documentListener] is attached to the field's document as-is and removed on the same instance; pass
- * a stable instance (e.g. `remember {}`) to avoid churn. It observes every change to that document,
- * including the one that applies [value].
+ * The `JTextField` node [TextField] renders. [value] is settled through [declareText].
  *
- * This field is strictly controlled: if text the field settles on is not followed by [value] moving to
- * match, it is settled back onto the declared value on the very next pass. It never ends up holding
- * text the caller has not adopted.
- *
- * For incremental editing over a shared `Document`, undo/redo, or observing the text as a flow, drive
- * the field with the [DocumentState] overload and a [DocumentState] from `rememberDocumentState`.
- *
- * @param value the current text value
- * @param documentListener the listener notified of document edits
- * @param modifier the [SwingModifier] applied to the underlying component
- * @param style the [SwingStyle] applied to the underlying component
- * @param columns the preferred width in columns; `0` by default, taking the width from the text the
- *   field holds
- * @param editable whether the user can type into the field; `true` by default
- * @see TextField the [DocumentState]-driven overload for large or complex editors
- * @see javax.swing.JTextField
- */
-@Composable
-public fun TextField(
-    value: @Nls String,
-    documentListener: DocumentListener,
-    modifier: SwingModifier = SwingModifier,
-    style: SwingStyle<TextFieldStyleScope> = SwingStyle,
-    columns: Int = 0,
-    editable: Boolean = true,
-) {
-    val mirror = rememberMirrorState(value)
-    TextFieldNode(
-        value = value,
-        mirror = mirror,
-        modifier = modifier.documentListener(documentListener).textMirror(mirror),
-        style = style,
-        columns = columns,
-        editable = editable,
-    )
-}
-
-/**
- * The `JTextField` node both [TextField] overloads render. [value] is settled through [declareText].
- *
- * Inlined into its caller, so the two share one restart scope.
+ * Inlined into its caller, so it shares the caller's restart scope.
  */
 @Suppress("NOTHING_TO_INLINE")
 @Composable

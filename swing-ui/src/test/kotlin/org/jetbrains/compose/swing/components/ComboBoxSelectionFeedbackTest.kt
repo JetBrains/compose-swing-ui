@@ -7,8 +7,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.assertUnadoptedChangeIsNeverPainted
 import org.jetbrains.compose.swing.countTests
-import org.jetbrains.compose.swing.fixtures.components.ComboBoxActionListenerFixture
 import org.jetbrains.compose.swing.fixtures.components.ComboBoxFixture
+import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.listener.actionListener
 import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.test.interaction.assertProperty
@@ -265,7 +266,8 @@ class ComboBoxSelectionFeedbackTest {
             ComboBox(
                 items = listOf("red", "green", "blue"),
                 selectedItem = selection,
-                actionListener = listener,
+                onSelectionChange = {},
+                modifier = SwingModifier.actionListener(listener),
             )
         }
 
@@ -339,7 +341,8 @@ class ComboBoxSelectionFeedbackTest {
             ComboBox(
                 items = listOf("red", "green", "blue"),
                 selectedItem = selection,
-                actionListener = listener,
+                onSelectionChange = {},
+                modifier = SwingModifier.actionListener(listener),
                 editable = true,
             )
         }
@@ -383,12 +386,6 @@ class ComboBoxSelectionFeedbackTest {
             read = { it.selectedItem },
         )
     }
-
-    @TestFactory
-    fun comboBoxActionListenerRawSwing() = ComboBoxActionListenerFixture.rawSwingTests()
-
-    @TestFactory
-    fun comboBoxActionListenerCounts() = ComboBoxActionListenerFixture.countTests()
 
     @TestFactory
     fun comboBoxCounts() = ComboBoxFixture.countTests()

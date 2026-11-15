@@ -12,11 +12,8 @@ import org.jetbrains.compose.swing.components.style.EditorPanes
 import org.jetbrains.compose.swing.components.style.TextPanes
 import org.jetbrains.compose.swing.components.style.TextStyleScope
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.listener.documentListener
 import org.jetbrains.compose.swing.modifier.listener.hyperlinkListener
-import org.jetbrains.compose.swing.node.MirrorState
 import org.jetbrains.compose.swing.node.SwingNode
-import org.jetbrains.compose.swing.node.rememberMirrorState
 import org.jetbrains.compose.swing.style.ComponentStyleScope
 import org.jetbrains.compose.swing.style.SwingStyle
 import org.jetbrains.compose.swing.style.nestingStyleKind
@@ -24,9 +21,7 @@ import org.jetbrains.compose.swing.style.styleable
 import java.net.URL
 import javax.swing.JEditorPane
 import javax.swing.JTextPane
-import javax.swing.event.DocumentListener
 import javax.swing.event.HyperlinkEvent
-import javax.swing.event.HyperlinkListener
 import javax.swing.text.EditorKit
 import javax.swing.text.html.HTMLDocument
 
@@ -79,45 +74,10 @@ public fun EditorPane(
 }
 
 /**
- * An [EditorPane] driven by a raw [HyperlinkListener] instead of an `onLinkActivate` lambda. The
- * listener hears every link event the pane publishes - entered and left as well as activated - and
- * reaches the resolved `URL` and the source element behind each; pass a stable instance (e.g.
- * `remember {}`) to avoid churn.
- *
- * @param markup the source, written in [contentType]'s language, the pane renders
- * @param hyperlinkListener the listener notified of link events
- * @param modifier the [SwingModifier] applied to the underlying component
- * @param style the [SwingStyle] applied to the underlying component
- * @param contentType the MIME type naming the kit that parses and renders [markup] (a [ContentType]
- *   MIME string); `text/plain` by default, which shows the source as written
- * @param baseUrl the location relative references in HTML [markup] resolve against; `null` by default
- * @throws IllegalArgumentException if no editor kit is registered for [contentType].
- * @see EditorPane the [DocumentState]-driven overload, for text the user authors
- * @see javax.swing.JEditorPane
- */
-@Composable
-public fun EditorPane(
-    markup: @Nls String,
-    hyperlinkListener: HyperlinkListener,
-    modifier: SwingModifier = SwingModifier,
-    style: SwingStyle<TextStyleScope> = SwingStyle,
-    @ContentType contentType: String = "text/plain",
-    baseUrl: URL? = null,
-) {
-    RenderedPaneNode(
-        markup = markup,
-        modifier = modifier.hyperlinkListener(hyperlinkListener),
-        style = style,
-        contentType = contentType,
-        baseUrl = baseUrl,
-    )
-}
-
-/**
- * The `JEditorPane` node both rendering [EditorPane] overloads render; [modifier] already carries the
+ * The `JEditorPane` node the rendering [EditorPane] renders; [modifier] already carries the
  * pane's link wiring.
  *
- * Inlined into its caller, so the two share one restart scope.
+ * Inlined into its caller, so it shares the caller's restart scope.
  */
 @Suppress("NOTHING_TO_INLINE")
 @Composable
@@ -214,111 +174,6 @@ public fun EditorPane(
             set(state.editorKit) { kit ->
                 if (kit == null) this.contentType = "text/plain" else this.editorKit = kit
             }
-            set(editable) { this.isEditable = it }
-        },
-    )
-}
-
-/**
- * Editable text carrying graphical attributes - fonts, colors, embedded icons and components - over
- * the styled document a `JTextPane` holds.
- *
- * The binding is reactive in both directions - [value] is pushed onto the pane, and edits the user
- * makes are reported through [onValueChange].
- *
- * This pane is strictly controlled: text the pane settles on that [onValueChange] does not answer with
- * a matching [value] is settled back onto the declared value on the very next pass, so the pane never
- * ends up holding text the caller has not adopted. A callback that filters a keystroke rather than
- * adopting it leaves the caret where that keystroke would have gone.
- *
- * For incremental editing over a shared `Document`, undo/redo, or observing the text as a flow, drive the
- * pane with the [DocumentState] overload ([TextPane]) and a [DocumentState] from `rememberDocumentState`.
- *
- * @param value the current text
- * @param onValueChange callback invoked with the pane's new text when the pane is edited; applying
- *   [value] is not itself reported
- * @param modifier the [SwingModifier] applied to the underlying component
- * @param style the [SwingStyle] applied to the underlying component
- * @param editable whether the user can type into the pane; `true` by default
- * @see TextPane the [DocumentState]-driven overload for large or complex editors
- * @see javax.swing.JTextPane
- */
-@Composable
-public fun TextPane(
-    value: @Nls String,
-    onValueChange: (@Nls String) -> Unit,
-    modifier: SwingModifier = SwingModifier,
-    style: SwingStyle<TextStyleScope> = SwingStyle,
-    editable: Boolean = true,
-) {
-    val mirror = rememberMirrorState(value)
-    TextPaneNode(
-        value = value,
-        mirror = mirror,
-        modifier = modifier.onTextEdit(mirror, onValueChange),
-        style = style,
-        editable = editable,
-    )
-}
-
-/**
- * A [TextPane] driven by a raw [DocumentListener] instead of an `onValueChange` lambda. The listener
- * observes the document the pane currently holds and follows it across a document swap; pass a stable
- * instance (e.g. `remember {}`) to avoid churn. Being attached as-is, it observes every change to that
- * document, including the one that applies [value].
- *
- * This pane is strictly controlled: text the pane settles on that is not followed by [value] moving to
- * match is settled back onto the declared value on the very next pass, so the pane never ends up
- * holding text the caller has not adopted.
- *
- * For incremental editing over a shared `Document`, undo/redo, or observing the text as a flow, drive the
- * pane with the [DocumentState] overload ([TextPane]) and a [DocumentState] from `rememberDocumentState`.
- *
- * @param value the current text
- * @param documentListener the listener notified of document edits
- * @param modifier the [SwingModifier] applied to the underlying component
- * @param style the [SwingStyle] applied to the underlying component
- * @param editable whether the user can type into the pane; `true` by default
- * @see TextPane the [DocumentState]-driven overload for large or complex editors
- * @see javax.swing.JTextPane
- */
-@Composable
-public fun TextPane(
-    value: @Nls String,
-    documentListener: DocumentListener,
-    modifier: SwingModifier = SwingModifier,
-    style: SwingStyle<TextStyleScope> = SwingStyle,
-    editable: Boolean = true,
-) {
-    val mirror = rememberMirrorState(value)
-    TextPaneNode(
-        value = value,
-        mirror = mirror,
-        modifier = modifier.documentListener(documentListener).textMirror(mirror),
-        style = style,
-        editable = editable,
-    )
-}
-
-/**
- * The `JTextPane` node both [TextPane] overloads render. [value] is settled through [declareText].
- *
- * Inlined into its caller, so the two share one restart scope.
- */
-@Suppress("NOTHING_TO_INLINE")
-@Composable
-private inline fun TextPaneNode(
-    value: @Nls String,
-    mirror: MirrorState<String>,
-    modifier: SwingModifier,
-    style: SwingStyle<TextStyleScope>,
-    editable: Boolean,
-) {
-    SwingNode(
-        factory = { JTextPane() },
-        modifier = modifier.styleable(TextPaneKind, style),
-        update = {
-            declareText(value, mirror)
             set(editable) { this.isEditable = it }
         },
     )

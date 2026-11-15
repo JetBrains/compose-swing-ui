@@ -76,23 +76,14 @@ onCheckedChange = ...)`, `TabbedPane(selectedIndex, onSelectedIndexChange = ...)
 [Hoisted state](#hoisted-state).
 
 **A raw Swing model.** `ComboBox(model)`, `ListBox(model)`, `Table(model)`, `Tree(model)`,
-`Spinner(model, changeListener)`, `Slider(model)`, `ProgressBar(model)`. When you already have a
+`Spinner(model)`, `Slider(model)`, `ProgressBar(model)`. When you already have a
 `ComboBoxModel`, `TableModel`, `TreeModel` or `BoundedRangeModel`, hand it over and the component
 renders it. The model stays yours - a `BoundedRangeModel` you hand to both `Slider` and `ProgressBar`
 is what lets a bar track a slider without either owning the value.
 
-Most components that take a lambda callback also offer an overload taking the corresponding raw Swing
-listener instead, for when you already hold a listener object: `ActionListener` (the buttons, the
-menu items, `ComboBox`), `ChangeListener` (`Slider`, `Spinner`, `TabbedPane`), `DocumentListener`
-(`TextField`, `TextArea`, `TextPane`, `PasswordField`), `HyperlinkListener` (`EditorPane`),
-`ListSelectionListener` (`ListBox`, `Table`), `TableColumnModelListener` (a `Table`'s column layout),
-`RowSorterListener` (a `Table`'s sort order), `TreeSelectionListener`, `TreeExpansionListener` and
-`TreeWillExpandListener` (`Tree`), `PropertyChangeListener` (`FormattedTextField`, `SplitPane`) and
-`InternalFrameListener` (`InternalFrame`). The KDoc on each overload says which events it carries.
-
-`javax.swing.Action` extends `ActionListener`, so an `Action` you already own is one of those listeners
-and the raw-listener overloads take it as it is: `Button("Save", actionListener = save)`,
-`MenuItem("Save", actionListener = save)`.
+`javax.swing.Action` extends `ActionListener`, so an `Action` you already own is an `ActionListener`
+and the listener modifier takes it as it is: `modifier = SwingModifier.actionListener(save)`, on a
+`Button` or a `MenuItem`.
 
 The same listeners are also modifier elements, which is how you hear events from a component the
 catalog does not wrap. `actionListener` reaches everything that publishes an action event - an
@@ -141,13 +132,13 @@ compare equal are one and the same selection.
 | `TextPane`           | Styled multi-line text over `JTextPane`.                                                                        |
 | `EditorPane`         | Markup over `JEditorPane`, rendered through the editor kit its `contentType` names.                             |
 
-`TextField`, `TextArea`, `TextPane` and `PasswordField` each come in three forms: a `value` plus
-`onValueChange`, a `value` plus a `DocumentListener`, and a [`DocumentState`](#documentstate) that
-owns the document outright.
+`TextField` and `TextArea` each come in two forms: a `value` plus `onValueChange`, and a
+[`DocumentState`](#documentstate) that owns the document outright. `PasswordField` takes a `CharArray`
+`value` plus `onValueChange` only, and `TextPane` takes a `DocumentState` only.
 
 The `value` forms are strictly controlled, settled like every other
 [declared value](ARCHITECTURE.md#shapes-for-state-the-user-can-change). `FormattedTextField` holds its
-committed value the same way. For `TextField`, `TextArea` and `TextPane`, a callback that filters a
+committed value the same way. For `TextField` and `TextArea`, a callback that filters a
 keystroke rather than adopting it leaves the caret where that keystroke would have gone.
 
 Reach for the hoisted `DocumentState` form where you do not need the text on every keystroke: the
@@ -159,8 +150,9 @@ you incremental edits over a large document, undo/redo, and the text as observab
 [`DocumentState`](#documentstate) for text the user authors. Its `contentType` names the editor kit
 that parses the markup and defaults to `"text/plain"`. A rendered pane is not editable - it holds only
 what you declare - and reports an activated link to `onLinkActivate` as the raw `href` without opening
-anything; pass a `baseUrl` for relative `href`s and `<img src>`s to resolve against, or a
-`HyperlinkListener` in place of the lambda to hear hover events and reach the resolved `URL`.
+anything; pass a `baseUrl` for relative `href`s and `<img src>`s to resolve against. To hear
+hover events or reach the resolved `URL`, attach `SwingModifier.hyperlinkListener` with a
+`HyperlinkListener`.
 
 `columns` and `rows` default to `0`, which sizes the field from its content rather than a column
 count. `editable` defaults to `true`, `TextArea`'s `tabSize` defaults to `8`, and
@@ -177,11 +169,11 @@ the state is the single source of truth.
 var query by remember { mutableStateOf("") }
 var notes by remember { mutableStateOf("") }
 var amount: Any? by remember { mutableStateOf<Any?>(0.0) }
-val secret = rememberDocumentState()
+var secret by remember { mutableStateOf(charArrayOf()) }
 
 TextField(value = query, onValueChange = { query = it }, columns = 24)
 TextArea(value = notes, onValueChange = { notes = it }, rows = 6, columns = 40, lineWrap = true)
-PasswordField(state = secret, echoChar = '*', columns = 16)
+PasswordField(value = secret, onValueChange = { secret = it }, echoChar = '*', columns = 16)
 FormattedTextField(
     value = amount,
     onValueChange = { amount = it },
@@ -1179,8 +1171,8 @@ read of the whole document.
   undoable step.
 
 Create it with `rememberDocumentState(initialText)`, or `rememberDocumentState(document)` to adopt a
-document you already have. Pass it to `TextField`, `TextArea`, `TextPane`, `EditorPane` or
-`PasswordField` as `state`.
+document you already have. Pass it to `TextField`, `TextArea`, `TextPane` or `EditorPane` as
+`state`.
 
 A `contentType` names the language the document is written in, and the editor kit registered for it
 both builds the document and reads `initialText` as source: `"text/html"` gives an `HTMLDocument`

@@ -3,12 +3,10 @@ package org.jetbrains.compose.swing.components.button
 
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.assertUnadoptedChangeIsNeverPainted
 import org.jetbrains.compose.swing.click
 import org.jetbrains.compose.swing.countTests
-import org.jetbrains.compose.swing.fixtures.components.button.RadioButtonActionListenerFixture
 import org.jetbrains.compose.swing.fixtures.components.button.RadioButtonFixture
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.name
@@ -24,13 +22,12 @@ import org.junit.jupiter.api.Named
 import org.junit.jupiter.api.TestFactory
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
-import java.awt.event.ActionListener
 import javax.swing.JRadioButton
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- * Behavioral coverage for both [RadioButton] overloads, asserted on the live `JRadioButton`.
+ * Behavioral coverage for [RadioButton], asserted on the live `JRadioButton`.
  *
  * The selected state is controlled: the button shows whatever `selected` holds, a value pushed in from
  * composition applies without echoing back as a callback, and both edges of a user gesture - choosing
@@ -140,73 +137,6 @@ class RadioButtonBehaviorTest {
         radio.assertProperty(null, "dropping the element restores the name the button had without it") { name }
     }
 
-    @Test
-    fun theRawListenerOverloadAppliesTextAndSelectedStateAndFires() = runComposeSwingTest {
-        var text by mutableStateOf("Compact")
-        var selected by mutableStateOf(false)
-        var tip by mutableStateOf<String?>("Denser layout")
-        val reported = mutableListOf<Boolean>()
-        setContent {
-            val listener =
-                remember { ActionListener { event -> reported += (event.source as JRadioButton).isSelected } }
-            RadioButton(
-                text = text,
-                selected = selected,
-                actionListener = listener,
-                modifier = tip?.let { SwingModifier.name(it) } ?: SwingModifier,
-            )
-        }
-
-        val radioButton = onNodeOfType<JRadioButton>()
-        radioButton.assertTextEquals("Compact")
-        radioButton.assert(SwingMatcher.isSelected(false))
-
-        text = "Comfortable"
-        selected = true
-        tip = null
-        awaitIdle()
-        radioButton.assertTextEquals("Comfortable")
-        radioButton.assert(SwingMatcher.isSelected())
-        radioButton.assertProperty(null, "dropping the element restores the name the button had without it") { name }
-        radioButton.assertProperty(1, "a stable listener instance stays attached exactly once") { actionListeners.size }
-
-        selected = false
-        awaitIdle()
-        radioButton.assert(SwingMatcher.isSelected(false))
-
-        radioButton.performClick()
-        assertEquals(listOf(true), reported, "the raw listener sees the state the gesture produced")
-    }
-
-    @Test
-    fun swappingTheRawListenerHandsTheGestureToTheNewInstance() = runComposeSwingTest {
-        var second by mutableStateOf(false)
-        var first = 0
-        var latest = 0
-        setContent {
-            val firstListener = remember { ActionListener { first++ } }
-            val secondListener = remember { ActionListener { latest++ } }
-            RadioButton(
-                text = "Compact",
-                selected = false,
-                actionListener = if (second) secondListener else firstListener,
-            )
-        }
-
-        onNodeOfType<JRadioButton>().performClick()
-        assertEquals(1, first, "the declared listener receives the gesture")
-
-        second = true
-        awaitIdle()
-        onNodeOfType<JRadioButton>().assertProperty(1, "the replaced listener must be detached, not stacked") {
-            actionListeners.size
-        }
-
-        onNodeOfType<JRadioButton>().performClick()
-        assertEquals(1, latest, "the newly declared listener receives the gesture")
-        assertEquals(1, first, "the listener that left the declaration no longer fires")
-    }
-
     @ParameterizedTest(name = "{0}")
     @MethodSource("declaredSelections")
     fun aClickTheCallerDoesNotAdoptDoesNotStand(declared: Boolean) = runComposeSwingTest {
@@ -240,12 +170,6 @@ class RadioButtonBehaviorTest {
 
     @TestFactory
     fun radioButtonCounts() = RadioButtonFixture.countTests()
-
-    @TestFactory
-    fun radioButtonActionListenerRawSwing() = RadioButtonActionListenerFixture.rawSwingTests()
-
-    @TestFactory
-    fun radioButtonActionListenerCounts() = RadioButtonActionListenerFixture.countTests()
 
     companion object {
         @JvmStatic

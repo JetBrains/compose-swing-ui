@@ -4,8 +4,6 @@ package org.jetbrains.compose.swing.components.desktop
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import io.mockk.mockk
-import io.mockk.verify
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.countTests
 import org.jetbrains.compose.swing.fixtures.components.desktop.DesktopPaneFixture
@@ -25,7 +23,6 @@ import javax.swing.JDesktopPane
 import javax.swing.JInternalFrame
 import javax.swing.JInternalFrame.JDesktopIcon
 import javax.swing.SwingUtilities
-import javax.swing.event.InternalFrameListener
 import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
@@ -363,28 +360,6 @@ class DesktopPaneBehaviorTest {
     }
 
     @Test
-    fun rawInternalFrameListenerOverloadReceivesFrameEvents() = runComposeSwingTest {
-        val listener = mockk<InternalFrameListener>(relaxed = true)
-        setContent {
-            DesktopPane {
-                InternalFrame(
-                    title = "Listened",
-                    bounds = Rectangle(0, 0, 100, 100),
-                    internalFrameListener = listener,
-                ) { Label(text = "body") }
-            }
-        }
-
-        val frame = onNodeOfType<JInternalFrame>().fetch()
-
-        // The raw listener is attached as-is; the close action fires its internalFrameClosing.
-        frame.doDefaultCloseAction()
-        awaitIdle()
-        verify(exactly = 1) { listener.internalFrameClosing(any()) }
-        onNodeOfType<JInternalFrame>().assertExists()
-    }
-
-    @Test
     fun everyControlFollowsTheStateDrivingIt() = runComposeSwingTest {
         var controls by mutableStateOf(InternalFrameControls())
         setContent {
@@ -447,34 +422,6 @@ class DesktopPaneBehaviorTest {
     }
 
     @Test
-    fun theFrameModifierFollowsTheStateOnTheRawListenerOverload() = runComposeSwingTest {
-        var tip by mutableStateOf<String?>("Edits the document")
-        val listener = mockk<InternalFrameListener>(relaxed = true)
-        setContent {
-            DesktopPane {
-                InternalFrame(
-                    title = "Listened",
-                    bounds = Rectangle(0, 0, 100, 100),
-                    internalFrameListener = listener,
-                    modifier = tip?.let { SwingModifier.name(it) } ?: SwingModifier,
-                ) { Label(text = "body") }
-            }
-        }
-
-        val frame = onNodeOfType<JInternalFrame>().fetch()
-        assertEquals("Edits the document", frame.name, "the modifier applies to the frame")
-
-        tip = null
-        awaitIdle()
-        assertNull(frame.name, "dropping the element restores the name the frame had without it")
-
-        frame.doDefaultCloseAction()
-        awaitIdle()
-        verify(exactly = 1) { listener.internalFrameClosing(any()) }
-        assertEquals(1, frame.declaredInternalFrameListenerCount, "the listener stays attached exactly once")
-    }
-
-    @Test
     fun theCloseControlRunsTheMostRecentlyComposedCallback() = runComposeSwingTest {
         var round by mutableStateOf(1)
         val runs = mutableListOf<Int>()
@@ -504,36 +451,6 @@ class DesktopPaneBehaviorTest {
         awaitIdle()
         assertEquals(listOf(1, 2), runs, "the close control runs the recomposed callback, not the one it replaced")
         assertEquals(1, frame.declaredInternalFrameListenerCount, "recomposition must not stack up frame listeners")
-    }
-
-    @Test
-    fun swappingTheRawListenerHandsFrameEventsToTheNewInstance() = runComposeSwingTest {
-        var second by mutableStateOf(false)
-        val firstListener = mockk<InternalFrameListener>(relaxed = true)
-        val secondListener = mockk<InternalFrameListener>(relaxed = true)
-        setContent {
-            DesktopPane {
-                InternalFrame(
-                    title = "Listened",
-                    bounds = Rectangle(0, 0, 100, 100),
-                    internalFrameListener = if (second) secondListener else firstListener,
-                ) { Label(text = "body") }
-            }
-        }
-
-        val frame = onNodeOfType<JInternalFrame>().fetch()
-        frame.doDefaultCloseAction()
-        awaitIdle()
-        verify(exactly = 1) { firstListener.internalFrameClosing(any()) }
-
-        second = true
-        awaitIdle()
-        assertEquals(1, frame.declaredInternalFrameListenerCount, "the replaced listener must be detached, not stacked")
-
-        frame.doDefaultCloseAction()
-        awaitIdle()
-        verify(exactly = 1) { secondListener.internalFrameClosing(any()) }
-        verify(exactly = 1) { firstListener.internalFrameClosing(any()) }
     }
 
     @Test

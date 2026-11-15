@@ -90,50 +90,9 @@ public fun TabbedPane(
 }
 
 /**
- * A [TabbedPane] driven by a raw [ChangeListener] instead of an `onSelectedIndexChange` lambda. The
- * listener is notified of the tab the user selects, and of the tab the pane is left on where
- * [selectedIndex] names no tab of the strip, reading the new selection off the event's source pane; the
- * latest declared instance is the one notified, so the listener may be declared inline.
+ * The `JTabbedPane` [TabbedPane] renders, with [changeListener] carrying the selection channel.
  *
- * @param selectedIndex the index of the selected tab, or `-1` for none (controlled); `-1` while the
- *   pane holds tabs leaves the strip with no tab selected and no page shown
- * @param changeListener the listener notified when the user selects another tab, and when the pane is
- *   left on a tab [selectedIndex] does not name
- * @param modifier the [SwingModifier] applied to the underlying `JTabbedPane`
- * @param style the [SwingStyle] applied to the underlying `JTabbedPane`
- * @param tabPlacement where the tab strip is drawn; `TOP` by default
- * @param tabLayoutPolicy how the tab strip handles overflow; the default `WRAP_TAB_LAYOUT` wraps the
- *   tabs that do not fit onto further runs of the strip, and a look and feel supporting only one of the
- *   policies ignores it
- * @param content the composable content of the pane, one child per tab; see [TabbedPaneScope]
- * @see javax.swing.JTabbedPane
- */
-@Composable
-public fun TabbedPane(
-    selectedIndex: Int,
-    changeListener: ChangeListener,
-    modifier: SwingModifier = SwingModifier,
-    style: SwingStyle<ContainerStyleScope> = SwingStyle,
-    @TabPlacement tabPlacement: Int = JTabbedPane.TOP,
-    @TabLayoutPolicy tabLayoutPolicy: Int = JTabbedPane.WRAP_TAB_LAYOUT,
-    content: @Composable TabbedPaneScope.() -> Unit,
-) {
-    TabbedPaneImpl(
-        selectedIndex = selectedIndex,
-        modifier = modifier,
-        style = style,
-        tabPlacement = tabPlacement,
-        tabLayoutPolicy = tabLayoutPolicy,
-        changeListener = changeListener,
-        content = content,
-    )
-}
-
-/**
- * The `JTabbedPane` every [TabbedPane] overload renders, with [changeListener] already carrying whichever
- * selection channel the overload driving it uses.
- *
- * Inlined into its caller, so the two share one restart scope.
+ * Inlined into its caller, so it shares the caller's restart scope.
  */
 @Suppress("NOTHING_TO_INLINE")
 @Composable

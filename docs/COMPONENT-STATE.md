@@ -222,8 +222,7 @@ Where each pair sits is forced rather than preferred. The Compose lint check the
 parameters without defaults first, then `modifier`, then parameters with defaults, then optionally one
 trailing function type without a default: a required pair therefore leads, ahead of `modifier`, and a
 defaulted pair follows it. Written the other way round, neither builds. Undeclared state in particular
-cannot lead: it carries a default, so ahead of `modifier` it fails the lint, and in the raw-listener
-overload it would push the listener behind a defaulted parameter and force every caller to name it.
+cannot lead: it carries a default, so ahead of `modifier` it fails the lint.
 
 ```kotlin
 // Declared: `checked` is the composition's, so it and its callback lead.
@@ -270,18 +269,6 @@ nothing. Carrying a default, both sit after `modifier` beside their optional cal
 sentinel is also a request the pane resolves at layout time rather than a value to re-assert, which is
 the applicability boundary above; a tool bar's `floating` is a value, and is settled every pass.
 
-A raw-listener overload puts its required listener where the lambda overload puts its required
-callback: `CheckBox(text, checked, actionListener, modifier = ...)` beside `CheckBox(text, checked,
-onCheckedChange, modifier = ...)`. Where the state is undeclared the listener still leads - it has no
-default - while the nullable state stays after `modifier`: `ListBox(items, listSelectionListener,
-modifier = ..., selectedIndices = null, ...)`. That is the one place the two overloads legitimately
-differ.
-
-A component with several channels leads with the primary one, and the rest follow `modifier`. `Table`'s
-raw-listener overload leads with `listSelectionListener` and takes `rowSorterListener:
-RowSorterListener? = null` after `modifier`; `Tree`'s does the same with `treeExpansionListener` and
-`treeWillExpandListener`.
-
 A callback reporting something other than a declared value - a settle, a commit, a validity flag, a
 veto - is supplementary the same way: optional, after `modifier`, as `Slider`'s `onValueSettled`,
 `ComboBox`'s `onValueCommit`, `FormattedTextField`'s `onEditValidChange` and `Tree`'s `onWillExpand`
@@ -292,16 +279,12 @@ A callback that reports an action rather than a state - `Button`'s `onClick`, `M
 and is still required: a button whose click goes nowhere is as inert as a checkbox that cannot be
 ticked. `onClose` is the sharpest case: an internal frame's close control is controlled - the frame
 never closes itself - so a frame declared without `onClose` shows a close button that does nothing.
-Being required, an action callback leads, in the slot the raw-listener overload gives its listener:
-`Button(text, onClick, modifier = ...)` beside `Button(text, actionListener, modifier = ...)`.
+Being required, an action callback leads: `Button(text, onClick, modifier = ...)`.
 
 The trailing position never holds a callback. It is the slot the caller fills with what the component
 shows: a composable content block, as `TabbedPane` and `SplitPane` trail with; a scope builder, as
 `RadioGroup` does; or a draw block - `Canvas(modifier = ..., onDraw)` trails with `onDraw` because
-what it paints is content, not a report. A raw listener cannot trail anyway - the lint's trailing
-exemption is for a function type, and a SAM interface such as `ActionListener` is not one, so a
-required listener behind `modifier` fails the lint - and holding the lambda overload to the same rule
-is what keeps the two overloads in step. A modifier is the exception: it has no content slot to
+what it paints is content, not a report. A modifier is the exception: it has no content slot to
 reserve, so `SwingModifier.onKeyStroke { }` and `SwingModifier.actionListener { }` keep the trailing
 lambda, the way `Modifier.clickable { }` does.
 

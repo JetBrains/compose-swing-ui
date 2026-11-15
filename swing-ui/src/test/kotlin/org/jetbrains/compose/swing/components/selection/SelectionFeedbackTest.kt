@@ -5,6 +5,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.listener.listSelectionListener
+import org.jetbrains.compose.swing.modifier.listener.treeSelectionListener
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -631,7 +634,7 @@ class SelectionFeedbackTest {
         val failure = IllegalStateException("the list narrowing report fails")
         val listener = ListSelectionListener { if (failing) throw failure }
         setContent {
-            ListBox(items = items, listSelectionListener = listener)
+            ListBox(items = items, modifier = SwingModifier.listSelectionListener(listener))
         }
 
         val list = onNodeOfType<JList<*>>().fetch()
@@ -665,7 +668,7 @@ class SelectionFeedbackTest {
             Tree(
                 root = "root of $leafCount",
                 children = { if (it.startsWith("root")) leaves.take(leafCount) else emptyList() },
-                treeSelectionListener = listener,
+                modifier = SwingModifier.treeSelectionListener(listener),
             )
         }
 

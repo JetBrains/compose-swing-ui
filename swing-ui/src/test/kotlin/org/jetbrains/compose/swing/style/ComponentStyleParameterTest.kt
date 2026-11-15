@@ -4,6 +4,7 @@ package org.jetbrains.compose.swing.style
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.ComboBox
 import org.jetbrains.compose.swing.components.Label
@@ -48,6 +49,7 @@ import org.jetbrains.compose.swing.components.text.PasswordField
 import org.jetbrains.compose.swing.components.text.TextArea
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.components.text.TextPane
+import org.jetbrains.compose.swing.components.text.rememberDocumentState
 import org.jetbrains.compose.swing.composeMenu
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
@@ -65,6 +67,7 @@ import javax.swing.JScrollPane
 import javax.swing.JTable
 import javax.swing.JTree
 import javax.swing.table.DefaultTableModel
+import javax.swing.text.StyledEditorKit
 import javax.swing.tree.DefaultMutableTreeNode
 import javax.swing.tree.DefaultTreeModel
 import kotlin.test.assertEquals
@@ -261,7 +264,7 @@ private fun selectionAndTextComponentCases(): List<ComponentCase> = listOf(
         EditorPane(markup = "x", onLinkActivate = {}, modifier = modifier, style = style)
     },
     ComponentCase("TextPane") { modifier, style ->
-        TextPane(value = "x", onValueChange = {}, modifier = modifier, style = style)
+        TextPane(state = rememberDocumentState(remember { StyledEditorKit() }, "x"), modifier = modifier, style = style)
     },
     ComponentCase("FormattedTextField") { modifier, style ->
         FormattedTextField(value = 1, onValueChange = {}, modifier = modifier, style = style)

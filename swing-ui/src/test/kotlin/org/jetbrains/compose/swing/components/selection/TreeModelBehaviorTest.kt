@@ -9,7 +9,6 @@ import io.mockk.mockk
 import io.mockk.verify
 import org.jetbrains.compose.swing.countTests
 import org.jetbrains.compose.swing.fixtures.components.selection.TreeModelFixture
-import org.jetbrains.compose.swing.fixtures.components.selection.TreeModelListenerFixture
 import org.jetbrains.compose.swing.fixtures.components.selection.TreeModelStateFixture
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.mouseListener
@@ -230,12 +229,6 @@ class TreeModelBehaviorTest {
 
     @TestFactory
     fun counts() = TreeModelFixture.countTests()
-
-    @TestFactory
-    fun treeModelListenerRawSwing() = TreeModelListenerFixture.rawSwingTests()
-
-    @TestFactory
-    fun treeModelListenerCounts() = TreeModelListenerFixture.countTests()
 
     @TestFactory
     fun treeModelStateRawSwing() = TreeModelStateFixture.rawSwingTests()

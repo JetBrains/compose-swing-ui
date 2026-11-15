@@ -5,7 +5,6 @@
 package org.jetbrains.compose.swing.components
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.annotations.SwingComponentLibraryApi
@@ -16,9 +15,7 @@ import org.jetbrains.compose.swing.components.style.ComboBoxStyleScope
 import org.jetbrains.compose.swing.components.style.ComboBoxes
 import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.listener.ListenerRegistration
 import org.jetbrains.compose.swing.modifier.listener.actionListener
-import org.jetbrains.compose.swing.modifier.listener.listener
 import org.jetbrains.compose.swing.modifier.property
 import org.jetbrains.compose.swing.node.MirrorState
 import org.jetbrains.compose.swing.node.SwingNode
@@ -29,9 +26,6 @@ import org.jetbrains.compose.swing.style.ComponentStyleScope
 import org.jetbrains.compose.swing.style.SwingStyle
 import org.jetbrains.compose.swing.style.nestingStyleKind
 import org.jetbrains.compose.swing.style.styleable
-import java.awt.event.ActionListener
-import java.awt.event.ItemEvent
-import java.awt.event.ItemListener
 import java.util.Vector
 import javax.swing.ComboBoxModel
 import javax.swing.DefaultComboBoxModel
@@ -98,69 +92,6 @@ public fun <T> ComboBox(
 }
 
 /**
- * A `ComboBox` driven by a raw [ActionListener] instead of an `onSelectionChange` lambda. The
- * [actionListener] is attached as-is and removed on the same instance; pass a stable instance
- * (e.g. `remember {}`) to avoid churn. Being attached as-is, it is notified of every action event the
- * combo box fires, including the one that applies [selectedItem]. [selectedItem] is declared, applied
- * and re-asserted as on the `onSelectionChange`-driven overload.
- *
- * @param items the list of items to display
- * @param selectedItem the selected item; `null` selects nothing, as does an item the current [items] do
- *   not contain
- * @param actionListener the listener notified of every action event the combo box fires
- * @param modifier the [SwingModifier] applied to the underlying component
- * @param style the [SwingStyle] applied to the underlying component
- * @param editable whether the user can type a value into the combo box's editor; `false` by default.
- *   An editor commit reaches [actionListener] under the `"comboBoxEdited"` action command, carrying
- *   whatever was typed as the combo box's selected item
- * @param maximumRowCount the maximum number of items the popup shows before it scrolls, or `null` to
- *   leave the count the box already carries
- * @param itemContent optional composable cell rendered per item against a [ListItemScope]; `null` keeps
- *   the default `toString` rendering. The display area composes a cell only for one of [items]: text
- *   typed into an [editable] editor renders empty there on the pass that turns [editable] off, until
- *   the next writes [selectedItem] back
- * @see javax.swing.JComboBox
- */
-@Composable
-public fun <T> ComboBox(
-    items: List<T>,
-    selectedItem: T?,
-    actionListener: ActionListener,
-    modifier: SwingModifier = SwingModifier,
-    style: SwingStyle<ComboBoxStyleScope> = SwingStyle,
-    editable: Boolean = false,
-    maximumRowCount: Int? = null,
-    itemContent: (@Composable ListItemScope.(item: T) -> Unit)? = null,
-) {
-    val declaredItems = rememberDeclaredList(items)
-    val mirror = rememberMirrorState(selectedItem)
-    val currentItems = rememberUpdatedState(declaredItems)
-    // The caller's listener is attached as-is, and is the only action listener on the combo box. The
-    // mirror rides the item-selection channel instead, so the declared selection still settles against
-    // wherever the combo box lands, whether that is the user's own choice or the caller's own write back.
-    val itemMirror =
-        remember(mirror, currentItems) {
-            ItemListener { event ->
-                if (event.stateChange == ItemEvent.SELECTED) {
-                    mirror.observed(currentItems.value.selectionOf(event.item))
-                }
-            }
-        }
-    ComboBoxNode(
-        modifier =
-            modifier
-                .actionListener(actionListener)
-                .listener(itemMirror, COMBO_ITEM_SELECTION),
-        style = style,
-        editable = editable,
-        maximumRowCount = maximumRowCount,
-        itemContent = itemContent,
-    ) {
-        installItems(declaredItems, selectedItem, mirror)
-    }
-}
-
-/**
  * A `ComboBox` driven by a caller-owned [ComboBoxModel]. The model owns both the items and the
  * selection, so this overload is observation-only: it renders the model and reports selection changes
  * through [onSelectionChange] without ever writing the selection back into the model. Swapping the
@@ -209,52 +140,9 @@ public fun <T> ComboBox(
 }
 
 /**
- * A model-driven `ComboBox` driven by a raw [ActionListener] instead of an `onSelectionChange` lambda.
- * The [model] owns its items and selection and is never mutated by the library. The [actionListener] is
- * attached as-is and removed on the same instance; pass a stable instance (e.g. `remember {}`) to avoid
- * churn. Swapping the [model] instance installs the new model verbatim.
- *
- * @param model the combo box model to render; owns its items and selection
- * @param actionListener the listener notified of every action event the combo box fires
- * @param modifier the [SwingModifier] applied to the underlying component
- * @param style the [SwingStyle] applied to the underlying component
- * @param editable whether the user can type a value into the combo box's editor; `false` by default.
- *   An editor commit reaches [actionListener] under the `"comboBoxEdited"` action command, carrying
- *   whatever was typed as the combo box's selected item
- * @param maximumRowCount the maximum number of items the popup shows before it scrolls, or `null` to
- *   leave the count the box already carries
- * @param itemContent optional composable cell rendered per item against a [ListItemScope]; `null` keeps
- *   the default `toString` rendering. The display area composes a cell only for a value the [model]
- *   lists among its elements. A selection outside them leaves it empty, as does text typed into an
- *   [editable] editor
- * @see javax.swing.JComboBox
- */
-@Composable
-public fun <T> ComboBox(
-    model: ComboBoxModel<T>,
-    actionListener: ActionListener,
-    modifier: SwingModifier = SwingModifier,
-    style: SwingStyle<ComboBoxStyleScope> = SwingStyle,
-    editable: Boolean = false,
-    maximumRowCount: Int? = null,
-    itemContent: (@Composable ListItemScope.(item: T) -> Unit)? = null,
-) {
-    ComboBoxNode(
-        modifier = modifier.actionListener(actionListener),
-        style = style,
-        editable = editable,
-        maximumRowCount = maximumRowCount,
-        itemContent = itemContent,
-    ) {
-        set(model) { this.model = it }
-    }
-}
-
-/**
  * The `JComboBox` node every [ComboBox] overload renders: all of it but the content, which
- * [installContent] declares - a declarative items list in one family of overloads, the caller's own model
- * in the other. [modifier] already carries every listener the combo box needs, the caller's own raw
- * listener included where a raw overload is driving it.
+ * [installContent] declares - a declarative items list in one overload, the caller's own model in the
+ * other. [modifier] already carries every listener the combo box needs.
  *
  * Inlined into its caller, so the two share one restart scope.
  */
@@ -375,13 +263,6 @@ private fun <T> applySelection(
     if (items.selectionOf(comboBox.selectedItem) == selection) return
     comboBox.selectedItem = selection
 }
-
-private val COMBO_ITEM_SELECTION =
-    ListenerRegistration<JComboBox<*>, ItemListener>(
-        name = "itemListener",
-        { component, listener -> component.addItemListener(listener) },
-        { component, listener -> component.removeItemListener(listener) },
-    )
 
 /**
  * The rows a combo box popup shows. The `ComboBox.maximumRowCount` key cannot answer for it: the count

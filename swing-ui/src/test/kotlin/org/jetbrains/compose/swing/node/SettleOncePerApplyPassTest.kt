@@ -6,6 +6,8 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Slider
 import org.jetbrains.compose.swing.core.TracedTest
+import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.listener.changeListener
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JSlider
@@ -39,7 +41,13 @@ class SettleOncePerApplyPassTest : TracedTest() {
         val recorder = ChangeListener { event -> values += (event.source as JSlider).value }
         var declared by mutableIntStateOf(DECLARED)
         setContent {
-            Slider(value = declared, changeListener = recorder, min = MIN, max = MAX)
+            Slider(
+                value = declared,
+                onValueChange = {},
+                modifier = SwingModifier.changeListener(recorder),
+                min = MIN,
+                max = MAX,
+            )
         }
         awaitIdle()
         mainClock.autoAdvance = false
@@ -79,7 +87,13 @@ class SettleOncePerApplyPassTest : TracedTest() {
         val recorder = ChangeListener { event -> values += (event.source as JSlider).value }
         var declared by mutableIntStateOf(DECLARED)
         setContent {
-            Slider(value = declared, changeListener = recorder, min = MIN, max = MAX)
+            Slider(
+                value = declared,
+                onValueChange = {},
+                modifier = SwingModifier.changeListener(recorder),
+                min = MIN,
+                max = MAX,
+            )
         }
         awaitIdle()
         mainClock.autoAdvance = false
@@ -127,7 +141,7 @@ class SettleOncePerApplyPassTest : TracedTest() {
     fun aDeclarationTheSliderCoercesSettlesRatherThanOscillating() = runComposeSwingTest {
         var declared by mutableIntStateOf(DECLARED)
         setContent {
-            Slider(value = declared, changeListener = {}, min = MIN, max = MAX)
+            Slider(value = declared, onValueChange = {}, min = MIN, max = MAX)
         }
         awaitIdle()
 

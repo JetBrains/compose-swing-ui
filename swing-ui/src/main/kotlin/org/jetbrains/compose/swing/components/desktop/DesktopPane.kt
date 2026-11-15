@@ -38,7 +38,6 @@ import java.beans.PropertyChangeListener
 import java.beans.PropertyVetoException
 import javax.swing.JDesktopPane
 import javax.swing.JInternalFrame
-import javax.swing.event.InternalFrameListener
 
 /**
  * The desktop of a multi-document application, realized as a `JDesktopPane`: the surface the internal
@@ -64,8 +63,8 @@ import javax.swing.event.InternalFrameListener
  * value back into the state.
  *
  * A frame's window transitions (opened, closing, closed, activated, deactivated, and iconified and
- * deiconified again) are among the events the `InternalFrame` overloads taking an [InternalFrameListener]
- * deliver.
+ * deiconified again) are observed by passing `SwingModifier.internalFrameListener(...)` as the frame's
+ * `modifier`.
  *
  * ```
  * val editor = rememberInternalFrameState(bounds = Rectangle(0, 0, 300, 200))
@@ -179,33 +178,6 @@ public sealed interface DesktopPaneScope {
     )
 
     /**
-     * Declares one internal frame driven by a raw [InternalFrameListener] instead of an `onClose`
-     * lambda. The [internalFrameListener] is attached as-is and removed on the same instance; pass a
-     * stable instance (e.g. `remember {}`) to avoid churn. Use this overload to observe the full set of
-     * internal-frame events (opened, closing, closed, iconified, deiconified, activated, deactivated);
-     * the close control stays controlled, so remove the frame from the composition to actually close it.
-     *
-     * @param title the text shown in the frame's title bar
-     * @param bounds the frame's position and size within the desktop
-     * @param internalFrameListener the listener notified of the frame's window events
-     * @param modifier the [SwingModifier] applied to the frame
-     * @param style the [SwingStyle] applied to the frame
-     * @param controls which window controls the frame shows; none by default
-     * @param content the composable shown in the frame's body; see [InternalFrameScope]
-     * @see javax.swing.JInternalFrame
-     */
-    @Composable
-    public fun InternalFrame(
-        title: @Nls String,
-        bounds: Rectangle,
-        internalFrameListener: InternalFrameListener,
-        modifier: SwingModifier = SwingModifier,
-        style: SwingStyle<ContainerStyleScope> = SwingStyle,
-        controls: InternalFrameControls = InternalFrameControls(),
-        content: @Composable InternalFrameScope.() -> Unit,
-    )
-
-    /**
      * Declares one internal frame whose geometry and window state are driven by the hoisted [state].
      * Assigning to [InternalFrameState.bounds] moves and resizes the frame, assigning to
      * [InternalFrameState.iconified] iconifies or deiconifies it and assigning to
@@ -229,33 +201,6 @@ public sealed interface DesktopPaneScope {
         title: @Nls String,
         state: InternalFrameState,
         onClose: () -> Unit,
-        modifier: SwingModifier = SwingModifier,
-        style: SwingStyle<ContainerStyleScope> = SwingStyle,
-        controls: InternalFrameControls = InternalFrameControls(),
-        content: @Composable InternalFrameScope.() -> Unit,
-    )
-
-    /**
-     * Declares one internal frame whose geometry and window state are driven by the hoisted [state],
-     * and whose window events reach a raw [InternalFrameListener] instead of an `onClose` lambda. The
-     * [internalFrameListener] is attached as-is and removed on the same instance; pass a stable
-     * instance (e.g. `remember {}`) to avoid churn.
-     *
-     * @param title the text shown in the frame's title bar
-     * @param state the hoistable, observable geometry and window state of the frame, driving this frame
-     *   alone
-     * @param internalFrameListener the listener notified of the frame's window events
-     * @param modifier the [SwingModifier] applied to the frame
-     * @param style the [SwingStyle] applied to the frame
-     * @param controls which window controls the frame shows; none by default
-     * @param content the composable shown in the frame's body; see [InternalFrameScope]
-     * @see javax.swing.JInternalFrame
-     */
-    @Composable
-    public fun InternalFrame(
-        title: @Nls String,
-        state: InternalFrameState,
-        internalFrameListener: InternalFrameListener,
         modifier: SwingModifier = SwingModifier,
         style: SwingStyle<ContainerStyleScope> = SwingStyle,
         controls: InternalFrameControls = InternalFrameControls(),
@@ -286,29 +231,6 @@ private class DesktopPaneScopeImpl : DesktopPaneScope {
             declared = PlacedFrameState(bounds),
             controls = controls,
             onClose = onClose,
-            rawListener = null,
-            modifier = modifier,
-            style = style,
-            content = content,
-        )
-    }
-
-    @Composable
-    override fun InternalFrame(
-        title: @Nls String,
-        bounds: Rectangle,
-        internalFrameListener: InternalFrameListener,
-        modifier: SwingModifier,
-        style: SwingStyle<ContainerStyleScope>,
-        controls: InternalFrameControls,
-        content: @Composable InternalFrameScope.() -> Unit,
-    ) {
-        FrameNode(
-            title = title,
-            declared = PlacedFrameState(bounds),
-            controls = controls,
-            onClose = null,
-            rawListener = internalFrameListener,
             modifier = modifier,
             style = style,
             content = content,
@@ -331,30 +253,6 @@ private class DesktopPaneScopeImpl : DesktopPaneScope {
             declared = HoistedFrameState(state),
             controls = controls,
             onClose = onClose,
-            rawListener = null,
-            modifier = modifier,
-            style = style,
-            content = content,
-        )
-    }
-
-    @Composable
-    override fun InternalFrame(
-        title: @Nls String,
-        state: InternalFrameState,
-        internalFrameListener: InternalFrameListener,
-        modifier: SwingModifier,
-        style: SwingStyle<ContainerStyleScope>,
-        controls: InternalFrameControls,
-        content: @Composable InternalFrameScope.() -> Unit,
-    ) {
-        StateClaim(state)
-        FrameNode(
-            title = title,
-            declared = HoistedFrameState(state),
-            controls = controls,
-            onClose = null,
-            rawListener = internalFrameListener,
             modifier = modifier,
             style = style,
             content = content,
@@ -421,9 +319,7 @@ private class PlacedFrameState(
  * window state reactively, and writes the user's own moves, resizes, iconifications and maximizations back
  * into the declared state. Hosts the declared body as composable content.
  *
- * Exactly one of [onClose]/[rawListener] is set: the `onClose` overloads supply the controlled close
- * callback, which a listener installed here delivers, and the raw overloads supply the listener instance
- * directly.
+ * [onClose] is the controlled close callback, which a listener installed here delivers.
  *
  * Inlined into its caller, so the two share one restart scope.
  */
@@ -433,18 +329,15 @@ private inline fun FrameNode(
     title: @Nls String,
     declared: DeclaredFrameState,
     controls: InternalFrameControls,
-    noinline onClose: (() -> Unit)?,
-    rawListener: InternalFrameListener?,
+    noinline onClose: () -> Unit,
     modifier: SwingModifier,
     style: SwingStyle<ContainerStyleScope>,
     noinline content: @Composable InternalFrameScope.() -> Unit,
 ) {
-    // The onClose overload routes the close control through a listener that reads the declared callback
-    // when the frame reports closing (the close operation stays do-nothing, so the frame is only closed
-    // by being removed from the composition). The raw overload installs the supplied listener instance.
-    val closeChannel =
-        rawListener?.let { SwingModifier.internalFrameListener(it) }
-            ?: SwingModifier.internalFrameListener(onFrameClosing = { onClose?.invoke() })
+    // The close control is routed through a listener that reads the declared callback when the frame
+    // reports closing (the close operation stays do-nothing, so the frame is only closed by being
+    // removed from the composition).
+    val closeChannel = SwingModifier.internalFrameListener(onFrameClosing = { onClose() })
     // Read here, in the composition of the frame these values belong to: a hoisted state receives the
     // user's every move, resize, iconification and maximization, and reading it here is what keeps each of
     // those recomposing this one frame instead of the desktop and every frame standing on it.

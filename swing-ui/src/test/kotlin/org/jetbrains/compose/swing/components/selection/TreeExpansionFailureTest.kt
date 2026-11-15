@@ -4,7 +4,6 @@ package org.jetbrains.compose.swing.components.selection
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import kotlinx.coroutines.DisposableHandle
 import org.jetbrains.compose.swing.components.Label
@@ -17,9 +16,6 @@ import org.junit.jupiter.api.TestFactory
 import javax.swing.JLabel
 import javax.swing.JPanel
 import javax.swing.JTree
-import javax.swing.event.TreeExpansionEvent
-import javax.swing.event.TreeExpansionListener
-import javax.swing.event.TreeSelectionListener
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
@@ -72,22 +68,6 @@ class TreeExpansionFailureTest {
         listOf<Pair<String, @Composable (heard: () -> Unit) -> Unit>>(
             "onExpansionChange" to { heard ->
                 Tree(root = sample, children = { it.children }, label = { it.name }, onExpansionChange = { heard() })
-            },
-            "treeExpansionListener" to { heard ->
-                Tree(
-                    root = sample,
-                    children = { it.children },
-                    treeSelectionListener = remember { TreeSelectionListener { } },
-                    label = { it.name },
-                    treeExpansionListener =
-                        remember {
-                            object : TreeExpansionListener {
-                                override fun treeExpanded(event: TreeExpansionEvent) = heard()
-
-                                override fun treeCollapsed(event: TreeExpansionEvent): Unit = Unit
-                            }
-                        },
-                )
             },
         ).map { (name, declared) ->
             DynamicTest.dynamicTest(name) {

@@ -4,13 +4,15 @@ package org.jetbrains.compose.swing.components.text
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.neverEqualPolicy
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import io.mockk.every
 import io.mockk.mockk
 import org.jetbrains.compose.swing.countTests
 import org.jetbrains.compose.swing.fixtures.components.text.EditorPaneFixture
-import org.jetbrains.compose.swing.fixtures.components.text.EditorPaneListenerFixture
 import org.jetbrains.compose.swing.fixtures.components.text.EditorPaneStateFixture
+import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.listener.hyperlinkListener
 import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.test.SwingMatcher.Companion.isEditable
 import org.jetbrains.compose.swing.test.interaction.assertProperty
@@ -27,6 +29,7 @@ import javax.swing.event.DocumentListener
 import javax.swing.event.HyperlinkEvent
 import javax.swing.event.HyperlinkListener
 import javax.swing.text.Document
+import javax.swing.text.StyledEditorKit
 import javax.swing.text.html.HTMLDocument
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -50,7 +53,7 @@ class EditorTextPaneTest {
 
     @Test
     fun anUndeclaredTextPaneIsTheWidgetsOwn() = runComposeSwingTest {
-        setContent { TextPane(value = "", onValueChange = {}) }
+        setContent { TextPane(state = rememberDocumentState(remember { StyledEditorKit() }, "")) }
         onNodeOfType<JTextPane>().assertTreeMatches(JTextPane())
     }
 
@@ -204,7 +207,8 @@ class EditorTextPaneTest {
         setContent {
             EditorPane(
                 markup = "<p><a href=\"/q3\">details</a></p>",
-                hyperlinkListener = listener,
+                onLinkActivate = {},
+                modifier = SwingModifier.hyperlinkListener(listener),
                 contentType = "text/html",
             )
         }
@@ -284,33 +288,21 @@ class EditorTextPaneTest {
 
     @Test
     fun textPaneRendersValueAndReportsEdits() = runComposeSwingTest {
-        var text by mutableStateOf("hello")
-        val reported = mutableListOf<String>()
+        lateinit var state: DocumentState
         setContent {
-            TextPane(
-                value = text,
-                onValueChange = {
-                    reported += it
-                    text = it
-                },
-            )
+            state = rememberDocumentState(remember { StyledEditorKit() }, "hello")
+            TextPane(state = state)
         }
         val pane = onNodeOfType<JTextPane>()
         pane.assertTextEquals("hello")
 
         pane.performTextReplacement("world")
-        assertEquals("world", reported.last(), "onValueChange should report the edited text")
+        assertEquals("world", state.text.toString(), "the state should report the edited text")
         pane.assertTextEquals("world")
     }
 
     @TestFactory
     fun editorPaneRawSwing() = EditorPaneFixture.rawSwingTests()
-
-    @TestFactory
-    fun editorPaneListenerRawSwing() = EditorPaneListenerFixture.rawSwingTests()
-
-    @TestFactory
-    fun editorPaneListenerCounts() = EditorPaneListenerFixture.countTests()
 
     @TestFactory
     fun editorPaneStateRawSwing() = EditorPaneStateFixture.rawSwingTests()

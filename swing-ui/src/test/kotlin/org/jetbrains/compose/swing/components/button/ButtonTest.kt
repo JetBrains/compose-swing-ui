@@ -6,7 +6,6 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.countTests
-import org.jetbrains.compose.swing.fixtures.components.button.ButtonActionListenerFixture
 import org.jetbrains.compose.swing.fixtures.components.button.ButtonFixture
 import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.style.enabled
@@ -83,10 +82,4 @@ class ButtonTest {
         awaitIdle()
         onNodeWithText("Toggle").assertIsNotEnabled()
     }
-
-    @TestFactory
-    fun buttonActionListenerRawSwing() = ButtonActionListenerFixture.rawSwingTests()
-
-    @TestFactory
-    fun buttonActionListenerCounts() = ButtonActionListenerFixture.countTests()
 }

@@ -18,7 +18,6 @@ import org.jetbrains.compose.swing.style.ComponentStyleScope
 import org.jetbrains.compose.swing.style.SwingStyle
 import org.jetbrains.compose.swing.style.nestingStyleKind
 import org.jetbrains.compose.swing.style.styleable
-import java.beans.PropertyChangeListener
 import javax.swing.JFormattedTextField
 import javax.swing.JFormattedTextField.AbstractFormatterFactory
 import javax.swing.text.DefaultFormatterFactory
@@ -114,65 +113,6 @@ public fun FormattedTextField(
 }
 
 /**
- * A [FormattedTextField] driven by a raw [PropertyChangeListener] (bound to the `value` property)
- * instead of an `onValueChange` lambda. The listener is attached as-is and removed on the same
- * instance; pass a stable instance (e.g. `remember {}`) to avoid churn. Being attached as-is, it is
- * notified of every change to the `value` property, including the one that applies [value].
- *
- * This field is strictly controlled: a value the field commits that is not followed by [value] moving
- * to match is settled back onto the declared value on the very next pass, so the field never ends up
- * holding a value the caller has not adopted.
- *
- * Installing a formatter re-renders the committed value through it, which replaces characters the user
- * has typed but not committed. A [formatterFactory] is installed whenever a different instance is
- * declared, so hold one instance across recompositions (e.g. `remember { ... }`) and supply a new one only
- * where the formatting is meant to change.
- *
- * @param value the committed, typed value
- * @param valuePropertyChangeListener the listener notified when the committed `value` changes
- * @param modifier the [SwingModifier] applied to the underlying component
- * @param style the [SwingStyle] applied to the underlying component
- * @param formatterFactory the factory producing the field's formatter, or `null` for the default
- * @param onEditValidChange callback invoked with whether the text now parses, each time that changes;
- *   nothing is reported by default
- * @param focusLostBehavior what to do with a partial edit when the field loses focus (a
- *   [FocusLostBehavior] `JFormattedTextField` constant); `COMMIT_OR_REVERT` by default, which commits
- *   an edit that parses and discards one that does not, restoring the last committed value
- * @param columns the preferred width in columns; `0` by default, sizing to the content
- * @param editable whether the user can type into the field; `true` by default
- * @see FormattedTextField the [FormattedValueState]-driven overload
- * @see javax.swing.JFormattedTextField
- */
-@Composable
-public fun FormattedTextField(
-    value: Any?,
-    valuePropertyChangeListener: PropertyChangeListener,
-    modifier: SwingModifier = SwingModifier,
-    style: SwingStyle<TextFieldStyleScope> = SwingStyle,
-    formatterFactory: AbstractFormatterFactory? = null,
-    onEditValidChange: (Boolean) -> Unit = {},
-    @FocusLostBehavior focusLostBehavior: Int = JFormattedTextField.COMMIT_OR_REVERT,
-    columns: Int = 0,
-    editable: Boolean = true,
-) {
-    val mirror = rememberMirrorState(value)
-    FormattedTextFieldNode(
-        value = value,
-        mirror = mirror,
-        modifier =
-            modifier
-                .propertyChangeListener("value", valuePropertyChangeListener)
-                .valueMirror(mirror)
-                .onEditValidity(onEditValidChange),
-        style = style,
-        formatterFactory = formatterFactory,
-        focusLostBehavior = focusLostBehavior,
-        columns = columns,
-        editable = editable,
-    )
-}
-
-/**
  * A [FormattedTextField] driven by a [FormattedValueState]. The field renders the state's value and
  * commits into it, and reports through the state whether the characters it currently shows parse. The
  * state is the single source of truth; there is no `onValueChange` and no `onEditValidChange`.
@@ -229,7 +169,7 @@ public fun FormattedTextField(
  * The `JFormattedTextField` node every [FormattedTextField] overload renders. [modifier] arrives
  * carrying the reporting each overload wires - the caller's own modifier first.
  *
- * Inlined into its caller, so the two share one restart scope.
+ * Inlined into its caller, so they share one restart scope.
  */
 @Suppress("NOTHING_TO_INLINE")
 @Composable
@@ -332,14 +272,6 @@ private fun SwingModifier.onValueCommit(onCommit: (Any?) -> Unit): SwingModifier
         // report.
         if (event.oldValue != event.newValue) onCommit(value)
     }
-
-/**
- * Feeds [mirror]'s mirror on every commit, alongside a caller's own raw listener, so the settlement the
- * node makes keeps comparing against the value the field holds now rather than a stale one from a commit
- * nothing else observed.
- */
-private fun SwingModifier.valueMirror(mirror: MirrorState<Any?>): SwingModifier =
-    propertyChangeListener<JFormattedTextField>("value") { mirror.observed(value) }
 
 /** Runs [onChange] with the field's edit validity each time the field reports it changed. */
 private fun SwingModifier.onEditValidity(onChange: (Boolean) -> Unit): SwingModifier =

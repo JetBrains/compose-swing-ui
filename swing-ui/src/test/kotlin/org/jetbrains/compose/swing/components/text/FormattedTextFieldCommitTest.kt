@@ -8,6 +8,8 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.UserChange
 import org.jetbrains.compose.swing.assertUnadoptedChangeIsNeverPainted
 import org.jetbrains.compose.swing.deliverEvent
+import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.listener.propertyChangeListener
 import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
@@ -180,7 +182,8 @@ class FormattedTextFieldCommitTest {
             val factory = remember { integerFactory() }
             FormattedTextField(
                 value = 1,
-                valuePropertyChangeListener = PropertyChangeListener { },
+                onValueChange = {},
+                modifier = SwingModifier.propertyChangeListener("value", PropertyChangeListener { }),
                 formatterFactory = factory,
                 onEditValidChange = { reported += it },
             )

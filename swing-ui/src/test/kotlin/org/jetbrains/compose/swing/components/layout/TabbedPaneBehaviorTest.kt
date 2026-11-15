@@ -13,7 +13,6 @@ import org.jetbrains.compose.swing.assertDeclaredChainCarriedOnce
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.countTests
-import org.jetbrains.compose.swing.fixtures.components.layout.TabbedPaneChangeListenerFixture
 import org.jetbrains.compose.swing.fixtures.components.layout.TabbedPaneFixture
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.rawSwingTests
@@ -740,12 +739,6 @@ class TabbedPaneBehaviorTest {
 
     @TestFactory
     fun counts() = TabbedPaneFixture.countTests()
-
-    @TestFactory
-    fun tabbedPaneChangeListenerRawSwing() = TabbedPaneChangeListenerFixture.rawSwingTests()
-
-    @TestFactory
-    fun tabbedPaneChangeListenerCounts() = TabbedPaneChangeListenerFixture.countTests()
 }
 
 /**

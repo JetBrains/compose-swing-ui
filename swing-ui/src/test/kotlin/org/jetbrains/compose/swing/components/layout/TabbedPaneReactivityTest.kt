@@ -11,6 +11,7 @@ import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.style.LabelStyleScope
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
+import org.jetbrains.compose.swing.modifier.listener.changeListener
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.style.ContainerStyleScope
 import org.jetbrains.compose.swing.style.SwingStyle
@@ -49,9 +50,8 @@ class TabbedPaneReactivityTest {
 
     private fun icon(): Icon = ImageIcon(BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB))
 
-    /** A listener that records the index the pane reports on every selection change. */
-    private fun recordingListener(into: MutableList<Int>): ChangeListener =
-        ChangeListener { event -> into += (event.source as JTabbedPane).selectedIndex }
+    /** A callback that records the index the pane reports on every selection change. */
+    private fun recordingCallback(into: MutableList<Int>): (Int) -> Unit = { index -> into += index }
 
     @Test
     fun theTabStripIsDrawnWhereTabPlacementSaysAndFollowsIt() = runComposeSwingTest {
@@ -383,11 +383,11 @@ class TabbedPaneReactivityTest {
         val secondEvents = mutableListOf<Int>()
         var useSecond by mutableStateOf(false)
         setContent {
-            val first = remember { recordingListener(firstEvents) }
-            val second = remember { recordingListener(secondEvents) }
+            val first = remember { recordingCallback(firstEvents) }
+            val second = remember { recordingCallback(secondEvents) }
             TabbedPane(
                 selectedIndex = 0,
-                changeListener = if (useSecond) second else first,
+                onSelectedIndexChange = if (useSecond) second else first,
                 style = roomForTheStrip,
             ) {
                 Label("1", SwingModifier.tab("One"))
@@ -407,7 +407,7 @@ class TabbedPaneReactivityTest {
     }
 
     @Test
-    fun theChangeListenerOverloadFollowsItsDeclaredStripValues() = runComposeSwingTest {
+    fun theSelectionOverloadFollowsItsDeclaredStripValues() = runComposeSwingTest {
         var placement by mutableIntStateOf(JTabbedPane.TOP)
         var policy by mutableIntStateOf(JTabbedPane.WRAP_TAB_LAYOUT)
         var selected by mutableIntStateOf(0)
@@ -415,7 +415,8 @@ class TabbedPaneReactivityTest {
             val listener = remember { ChangeListener { } }
             TabbedPane(
                 selectedIndex = selected,
-                changeListener = listener,
+                onSelectedIndexChange = {},
+                modifier = SwingModifier.changeListener(listener),
                 tabPlacement = placement,
                 tabLayoutPolicy = policy,
             ) {

@@ -5,22 +5,20 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import io.mockk.mockk
 import io.mockk.verify
 import org.jetbrains.compose.swing.countTests
 import org.jetbrains.compose.swing.fixtures.components.selection.TreeFixture
-import org.jetbrains.compose.swing.fixtures.components.selection.TreeListenerFixture
+import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.listener.treeExpansionListener
 import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.TestFactory
 import javax.swing.JTree
-import javax.swing.event.TreeExpansionEvent
 import javax.swing.event.TreeExpansionListener
-import javax.swing.event.TreeSelectionListener
 import javax.swing.tree.DefaultMutableTreeNode
 import javax.swing.tree.DefaultTreeModel
 import javax.swing.tree.TreePath
@@ -34,10 +32,6 @@ private data class Entry(
     val name: String,
     val children: List<Entry> = emptyList(),
 )
-
-/** The expansion listeners the library installed on the tree, as opposed to the tree UI's own. */
-private fun JTree.libraryExpansionListeners(): List<TreeExpansionListener> =
-    treeExpansionListeners.filter { it.javaClass.name.startsWith("org.jetbrains.compose.swing") }
 
 /**
  * Expansion is the user's, or held by a [TreeState]: [Tree] reports the expansion the user reaches, applies
@@ -615,19 +609,9 @@ class TreeExpansionTest {
             Tree(
                 root = deep,
                 children = { it.children },
-                treeSelectionListener = remember { TreeSelectionListener { } },
+                modifier = SwingModifier.treeExpansionListener(onTreeExpanded = { opened += it.path }),
                 label = { it.name },
                 selectedPaths = setOf(listOf(0, 0, 0)),
-                treeExpansionListener =
-                    remember {
-                        object : TreeExpansionListener {
-                            override fun treeExpanded(event: TreeExpansionEvent) {
-                                opened += event.path
-                            }
-
-                            override fun treeCollapsed(event: TreeExpansionEvent): Unit = Unit
-                        }
-                    },
             )
         }
 
@@ -637,47 +621,6 @@ class TreeExpansionTest {
             opened,
             "each node the tree opens to show the selection is announced, shallowest first",
         )
-    }
-
-    @Test
-    fun theExpansionListenerIsAlwaysInstalled() = runComposeSwingTest {
-        var listener by mutableStateOf<TreeExpansionListener?>(null)
-        setContent {
-            Tree(
-                root = sample,
-                children = { it.children },
-                treeSelectionListener = remember { TreeSelectionListener { } },
-                label = { it.name },
-                treeExpansionListener = listener,
-            )
-        }
-
-        val tree = onNodeOfType<JTree>()
-        tree.assertProperty(
-            1,
-            "the wrapper keeps its own listener installed to track expansion even with no listener declared",
-        ) { libraryExpansionListeners().size }
-
-        listener =
-            object : TreeExpansionListener {
-                override fun treeExpanded(event: TreeExpansionEvent): Unit = Unit
-
-                override fun treeCollapsed(event: TreeExpansionEvent): Unit = Unit
-            }
-        awaitIdle()
-
-        tree.assertProperty(
-            1,
-            "a declared listener replaces the wrapper's, not adds to it",
-        ) { libraryExpansionListeners().size }
-
-        listener = null
-        awaitIdle()
-
-        tree.assertProperty(
-            1,
-            "dropping the listener leaves the wrapper's own in place",
-        ) { libraryExpansionListeners().size }
     }
 
     @Test
@@ -718,10 +661,4 @@ class TreeExpansionTest {
 
     @TestFactory
     fun treeCounts() = TreeFixture.countTests()
-
-    @TestFactory
-    fun treeListenerRawSwing() = TreeListenerFixture.rawSwingTests()
-
-    @TestFactory
-    fun treeListenerCounts() = TreeListenerFixture.countTests()
 }

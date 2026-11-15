@@ -24,7 +24,6 @@ import org.jetbrains.compose.swing.components.style.icon
 import org.jetbrains.compose.swing.components.text.PasswordField
 import org.jetbrains.compose.swing.components.text.TextArea
 import org.jetbrains.compose.swing.components.text.TextField
-import org.jetbrains.compose.swing.components.text.rememberDocumentState
 import org.jetbrains.compose.swing.foundation.layout.ColumnScope
 import org.jetbrains.compose.swing.foundation.layout.Row
 import org.jetbrains.compose.swing.foundation.layout.fillMaxHeight
@@ -34,7 +33,6 @@ import org.jetbrains.compose.swing.samples.widgets.ExampleCard
 import org.jetbrains.compose.swing.samples.widgets.SectionColumn
 import org.jetbrains.compose.swing.samples.widgets.SectionHeading
 import org.jetbrains.compose.swing.samples.widgets.rememberDotIcon
-import org.jetbrains.compose.swing.style.enabled
 import org.jetbrains.compose.swing.style.opaque
 import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.tooling.Preview
@@ -165,14 +163,13 @@ private fun ColumnScope.PasswordCard() {
 
 @Composable
 private fun ColumnScope.PasswordStateCard() {
-    ExampleCard("PasswordField (DocumentState)") {
-        val state = rememberDocumentState("hunter2")
+    ExampleCard("PasswordField (CharArray, initial value)") {
+        var secret by remember { mutableStateOf("hunter2".toCharArray()) }
         Panel {
             Label("Password:")
-            PasswordField(state = state, columns = 20)
-            Button("Undo", onClick = state::undo, style = { enabled(state.canUndo) })
+            PasswordField(value = secret, onValueChange = { secret = it }, columns = 20)
         }
-        Label("Length: ${state.text.length}")
+        Label("Length: ${secret.size}")
     }
 }
 

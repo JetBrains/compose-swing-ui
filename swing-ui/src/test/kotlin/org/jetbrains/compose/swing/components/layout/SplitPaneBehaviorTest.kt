@@ -8,7 +8,6 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.assertDeclaredChainCarriedOnce
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.countTests
-import org.jetbrains.compose.swing.fixtures.components.layout.SplitPaneDividerLocationListenerFixture
 import org.jetbrains.compose.swing.fixtures.components.layout.SplitPaneFixture
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.rawSwingTests
@@ -557,12 +556,6 @@ class SplitPaneBehaviorTest {
 
     @TestFactory
     fun splitPaneCounts() = SplitPaneFixture.countTests()
-
-    @TestFactory
-    fun splitPaneDividerLocationListenerRawSwing() = SplitPaneDividerLocationListenerFixture.rawSwingTests()
-
-    @TestFactory
-    fun splitPaneDividerLocationListenerCounts() = SplitPaneDividerLocationListenerFixture.countTests()
 }
 
 /** The divider size the look and feel under test installs from its style, apart from any declared one. */

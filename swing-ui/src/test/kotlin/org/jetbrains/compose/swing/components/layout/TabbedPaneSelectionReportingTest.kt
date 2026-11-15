@@ -545,11 +545,10 @@ class TabbedPaneSelectionReportingTest {
         var failing by mutableStateOf(false)
         val failure = IllegalStateException("the fallback report fails")
         setContent {
-            val listener =
-                remember {
-                    ChangeListener { if (failing) throw failure }
-                }
-            TabbedPane(selectedIndex = selected, changeListener = listener) {
+            TabbedPane(
+                selectedIndex = selected,
+                onSelectedIndexChange = { if (failing) throw failure },
+            ) {
                 Label("1", SwingModifier.tab("One"))
                 Label("2", SwingModifier.tab("Two"))
                 if (showThird) Label("3", SwingModifier.tab("Three"))
@@ -569,30 +568,6 @@ class TabbedPaneSelectionReportingTest {
         selected = 0
         awaitIdle()
         assertEquals(0, pane.selectedIndex, "a later declared selection must still reach the pane")
-    }
-
-    @Test
-    fun theChangeListenerOverloadReportsOnlyTheSelection() = runComposeSwingTest {
-        val reported = mutableListOf<Int>()
-        var selected by mutableIntStateOf(2)
-        setContent {
-            val listener =
-                remember { ChangeListener { event -> reported += (event.source as JTabbedPane).selectedIndex } }
-            TabbedPane(selectedIndex = selected, changeListener = listener, style = roomForTheStrip) {
-                Label("1", SwingModifier.tab("One"))
-                Label("2", SwingModifier.tab("Two"))
-                Label("3", SwingModifier.tab("Three"))
-            }
-        }
-
-        assertEquals(emptyList(), reported, "opening on the declared tab is not an interaction")
-
-        selected = 1
-        awaitIdle()
-        assertEquals(emptyList(), reported, "the composition's own selection must not come back as a change")
-
-        onNodeOfType<JTabbedPane>().performTabClick(0)
-        assertEquals(listOf(0), reported, "the selection the user makes should reach the declared listener")
     }
 
     @Test

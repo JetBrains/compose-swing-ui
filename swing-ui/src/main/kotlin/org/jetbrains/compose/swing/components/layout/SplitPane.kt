@@ -19,7 +19,6 @@ import org.jetbrains.compose.swing.style.NestedStyleProviderScope
 import org.jetbrains.compose.swing.style.SwingStyle
 import org.jetbrains.compose.swing.style.nestingStyleKind
 import org.jetbrains.compose.swing.style.styleable
-import java.beans.PropertyChangeListener
 import javax.swing.JSplitPane
 
 /**
@@ -115,68 +114,9 @@ public fun SplitPane(
 }
 
 /**
- * A [SplitPane] driven by a raw [PropertyChangeListener] instead of an `onDividerLocationChange`
- * lambda. The listener is attached for the `dividerLocation` property as-is and removed on the same
- * instance; pass a stable instance (e.g. `remember {}`) to avoid churn. Attached as-is, it hears every
- * `dividerLocation` change the pane publishes, including the pane's own writes and, for a negative
- * (default) [dividerLocation], the position that request resolves to once realized on screen -
- * `old=-1 new=<resolved>` - indistinguishable from a user's move.
+ * The `JSplitPane` node [SplitPane] renders.
  *
- * @param dividerLocationListener the listener notified when the `dividerLocation` property changes
- * @param modifier the [SwingModifier] applied to the underlying `JSplitPane`
- * @param style the [SwingStyle] applied to the underlying `JSplitPane`
- * @param orientation the axis along which the two sides are arranged; the default
- *   `HORIZONTAL_SPLIT` puts them side by side, with the divider running top to bottom
- * @param dividerLocation the divider offset (controlled), a value the look and feel reads; a
- *   negative offset - the default `-1` is `JSplitPane`'s own initial divider location - resets the
- *   divider to honor the sides' preferred sizes
- * @param resizeWeight how extra space is shared when the pane resizes, from `0.0` (all to the second
- *   side) to `1.0` (all to the first side); the default `0.0` leaves the first side the size it has,
- *   and a weight outside `0.0`..`1.0` is refused
- * @param oneTouchExpandable whether the divider carries a widget that collapses either side in one
- *   click; `null` leaves the choice to the installed look and feel, withdrawing a declared choice hands
- *   it back, and a look and feel that does not support one-touch expanding ignores it
- * @param dividerSize the divider thickness; `null` leaves the size to the installed look and
- *   feel, and withdrawing a declared size hands it back
- * @param continuousLayout whether the two sides are laid out continuously as the divider is dragged
- *   rather than once it is released, where the drag draws an outline of where the divider is heading;
- *   `null` leaves the choice to the installed look and feel, and withdrawing a declared choice hands it
- *   back
- * @param content the composable content of the pane; see [SplitPaneScope]
- * @see javax.swing.JSplitPane
- */
-@Composable
-public fun SplitPane(
-    dividerLocationListener: PropertyChangeListener,
-    modifier: SwingModifier = SwingModifier,
-    style: SwingStyle<ContainerStyleScope> = SwingStyle,
-    @SplitOrientation orientation: Int = JSplitPane.HORIZONTAL_SPLIT,
-    dividerLocation: Int = -1,
-    resizeWeight: Double = 0.0,
-    oneTouchExpandable: Boolean? = null,
-    dividerSize: Int? = null,
-    continuousLayout: Boolean? = null,
-    content: @Composable SplitPaneScope.() -> Unit,
-) {
-    val mirror = rememberMirrorState(dividerLocation)
-    SplitPaneImpl(
-        modifier = modifier.propertyChangeListener(JSplitPane.DIVIDER_LOCATION_PROPERTY, dividerLocationListener),
-        style = style,
-        orientation = orientation,
-        dividerLocation = dividerLocation,
-        mirror = mirror,
-        resizeWeight = resizeWeight,
-        oneTouchExpandable = oneTouchExpandable,
-        dividerSize = dividerSize,
-        continuousLayout = continuousLayout,
-        content = content,
-    )
-}
-
-/**
- * The `JSplitPane` node both public [SplitPane] overloads render.
- *
- * Inlined into its caller, so the two share one restart scope.
+ * Inlined into its caller, so it shares the caller's restart scope.
  */
 @Suppress("NOTHING_TO_INLINE")
 @Composable

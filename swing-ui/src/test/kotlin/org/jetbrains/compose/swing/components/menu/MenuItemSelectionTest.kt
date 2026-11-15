@@ -3,18 +3,14 @@ package org.jetbrains.compose.swing.components.menu
 
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.composeMenu
 import org.jetbrains.compose.swing.countTests
-import org.jetbrains.compose.swing.fixtures.components.menu.CheckBoxMenuItemActionListenerFixture
 import org.jetbrains.compose.swing.fixtures.components.menu.CheckBoxMenuItemFixture
-import org.jetbrains.compose.swing.fixtures.components.menu.RadioButtonMenuItemActionListenerFixture
 import org.jetbrains.compose.swing.fixtures.components.menu.RadioButtonMenuItemFixture
 import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.TestFactory
-import java.awt.event.ActionListener
 import javax.swing.JCheckBoxMenuItem
 import javax.swing.JRadioButtonMenuItem
 import kotlin.test.Test
@@ -28,9 +24,7 @@ import kotlin.test.assertTrue
  *
  * The state is controlled: an item shows what the composition declares it shows. A choice the caller
  * adopts stays on the item, and one the caller does not adopt is put back by the pass the choice itself
- * provokes, so the item never keeps showing a state nothing declares. Both overloads settle the same
- * way - the raw-listener one hands the caller's listener the gesture and still puts the declared state
- * back.
+ * provokes, so the item never keeps showing a state nothing declares.
  */
 class MenuItemSelectionTest {
     @Test
@@ -77,22 +71,18 @@ class MenuItemSelectionTest {
     }
 
     @Test
-    fun theRawListenerOverloadPutsBackACheckItsListenerDoesNotAdopt() = runComposeSwingTest {
+    fun aCheckTheCallerReportsButDoesNotAdoptIsPutBack() = runComposeSwingTest {
         val reported = mutableListOf<Boolean>()
         val popup =
             composeMenu {
-                val listener =
-                    remember {
-                        ActionListener { event -> reported += (event.source as JCheckBoxMenuItem).isSelected }
-                    }
-                CheckBoxMenuItem(text = "Word wrap", checked = false, actionListener = listener)
+                CheckBoxMenuItem(text = "Word wrap", checked = false, onCheckedChange = { reported += it })
             }
 
         val item = popup.getComponent(0) as JCheckBoxMenuItem
         item.doClick()
         awaitIdle()
 
-        assertEquals(listOf(true), reported, "the raw listener sees the state the click produced")
+        assertEquals(listOf(true), reported, "the caller sees the state the click produced")
         assertFalse(item.isSelected, "the item shows the declared state again")
     }
 
@@ -140,22 +130,18 @@ class MenuItemSelectionTest {
     }
 
     @Test
-    fun theRawListenerOverloadPutsBackASelectionItsListenerDoesNotAdopt() = runComposeSwingTest {
+    fun aSelectionTheCallerReportsButDoesNotAdoptIsPutBack() = runComposeSwingTest {
         val reported = mutableListOf<Boolean>()
         val popup =
             composeMenu {
-                val listener =
-                    remember {
-                        ActionListener { event -> reported += (event.source as JRadioButtonMenuItem).isSelected }
-                    }
-                RadioButtonMenuItem(text = "Compact", selected = false, actionListener = listener)
+                RadioButtonMenuItem(text = "Compact", selected = false, onSelectedChange = { reported += it })
             }
 
         val item = popup.getComponent(0) as JRadioButtonMenuItem
         item.doClick()
         awaitIdle()
 
-        assertEquals(listOf(true), reported, "the raw listener sees the state the click produced")
+        assertEquals(listOf(true), reported, "the caller sees the state the click produced")
         assertFalse(item.isSelected, "the item shows the declared state again")
     }
 
@@ -170,16 +156,4 @@ class MenuItemSelectionTest {
 
     @TestFactory
     fun radioButtonMenuItemRawSwing() = RadioButtonMenuItemFixture.rawSwingTests()
-
-    @TestFactory
-    fun checkBoxMenuItemActionListenerCounts() = CheckBoxMenuItemActionListenerFixture.countTests()
-
-    @TestFactory
-    fun checkBoxMenuItemActionListenerRawSwing() = CheckBoxMenuItemActionListenerFixture.rawSwingTests()
-
-    @TestFactory
-    fun radioButtonMenuItemActionListenerCounts() = RadioButtonMenuItemActionListenerFixture.countTests()
-
-    @TestFactory
-    fun radioButtonMenuItemActionListenerRawSwing() = RadioButtonMenuItemActionListenerFixture.rawSwingTests()
 }

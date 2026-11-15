@@ -9,7 +9,6 @@ import org.jetbrains.compose.swing.annotations.SwingComponentLibraryApi
 import org.jetbrains.compose.swing.components.style.PasswordFields
 import org.jetbrains.compose.swing.components.style.TextFieldStyleScope
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.listener.documentListener
 import org.jetbrains.compose.swing.modifier.listener.listener
 import org.jetbrains.compose.swing.node.MirrorState
 import org.jetbrains.compose.swing.node.SwingNode
@@ -22,7 +21,6 @@ import org.jetbrains.compose.swing.style.nestingStyleKind
 import org.jetbrains.compose.swing.style.styleable
 import java.nio.CharBuffer
 import javax.swing.JPasswordField
-import javax.swing.event.DocumentListener
 import javax.swing.text.Document
 import javax.swing.text.Segment
 
@@ -46,9 +44,6 @@ import javax.swing.text.Segment
  * free to retain or zero. The [value] array stays owned by the caller, read only through the next
  * recomposition; zeroing it once it stops being the current value is the caller's responsibility.
  *
- * For incremental editing over a shared `Document`, undo/redo, or observing the text as a flow, drive the
- * field with [PasswordField] and a [DocumentState] from `rememberDocumentState`.
- *
  * @param value the current text value, as raw characters
  * @param onValueChange callback invoked with the field's new characters when the field is edited;
  *   applying [value] is not itself reported
@@ -59,7 +54,6 @@ import javax.swing.text.Segment
  * @param columns the preferred width in columns; `0` by default, taking the width from the characters
  *   the field holds
  * @param editable whether the user can type into the field; `true` by default
- * @see PasswordField the [DocumentState]-driven overload for large or complex editors
  * @see javax.swing.JPasswordField
  */
 @Composable
@@ -87,60 +81,10 @@ public fun PasswordField(
 }
 
 /**
- * A [PasswordField] driven by a raw [DocumentListener] instead of an `onValueChange` lambda. The
- * [documentListener] is attached to the field's document as-is and removed on the same instance; pass
- * a stable instance (e.g. `remember {}`) to avoid churn. Being attached as-is, it observes every
- * change to that document, including the one that applies [value].
- *
- * This field is strictly controlled: characters the field settles on that are not followed by [value]
- * moving to match are settled back onto the declared value on the very next pass, so the field never
- * ends up holding characters the caller has not adopted.
- *
- * The [value] array stays owned by the caller, read only through the next recomposition; zeroing
- * it once it stops being the current value is the caller's responsibility.
- *
- * For incremental editing over a shared `Document`, undo/redo, or observing the text as a flow, drive the
- * field with [PasswordField] and a [DocumentState] from `rememberDocumentState`.
- *
- * @param value the current text value, as raw characters
- * @param documentListener the listener notified of document edits
- * @param modifier the [SwingModifier] applied to the underlying component
- * @param style the [SwingStyle] applied to the underlying component
- * @param echoChar the masking character; `null`, the default, applies the look-and-feel's installed
- *   echo character, and the NUL character (U+0000) shows the text in clear text
- * @param columns the preferred width in columns; `0` by default, taking the width from the characters
- *   the field holds
- * @param editable whether the user can type into the field; `true` by default
- * @see PasswordField the [DocumentState]-driven overload for large or complex editors
- * @see javax.swing.JPasswordField
- */
-@Composable
-public fun PasswordField(
-    value: CharArray,
-    documentListener: DocumentListener,
-    modifier: SwingModifier = SwingModifier,
-    style: SwingStyle<TextFieldStyleScope> = SwingStyle,
-    echoChar: Char? = null,
-    columns: Int = 0,
-    editable: Boolean = true,
-) {
-    val mirror = rememberMirrorState(PasswordChars(value))
-    PasswordFieldNode(
-        value = value,
-        mirror = mirror,
-        modifier = modifier.documentListener(documentListener).passwordMirror(mirror),
-        style = style,
-        echoChar = echoChar,
-        columns = columns,
-        editable = editable,
-    )
-}
-
-/**
- * The `JPasswordField` node both character-array [PasswordField] overloads render. [value] is settled
+ * The `JPasswordField` node [PasswordField] renders. [value] is settled
  * through [declarePassword].
  *
- * Inlined into its caller, so the two share one restart scope.
+ * Inlined into its caller, so it shares the caller's restart scope.
  */
 @Suppress("NOTHING_TO_INLINE")
 @Composable
@@ -162,17 +106,6 @@ private inline fun PasswordFieldNode(
         update = { declarePassword(value, mirror) },
     )
 }
-
-/**
- * Mirrors into [mirror] the characters the field holds after every edit, so the settlement
- * [declarePassword] makes compares against what the field currently holds rather than characters an edit
- * nothing else observed left behind.
- *
- * The listener rides the document the field currently holds, following a `document` property swap as the
- * text mirror does.
- */
-private fun SwingModifier.passwordMirror(mirror: MirrorState<PasswordChars>): SwingModifier =
-    listener(mirror, PASSWORD_MIRRORS)
 
 /**
  * The characters a password field declares or holds, compared by content rather than the reference
@@ -222,46 +155,10 @@ private fun <C : JPasswordField> SwingNodeUpdater<C>.declarePassword(
 }
 
 /**
- * A [PasswordField] driven by a [DocumentState]. The field renders the state's own document, so
- * masked text typed into the field and edits made through the state are the same content, and the
- * caret is kept two-way with [DocumentState.selection]. The state is the single source of truth.
+ * Constructs the [PasswordField] field with [columns], keeps [echoChar] and [editable] applied, and
+ * threads the caller's binding through [update].
  *
- * The state models plain text: [DocumentState.text] materializes the password as an ordinary
- * `String`, which the caller cannot zero and which persists on the heap until garbage-collected.
- *
- * @param state the hoistable text state the field renders and drives.
- * @param modifier the [SwingModifier] applied to the underlying component
- * @param style the [SwingStyle] applied to the underlying component
- * @param echoChar the masking character; `null`, the default, applies the look-and-feel's installed
- *   echo character, and the NUL character (U+0000) shows the text in clear text
- * @param columns the preferred width in columns; `0` by default, taking the width from the characters
- *   the field holds
- * @param editable whether the user can type into the field; `true` by default
- * @see javax.swing.JPasswordField
- */
-@Composable
-public fun PasswordField(
-    state: DocumentState,
-    modifier: SwingModifier = SwingModifier,
-    style: SwingStyle<TextFieldStyleScope> = SwingStyle,
-    echoChar: Char? = null,
-    columns: Int = 0,
-    editable: Boolean = true,
-) {
-    PasswordFieldImpl(
-        echoChar = echoChar,
-        columns = columns,
-        editable = editable,
-        modifier = modifier.documentStateBinding(state),
-        style = style,
-    )
-}
-
-/**
- * Shared scaffolding for the [PasswordField] overloads: constructs the field with [columns], keeps
- * [echoChar] and [editable] applied, and threads each overload's own binding through [update].
- *
- * Inlined into its caller, so the two share one restart scope.
+ * Inlined into its caller, so it shares the caller's restart scope.
  */
 @Composable
 @SwingComponentLibraryApi
@@ -310,14 +207,6 @@ private fun Document.fullPassword(): CharArray {
     getText(0, length, segment)
     return segment.array.copyOfRange(segment.offset, segment.offset + segment.count)
 }
-
-private val PASSWORD_MIRRORS =
-    documentMirrorRegistration<MirrorState<PasswordChars>>(
-        onEdit = { mirror, document ->
-            if (!mirror.isWriting) mirror.observed(PasswordChars(document.fullPassword()))
-        },
-        onAdopt = { mirror, document -> mirror.observed(PasswordChars(document.fullPassword())) },
-    )
 
 /** What the `onValueChange`-driven overload declares, as one value the listener it registers reads. */
 private class PasswordEdit(

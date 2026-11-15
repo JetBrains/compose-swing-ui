@@ -19,7 +19,6 @@ import org.jetbrains.compose.swing.style.ComponentStyleScope
 import org.jetbrains.compose.swing.style.SwingStyle
 import org.jetbrains.compose.swing.style.nestingStyleKind
 import org.jetbrains.compose.swing.style.styleable
-import java.awt.event.ActionListener
 import javax.swing.JRadioButton
 
 /**
@@ -60,37 +59,6 @@ public fun RadioButton(
     )
 }
 
-/**
- * A [RadioButton] driven by a raw [ActionListener] instead of an `onSelectedChange` lambda. The
- * [actionListener] is attached as-is and removed on the same instance; pass a stable instance
- * (e.g. `remember {}`) to avoid churn.
- *
- * @param text the text to display next to the radio button
- * @param selected whether the radio button is selected
- * @param actionListener the listener notified when the radio button is activated
- * @param modifier the [SwingModifier] applied to the underlying component
- * @param style the [SwingStyle] applied to the underlying component
- * @see javax.swing.JRadioButton
- */
-@Composable
-public fun RadioButton(
-    text: @Nls String,
-    selected: Boolean,
-    actionListener: ActionListener,
-    modifier: SwingModifier = SwingModifier,
-    style: SwingStyle<SelectableStyleScope> = SwingStyle,
-) {
-    val mirror = rememberMirrorState(selected)
-    RadioButtonNode(
-        text = text,
-        modifier =
-            modifier.actionListener(actionListener),
-        style = style,
-        selected = selected,
-        mirror = mirror,
-    )
-}
-
 /** [SelectableStyleScope] for RadioButton styles. The declared selected state supplies `isSelected`. */
 private val RadioButtonKind =
     nestingStyleKind<SelectableStyleScope, Boolean>({ base, selected ->
@@ -102,11 +70,11 @@ private val RadioButtonKind =
     }
 
 /**
- * The `JRadioButton` node both [RadioButton] overloads render. [selected] is settled against the button
+ * The `JRadioButton` node [RadioButton] renders. [selected] is settled against the button
  * through [mirror] rather than applied on change: the user can take the button out from under the
  * declaration, and a declaration equal to the last one still has to stand.
  *
- * Inlined into its caller, so the two share one restart scope.
+ * Inlined into its caller, so it shares the caller's restart scope.
  */
 @Suppress("NOTHING_TO_INLINE")
 @Composable

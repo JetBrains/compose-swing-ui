@@ -1,6 +1,7 @@
 // Copyright 2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.jetbrains.compose.swing
 
+import androidx.compose.runtime.remember
 import org.jetbrains.compose.swing.components.ComboBox
 import org.jetbrains.compose.swing.components.ProgressBar
 import org.jetbrains.compose.swing.components.Slider
@@ -27,10 +28,12 @@ import org.jetbrains.compose.swing.components.text.PasswordField
 import org.jetbrains.compose.swing.components.text.TextArea
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.components.text.TextPane
+import org.jetbrains.compose.swing.components.text.rememberDocumentState
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Rectangle
 import javax.swing.DefaultListModel
 import javax.swing.table.DefaultTableModel
+import javax.swing.text.StyledEditorKit
 import javax.swing.tree.DefaultTreeModel
 import kotlin.test.Test
 
@@ -111,7 +114,7 @@ class RestartScopeCountTest {
 
     @Test
     fun aTextPaneOpensOneRestartScope() = runComposeSwingTest {
-        assertRestartScopeCount(1) { TextPane(value = "hello", onValueChange = {}) }
+        assertRestartScopeCount(1) { TextPane(state = rememberDocumentState(remember { StyledEditorKit() }, "hello")) }
     }
 
     // A table that declares no content opens only its own scope, on the state-driven overload as on the lambda one.

@@ -10,7 +10,6 @@ import org.jetbrains.compose.swing.components.style.TextAreas
 import org.jetbrains.compose.swing.components.style.TextStyleScope
 import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.listener.documentListener
 import org.jetbrains.compose.swing.modifier.property
 import org.jetbrains.compose.swing.node.MirrorState
 import org.jetbrains.compose.swing.node.SwingNode
@@ -20,7 +19,6 @@ import org.jetbrains.compose.swing.style.SwingStyle
 import org.jetbrains.compose.swing.style.nestingStyleKind
 import org.jetbrains.compose.swing.style.styleable
 import javax.swing.JTextArea
-import javax.swing.event.DocumentListener
 
 /**
  * Multiple lines of editable plain text. The `JTextArea` shows the text [value] declares, and every
@@ -81,67 +79,9 @@ public fun TextArea(
 }
 
 /**
- * A [TextArea] driven by a raw [DocumentListener] instead of an `onValueChange` lambda. The
- * [documentListener] is attached to the area's document as-is and removed on the same instance; pass
- * a stable instance (e.g. `remember {}`) to avoid churn. Being attached as-is, it observes every
- * change to that document, including the one that applies [value].
+ * The `JTextArea` node [TextArea] renders. [value] is settled through [declareText].
  *
- * This area is strictly controlled: text the area settles on that is not followed by [value] moving to
- * match is settled back onto the declared value on the very next pass, so the area never ends up
- * holding text the caller has not adopted.
- *
- * For incremental editing over a shared `Document`, undo/redo, or observing the text as a flow, drive the
- * area with the [DocumentState] overload ([TextArea]) and a [DocumentState] from `rememberDocumentState`.
- *
- * @param value the current text value
- * @param documentListener the listener notified of document edits
- * @param modifier the [SwingModifier] applied to the underlying component
- * @param style the [SwingStyle] applied to the underlying component
- * @param rows the preferred height in rows; the area is at least this tall, and `0`, the default,
- *   takes the height from the text it holds
- * @param columns the preferred width in columns; the area is at least this wide, and `0`, the default,
- *   takes the width from the text it holds
- * @param editable whether the user can type into the area; `true` by default
- * @param lineWrap whether lines too long for the area's width are wrapped onto the next line; `false`
- *   by default, so long lines run past the width
- * @param wrapStyleWord whether wrapped lines break at word boundaries rather than at character
- *   boundaries; `false` by default, and only consulted while [lineWrap] is on
- * @param tabSize the number of characters a tab expands to, `8` by default
- * @see TextArea the [DocumentState]-driven overload for large or complex editors
- * @see javax.swing.JTextArea
- */
-@Composable
-public fun TextArea(
-    value: @Nls String,
-    documentListener: DocumentListener,
-    modifier: SwingModifier = SwingModifier,
-    style: SwingStyle<TextStyleScope> = SwingStyle,
-    rows: Int = 0,
-    columns: Int = 0,
-    editable: Boolean = true,
-    lineWrap: Boolean = false,
-    wrapStyleWord: Boolean = false,
-    tabSize: Int = DEFAULT_TAB_SIZE,
-) {
-    val mirror = rememberMirrorState(value)
-    TextAreaNode(
-        value = value,
-        mirror = mirror,
-        modifier = modifier.documentListener(documentListener).textMirror(mirror),
-        style = style,
-        rows = rows,
-        columns = columns,
-        editable = editable,
-        lineWrap = lineWrap,
-        wrapStyleWord = wrapStyleWord,
-        tabSize = tabSize,
-    )
-}
-
-/**
- * The `JTextArea` node both [TextArea] overloads render. [value] is settled through [declareText].
- *
- * Inlined into its caller, so the two share one restart scope.
+ * Inlined into its caller, so it shares the caller's restart scope.
  */
 @Suppress("NOTHING_TO_INLINE")
 @Composable

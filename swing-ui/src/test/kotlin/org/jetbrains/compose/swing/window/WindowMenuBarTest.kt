@@ -14,7 +14,6 @@ import org.jetbrains.compose.swing.components.menu.MenuSeparator
 import org.jetbrains.compose.swing.components.menu.RadioButtonMenuItem
 import org.jetbrains.compose.swing.countTests
 import org.jetbrains.compose.swing.fixtures.components.menu.MenuFixture
-import org.jetbrains.compose.swing.fixtures.components.menu.MenuItemActionListenerFixture
 import org.jetbrains.compose.swing.fixtures.components.menu.MenuItemFixture
 import org.jetbrains.compose.swing.fixtures.window.MenuBarFixture
 import org.jetbrains.compose.swing.menuItemTexts
@@ -87,12 +86,6 @@ class WindowMenuBarTest {
 
     @TestFactory
     fun menuBarRawSwing() = MenuBarFixture.rawSwingTests()
-
-    @TestFactory
-    fun menuItemActionListenerCounts() = MenuItemActionListenerFixture.countTests()
-
-    @TestFactory
-    fun menuItemActionListenerRawSwing() = MenuItemActionListenerFixture.rawSwingTests()
 
     @Test
     fun aDeclaredMenuBarMatchesTheOneSwingBuilds() = runComposeSwingTest {

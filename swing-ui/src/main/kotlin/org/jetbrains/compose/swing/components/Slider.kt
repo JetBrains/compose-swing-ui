@@ -95,7 +95,10 @@ public fun Slider(
     val mirror = rememberMirrorState(value)
     val channel = rememberSliderValueChannel(mirror, mirror, value)
     SliderNode(
-        modifier = modifier.changeListener<JSlider> { channel.publish(this, onValueChange, onValueSettled) },
+        modifier =
+            modifier
+                .changeListener<JSlider> { channel.publish(this, onValueChange, onValueSettled) }
+                .sliderValueMirror(mirror),
         style = style,
         labelMin = min,
         labelMax = max,
@@ -118,76 +121,6 @@ public fun Slider(
         declare(value, mirror, JSlider::getValue, JSlider::setValue) { settled ->
             channel.settledOn(settled, onValueChange, onValueSettled)
         }
-    }
-}
-
-/**
- * A `Slider` driven by a raw [ChangeListener] instead of the `onValueChange` and `onValueSettled`
- * lambdas. The [changeListener] is attached as-is and removed on the same instance; pass a stable
- * instance (e.g. `remember {}`) to avoid a detach/re-attach on every recomposition. Being attached
- * as-is, it is notified of every change to the slider's value - the values a drag passes through as well as
- * the one it settles on, and the change that applies [value] included - and reads `getValueIsAdjusting` off
- * the slider to tell them apart.
- *
- * @param value the current value
- * @param changeListener the listener notified when the value changes
- * @param modifier the [SwingModifier] applied to the underlying component
- * @param style the [SwingStyle] applied to the underlying component
- * @param min the smallest value the slider can hold; `0` by default
- * @param max the largest value the slider can hold; `100` by default
- * @param orientation the orientation of the slider (an [Orientation] `SwingConstants` value);
- *   `HORIZONTAL` by default, which runs the track across the width the slider is given
- * @param inverted whether the value axis runs backwards, with the maximum at the left or bottom end;
- *   `false` by default, which puts the minimum at that end instead
- * @param majorTickSpacing the value distance between major tick marks, `0` for none - the default
- * @param minorTickSpacing the value distance between minor tick marks, `0` for none - the default
- * @param paintTicks whether the tick marks are painted; `false` by default, which draws a bare track
- * @param paintLabels whether the value labels are painted; `false` by default, which draws no text
- *   along the track
- * @param labels the text to draw at each value, keyed by the value the label sits at. `null` leaves the
- *   labels to Swing, which draws one at every major tick mark when [paintLabels] is `true` and
- *   [majorTickSpacing] is positive
- * @param snapToTicks whether a value the user picks resolves to the closest tick mark; `false` by
- *   default, which lets the knob rest on any value in the range. The grid is [minorTickSpacing] where it
- *   is positive and [majorTickSpacing] otherwise, so with neither declared there is no grid to snap to
- * @see javax.swing.JSlider
- */
-@Composable
-public fun Slider(
-    value: Int,
-    changeListener: ChangeListener,
-    modifier: SwingModifier = SwingModifier,
-    style: SwingStyle<SwingComponentStyleScope> = SwingStyle,
-    min: Int = 0,
-    max: Int = 100,
-    @Orientation orientation: Int = SwingConstants.HORIZONTAL,
-    inverted: Boolean = false,
-    majorTickSpacing: Int = 0,
-    minorTickSpacing: Int = 0,
-    paintTicks: Boolean = false,
-    paintLabels: Boolean = false,
-    labels: Map<Int, @Nls String>? = null,
-    snapToTicks: Boolean = false,
-) {
-    val mirror = rememberMirrorState(value)
-    SliderNode(
-        modifier = modifier.changeListener(changeListener).sliderValueMirror(mirror),
-        style = style,
-        labelMin = min,
-        labelMax = max,
-        orientation = orientation,
-        inverted = inverted,
-        majorTickSpacing = majorTickSpacing,
-        minorTickSpacing = minorTickSpacing,
-        paintTicks = paintTicks,
-        paintLabels = paintLabels,
-        labels = labels,
-        snapToTicks = snapToTicks,
-    ) {
-        set(min) { mirror.write { this.minimum = it } }
-        set(max) { mirror.write { this.maximum = it } }
-        // The listener is attached as-is, so the slider has already told it where it settled.
-        declare(value, mirror, JSlider::getValue, JSlider::setValue)
     }
 }
 
@@ -288,66 +221,7 @@ public fun Slider(
 }
 
 /**
- * A model-driven `Slider` driven by a raw [ChangeListener] instead of the `onValueChange` and
- * `onValueSettled` lambdas. The [model] is rendered as-is and never written to by the library. The
- * [changeListener] is attached as-is and removed on the same instance; pass a stable instance (e.g.
- * `remember {}`) to avoid churn, and read `getValueIsAdjusting` off the slider to tell the values a drag
- * passes through from the one it settles on.
- *
- * @param model the range the slider renders and the user moves; owned by the caller and never written to
- *   by the library
- * @param changeListener the listener notified when the value changes
- * @param modifier the [SwingModifier] applied to the underlying component
- * @param style the [SwingStyle] applied to the underlying component
- * @param orientation the orientation of the slider (an [Orientation] `SwingConstants` value);
- *   `HORIZONTAL` by default, which runs the track across the width the slider is given
- * @param inverted whether the value axis runs backwards, with the maximum at the left or bottom end;
- *   `false` by default, which puts the minimum at that end instead
- * @param majorTickSpacing the value distance between major tick marks, `0` for none - the default
- * @param minorTickSpacing the value distance between minor tick marks, `0` for none - the default
- * @param paintTicks whether the tick marks are painted; `false` by default, which draws a bare track
- * @param paintLabels whether the value labels are painted; `false` by default, which draws no text
- *   along the track
- * @param labels the text to draw at each value, keyed by the value the label sits at. `null` leaves the
- *   labels to Swing, which draws one at every major tick mark when [paintLabels] is `true` and
- *   [majorTickSpacing] is positive
- * @param snapToTicks whether a value the user picks resolves to the closest tick mark; `false` by
- *   default, which lets the knob rest on any value in the range. The grid is [minorTickSpacing] where it
- *   is positive and [majorTickSpacing] otherwise, so with neither declared there is no grid to snap to
- * @see javax.swing.JSlider
- */
-@Composable
-public fun Slider(
-    model: BoundedRangeModel,
-    changeListener: ChangeListener,
-    modifier: SwingModifier = SwingModifier,
-    style: SwingStyle<SwingComponentStyleScope> = SwingStyle,
-    @Orientation orientation: Int = SwingConstants.HORIZONTAL,
-    inverted: Boolean = false,
-    majorTickSpacing: Int = 0,
-    minorTickSpacing: Int = 0,
-    paintTicks: Boolean = false,
-    paintLabels: Boolean = false,
-    labels: Map<Int, @Nls String>? = null,
-    snapToTicks: Boolean = false,
-) {
-    ModelSliderNode(
-        model = model,
-        modifier = modifier.changeListener(changeListener),
-        style = style,
-        orientation = orientation,
-        inverted = inverted,
-        majorTickSpacing = majorTickSpacing,
-        minorTickSpacing = minorTickSpacing,
-        paintTicks = paintTicks,
-        paintLabels = paintLabels,
-        labels = labels,
-        snapToTicks = snapToTicks,
-    )
-}
-
-/**
- * The `JSlider` node the model-driven [Slider] overloads render, with [modifier] already carrying every
+ * The `JSlider` node the model-driven [Slider] renders, with [modifier] already carrying every
  * listener the slider needs.
  *
  * Inlined into its caller, so the two share one restart scope.
@@ -442,10 +316,11 @@ private inline fun SliderNode(
  * outlives a recomposition that declares new ones.
  *
  * A drag publishes a value per step before it settles, and only the value it settles on is mirrored into
- * [mirror] - mirroring one it passes through would invalidate the composition, and re-assert the
- * declaration, before the user has let go. Every step still reaches `onValueChange`, since following the
- * drag is what that channel is for, while `onValueSettled` hears the value the drag ends on - which is news
- * even where the caller already adopted it, because the release is what it reports.
+ * [mirror] (by `sliderValueMirror`, not here) - mirroring one it passes through would invalidate the
+ * composition, and re-assert the declaration, before the user has let go. Every step still reaches
+ * `onValueChange`, since following the drag is what that channel is for, while `onValueSettled` hears the
+ * value the drag ends on - which is news even where the caller already adopted it, because the release is
+ * what it reports.
  *
  * A `null` [mirror] is a caller-owned model: nothing is declared over it, so nothing tells the wrapper's
  * own writes from the user's and every value the slider publishes is news.
@@ -481,7 +356,6 @@ private class SliderValueChannel(
         val isAdjusting = slider.valueIsAdjusting
         val released = adjusting && !isAdjusting
         adjusting = isAdjusting
-        if (!isAdjusting) mirror?.observed(value)
         val isNews = value != agreed && mirror?.isWriting != true
         agreed = value
         if (isNews) onValueChange(value)

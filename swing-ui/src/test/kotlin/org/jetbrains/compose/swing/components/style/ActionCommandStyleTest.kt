@@ -6,6 +6,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.button.Button
+import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.listener.actionListener
 import org.jetbrains.compose.swing.test.interaction.performClick
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.event.ActionListener
@@ -19,8 +21,18 @@ class ActionCommandStyleTest {
         val fired = mutableListOf<String>()
         setContent {
             val listener = remember { ActionListener { fired += it.actionCommand } }
-            Button("Save", actionListener = listener, style = { command?.let { actionCommand(it) } })
-            Button("Discard", actionListener = listener, style = { actionCommand("discard") })
+            Button(
+                "Save",
+                onClick = {},
+                modifier = SwingModifier.actionListener(listener),
+                style = { command?.let { actionCommand(it) } },
+            )
+            Button(
+                "Discard",
+                onClick = {},
+                modifier = SwingModifier.actionListener(listener),
+                style = { actionCommand("discard") },
+            )
         }
         onNodeWithText("Discard").performClick()
         onNodeWithText("Save").performClick()

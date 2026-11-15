@@ -170,8 +170,7 @@ internal fun rememberColumnLayoutChannel(
 
 /**
  * The [TableColumnModelListener] forwarding the layout the columns were left in to
- * [onColumnLayoutChange], bridging a lambda-based [Table] overload to the raw-listener overload it
- * delegates to. A column event's source is the column model, so the layout is read back from it.
+ * [onColumnLayoutChange]. A column event's source is the column model, so the layout is read back from it.
  *
  * Rebuilt per pass rather than remembered: it is never registered on a component, and a
  * [ColumnLayoutChannel] reads its target listener live.

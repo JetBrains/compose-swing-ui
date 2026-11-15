@@ -8,6 +8,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.listener.propertyChangeListener
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.beans.PropertyChangeListener
@@ -356,7 +357,8 @@ class SplitPaneReactivityTest {
         setContent {
             val firstListener = remember { recordingListener(firstMoves) }
             val secondListener = remember { recordingListener(secondMoves) }
-            SplitPane(dividerLocationListener = if (useSecond) secondListener else firstListener) {
+            val listener = if (useSecond) secondListener else firstListener
+            SplitPane(modifier = SwingModifier.propertyChangeListener(JSplitPane.DIVIDER_LOCATION_PROPERTY, listener)) {
                 Label(text = "A", modifier = SwingModifier.first())
                 Label(text = "B", modifier = SwingModifier.second())
             }
@@ -389,7 +391,7 @@ class SplitPaneReactivityTest {
         setContent {
             val listener = remember { PropertyChangeListener { } }
             SplitPane(
-                dividerLocationListener = listener,
+                modifier = SwingModifier.propertyChangeListener(JSplitPane.DIVIDER_LOCATION_PROPERTY, listener),
                 orientation = orientation,
                 dividerLocation = location,
                 resizeWeight = weight,

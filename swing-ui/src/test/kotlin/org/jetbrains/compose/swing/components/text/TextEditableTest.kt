@@ -118,7 +118,11 @@ class TextEditableTest {
                     assertStateTypingContract<JPasswordField>(
                         initiallyEditable = initiallyEditable,
                         render = { state, editable ->
-                            PasswordField(state = state, editable = editable)
+                            PasswordField(
+                                value = state.text.toString().toCharArray(),
+                                onValueChange = { state.text = String(it) },
+                                editable = editable,
+                            )
                         },
                         read = { String(it.password) },
                     )
