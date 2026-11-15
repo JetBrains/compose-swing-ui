@@ -8,6 +8,7 @@ androidxTracing = "2.0.0"
 compose = "1.10.0"
 composeRules = "0.6.6"
 coroutines = "1.9.0"
+kotlinxBenchmark = "0.4.14"
 detekt = "2.0.0-alpha.6"
 dokka = "2.2.0"
 jetbrainsAnnotations = "23.0.0"
@@ -38,6 +39,7 @@ junitJupiterParams = { module = "org.junit.jupiter:junit-jupiter-params" }
 kotlinComposeCompilerPluginEmbeddable = { module = "org.jetbrains.kotlin:kotlin-compose-compiler-plugin-embeddable", version.ref = "kotlin" }
 kotlinComposePlugin = { module = "org.jetbrains.kotlin:compose-compiler-gradle-plugin", version.ref = "kotlin" }
 kotlinGradlePlugin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }
+kotlinxBenchmarkRuntime = { module = "org.jetbrains.kotlinx:kotlinx-benchmark-runtime", version.ref = "kotlinxBenchmark" }
 kotlinxCoroutinesCore = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
 kotlinxCoroutinesSwing = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-swing", version.ref = "coroutines" }
 kotlinxCoroutinesTest = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutines" }
@@ -45,6 +47,7 @@ ktlint-gradle-plugin = { module = "org.jlleitschuh.gradle:ktlint-gradle", versio
 mockk = { module = "io.mockk:mockk", version.ref = "mockk" }
 
 [plugins]
+kotlinxBenchmark = { id = "org.jetbrains.kotlinx.benchmark", version.ref = "kotlinxBenchmark" }
 detekt = { id = "dev.detekt", version.ref = "detekt" }
 knit = { id = "org.jetbrains.kotlinx.knit", version.ref = "knit" }
 ktlint = { id = "org.jlleitschuh.gradle.ktlint", version.ref = "ktlint-gradle" }

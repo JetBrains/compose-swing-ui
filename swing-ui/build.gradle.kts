@@ -4,6 +4,7 @@ import org.jetbrains.kotlin.gradle.dsl.abi.ExperimentalAbiValidation
 plugins {
     `java-test-fixtures`
     id("buildsrc.convention.kotlin-jvm")
+    id("buildsrc.convention.composable-fixtures")
     id("buildsrc.convention.kotlin-quality")
     id("buildsrc.convention.publishing")
     id("buildsrc.convention.jacoco-coverage")
@@ -46,12 +47,19 @@ dependencies {
     // The JUnit 5 flavor, whose Tag the ExclusiveWindowSystem annotation carries.
     testFixturesImplementation(kotlin("test-junit5"))
     testFixturesImplementation(project(":swing-ui-test"))
+    // The checks take and hand out the fixtures, so consumers of them see the fixtures' types.
+    testFixturesApi(project(":swing-ui")) {
+        capabilities { requireFeature("fixtures") }
+    }
     // The in-process compiler harness; the compiler-test-harness convention supplies it at test runtime.
     testFixturesCompileOnly(kotlin("compiler-embeddable"))
     testImplementation(kotlin("test"))
     testImplementation(libs.mockk)
     testImplementation(libs.junitJupiterParams)
     testImplementation(project(":swing-ui-test"))
+    testImplementation(project(":swing-ui")) {
+        capabilities { requireFeature("fixtures") }
+    }
 }
 
 // The fixtures stand in for Swing services while this project's own tests run; they are not part of what

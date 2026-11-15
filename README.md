@@ -253,6 +253,7 @@ Licensed under the Apache License, Version 2.0 - see [LICENSE](LICENSE).
 
 `swing-ui` redistributes source code from the Android Open Source Project's Jetpack Compose `compose.ui:ui` and
 `ui-util`, `swing-ui-foundation` its `foundation`, `foundation-layout`, `compose.ui:ui`, `ui-graphics`, `ui-unit`
-and `ui-util`, `swing-ui-animation` its `animation-core` and `animation`, and `swing-ui-detekt` one of that
-project's Android Lint checks, all under the same license. See each module's `META-INF/NOTICE`
+and `ui-util`, `swing-ui-animation` its `animation-core` and `animation`, `swing-ui-detekt` one of that
+project's Android Lint checks, and `benchmarks:benchmark-utils` two interfaces of its `compose/test-utils`, all under the same
+license. See each module's `META-INF/NOTICE`
 and the per-file headers for attribution.

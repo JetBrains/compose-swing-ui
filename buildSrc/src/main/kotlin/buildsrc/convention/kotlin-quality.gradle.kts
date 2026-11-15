@@ -53,6 +53,10 @@ dependencies {
 lint {
     warningsAsErrors = true
     lintConfig = rootProject.file("config/lint/lint.xml")
+    // Android Lint names the composable fixtures of a library module after the library itself, so in test sources
+    // it reads the fixtures in place of the library and misjudges the library's composables. Lint checks main
+    // sources only.
+    ignoreTestSources = true
 }
 
 dependencies {

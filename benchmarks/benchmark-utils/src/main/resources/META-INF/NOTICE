@@ -1,0 +1,17 @@
+compose-swing-ui :: benchmarks:benchmark-utils
+
+This module contains source code copied and adapted from the Android Open Source
+Project's Jetpack Compose test utilities, redistributed under the Apache License,
+Version 2.0.
+
+  Original: androidx compose/test-utils 1.12.0, ComposeTestCase
+            (androidx commit 963bf914f78b389bdddef0da7f36bee19d897274)
+  Copyright The Android Open Source Project
+
+Adaptations: the ComposeTestCase interface and the LayeredComposeTestCase class
+are kept in their original package androidx.compose.testutils, so benchmark cases
+written against them build here unchanged. The UiComposable annotation is removed
+from both, and the comments are reordered as ktlint requires. See the
+per-file headers for the original copyright year.
+
+A copy of the Apache License 2.0 is in the repository root LICENSE file.

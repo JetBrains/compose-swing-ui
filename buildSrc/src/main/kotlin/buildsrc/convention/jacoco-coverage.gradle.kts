@@ -24,7 +24,8 @@ tasks.withType<Test>().configureEach {
 }
 
 tasks.named<JacocoReport>("jacocoTestReport") {
-    dependsOn(tasks.withType<Test>())
+    // The measurement suites switch coverage off, so they have nothing to report and never run from `test` or `check`.
+    dependsOn(tasks.withType<Test>().matching { it.extensions.getByType<JacocoTaskExtension>().isEnabled })
     executionData.setFrom(testExecutionData)
     reports {
         xml.required.set(true)

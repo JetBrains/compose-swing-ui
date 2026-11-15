@@ -16,15 +16,18 @@ comments:
   # detekt's default excludes match any path with a `test` directory segment, which would exempt
   # swing-ui-test's `org.jetbrains.compose.swing.test` production package by accident; scope the
   # exclude to the test source set instead so a published module named "test" stays covered.
+  #
+  # Fixtures are unpublished test-support code whose public declarations exist only for other modules'
+  # tests and benchmarks, so the rules for published API skip them as they skip src/test.
   UndocumentedPublicClass:
     active: true
-    excludes: ["**/src/test/**"]
+    excludes: ["**/src/test/**", "**/src/fixtures/**"]
   UndocumentedPublicFunction:
     active: true
-    excludes: ["**/src/test/**"]
+    excludes: ["**/src/test/**", "**/src/fixtures/**"]
   UndocumentedPublicProperty:
     active: true
-    excludes: ["**/src/test/**"]
+    excludes: ["**/src/test/**", "**/src/fixtures/**"]
 
 complexity:
   LongParameterList:
@@ -54,8 +57,11 @@ Compose:
     # Reads androidx's Modifier.composed, which has no counterpart here.
     active: false
   ModifierMissing:
+    excludes: ["**/src/fixtures/**"]
     customModifiers: ['SwingModifier']
     contentEmitters: ['SwingNode', 'MenuNode']
+  MissingNonRestartableComposable:
+    excludes: ["**/src/fixtures/**"]
   ModifierNaming:
     customModifiers: ['SwingModifier']
   ModifierNotUsedAtRoot:
@@ -80,6 +86,7 @@ Compose:
   MutableStateAutoboxing:
     excludes: ["**/src/test/**"]
   ParameterNaming:
+    excludes: ["**/src/fixtures/**"]
     # Settlement is this library's own vocabulary, and the callback fires once the value has settled.
     allowedLambdaParameterNames: ['onValueSettled']
   StateParam:
@@ -94,6 +101,7 @@ compose-swing-internal:
     active: true
   PublicDataClass:
     active: true
+    excludes: ["**/src/fixtures/**"]
 
 naming:
   FunctionNaming:
@@ -102,6 +110,7 @@ naming:
 
 style:
   MagicNumber:
+    excludes: ['**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**', '**/androidUnitTest/**', '**/androidInstrumentedTest/**', '**/jsTest/**', '**/iosTest/**', '**/*.kts', "**/src/fixtures/**"]
     # Default UI dimensions / parameters inside @Composable functions read fine inline.
     ignoreAnnotated: ["Composable"]
   # ktlint reports no unused import, whatever the import is, so without this rule nothing in the

@@ -15,6 +15,8 @@ dependencyResolutionManagement {
     }
 }
 
+include(":benchmarks:benchmark")
+include(":benchmarks:benchmark-utils")
 include(":samples:docs")
 include(":samples:todo-app")
 include(":samples:widgets-gallery")

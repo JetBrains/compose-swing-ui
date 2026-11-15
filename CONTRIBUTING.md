@@ -73,6 +73,10 @@ On macOS the tests that need a focused window skip; CI runs them.
 
 See [`docs/TESTING-COMPONENTS.md`](docs/TESTING-COMPONENTS.md) for the harness guide.
 
+## Benchmark suites
+
+See [`docs/PERFORMANCE.md`](docs/PERFORMANCE.md) for the fixtures and the suites that measure them.
+
 ## Quality gates (all must pass)
 
 `build` runs every module's `check` - compilation, ktlint, detekt, the Compose lint checks, tests,
