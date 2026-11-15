@@ -93,8 +93,14 @@ class ListBoxNodeReuseTest {
         fun declarations(): List<Named<@Composable () -> Unit>> {
             val model = listModel()
             return listOf(
-                Named.of("items", { ListBox(items = colors, selectedIndices = setOf(1)) }),
-                Named.of("caller's model", { ListBox(model = model, selectedIndices = setOf(1)) }),
+                Named.of(
+                    "items",
+                    { ListBox(items = colors, state = rememberListState(initialSelectedIndices = setOf(1))) },
+                ),
+                Named.of(
+                    "caller's model",
+                    { ListBox(model = model, state = rememberListState(initialSelectedIndices = setOf(1))) },
+                ),
             )
         }
     }

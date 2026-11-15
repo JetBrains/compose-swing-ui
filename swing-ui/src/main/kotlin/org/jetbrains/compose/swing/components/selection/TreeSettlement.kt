@@ -2,25 +2,19 @@
 package org.jetbrains.compose.swing.components.selection
 
 import org.jetbrains.compose.swing.node.MirrorState
-import org.jetbrains.compose.swing.node.runReportingUncaught
-import org.jetbrains.compose.swing.util.fastFirstOrNull
-import org.jetbrains.compose.swing.util.fastForEach
 import javax.swing.JTree
-import javax.swing.event.TreeExpansionEvent
-import javax.swing.event.TreeExpansionListener
 import javax.swing.event.TreeSelectionListener
 import javax.swing.tree.TreeModel
-import javax.swing.tree.TreePath
 
 /*
  * How a later structure - or a later declaration - reaches a tree already showing one.
  *
  * Three roles carry one settling between them. The declarations are what the composition states this
- * pass - a selection, the state holding the expansion, and the listeners a change is reported to. The mirrors
- * are what the tree was last known to hold, one per facet, and are what let a listener tell the wrapper's
- * own write from a change the user made. The outcome is what the write left standing, which is not always
- * what was declared: a collapse takes over the selection it hides, and a structure the model no longer
- * holds drops the paths naming it.
+ * pass - a selection, the state holding the expansion where there is one, and the listener a selection
+ * loss is reported to. The mirrors are what the tree was last known to hold, one per facet, and are what
+ * let a listener tell the wrapper's own write from a change the user made. The outcome is what the write left
+ * standing, which is not always what was declared: a collapse takes over the selection it hides, and a
+ * structure the model no longer holds drops the paths naming it.
  */
 
 /**
@@ -47,29 +41,22 @@ internal class TreeMirrors(
 /**
  * What one settling of a tree runs on: the mirrors it goes through, the declared selection, the [state]
  * holding the expansion - `null` where the expansion is the user's - and the listener a selection loss is
- * handed to. Where no [state] holds the expansion, the nodes the tree opens to show a selection are reported
- * to the raw [expansionTarget] one event per node, and to [onExpansionChange] once, with the expansion they
- * leave.
+ * handed to.
  */
 internal class TreeDeclarations(
     val mirrors: TreeMirrors,
     val declaredSelection: Set<List<Int>>?,
     val state: TreeState?,
     val target: TreeSelectionListener,
-    val expansionTarget: TreeExpansionListener?,
-    val onExpansionChange: ((Set<List<Int>>) -> Unit)?,
 )
 
 /**
  * What one settling write left a tree on: what the write can say of the nodes the tree is left showing
- * open, whether a collapse of the state's took over the selection the tree held when the settling began,
- * and the nodes that were closed above the selection the write gave the tree, read before the tree opened
- * them.
+ * open, and whether a collapse of the state's took over the selection the tree held when the settling began.
  */
 internal class TreeSettleOutcome(
     val expansion: SettledExpansion,
     val collapseTookOver: Boolean,
-    val closedAbove: List<TreePath>,
 )
 
 /**
@@ -96,10 +83,10 @@ internal sealed interface SettledExpansion {
  *
  * Installing a model re-opens the root as well, so the expansion is put back on the new structure: the one
  * the [TreeState] in [declarations] holds, or, without a state, the one the tree held, whole - the nodes
- * that were open are opened and every other one is closed, so a node the user had collapsed does not come
- * back open. A tree that had no root yet and no state has nothing retained, and keeps the expansion a
- * `JTree` gives a model it is handed. The selection goes back on after the expansion, and the tree opens
- * what it has to for that selection to show - reported as [settleSelection] reports it.
+ * that were open are opened and every other one is closed, so a node the user had collapsed does not
+ * come back open. A tree that had no root yet and no state has nothing retained, and keeps the expansion
+ * a `JTree` gives a model it is handed. The selection goes back on after the expansion, and the tree
+ * opens what it has to for that selection to show - recorded as [settleSelection] records it.
  *
  * Both the selection narrowing and the expansion restore run as one settlement of each mirror in
  * [declarations] - installing a model can change both, and each mirror has to see its own write coming for
@@ -117,18 +104,12 @@ internal fun JTree.installModel(
     val restored =
         declarations.state?.expandedPaths ?: model?.root?.let { readExpansion(this, model) }
     val held = heldSelection(named = declarations.declaredSelection == null)
-    var closed = emptyList<TreePath>()
-    var open = emptySet<List<Int>>()
     mirrors.expansion.settle {
         mirrors.expansion.write {
             mirrors.selection.installNarrowing(
                 declared = declarations.declaredSelection,
                 selection = { readSelection(this@installModel, model) },
-                apply = { paths ->
-                    val resolved = resolveSelection(model, paths)
-                    closed = closedAbove(resolved)
-                    selectNodes(this@installModel, resolved)
-                },
+                apply = { paths -> selectNodes(this@installModel, resolveSelection(model, paths)) },
                 report = { lost -> reportLostPaths(target, held.nodes, held.indices, lost, held.lead) },
                 install = {
                     model = newModel
@@ -136,11 +117,10 @@ internal fun JTree.installModel(
                 },
             )
         }
-        open = readExpansion(this@installModel, model)
+        val open = readExpansion(this@installModel, model)
         answered(open)
         declarations.recordExpansion(model, open)
     }
-    reportOpened(declarations, closed, open)
 }
 
 /**
@@ -190,8 +170,8 @@ internal fun <T> JTree.updateContent(
  * the state takes the selection it was left with.
  *
  * The expansion mirror is left on what [settle] says the write left open, and the structure is walked for
- * it only where the write cannot say - see [SettledExpansion]. Where no [TreeState] holds the expansion it
- * is the user's, and the nodes the tree opened to show the selection are reported - see [reportOpened].
+ * it only where the write cannot say - see [SettledExpansion]. The nodes the tree opened to show the
+ * selection are written into the [TreeState] in [declarations], where there is one.
  *
  * Each listener is reached once the write has returned, so what it is told is final, and a throw from it is
  * reported to the thread's uncaught-exception handler the way every caller callback reached from a pass is.
@@ -205,8 +185,7 @@ internal fun JTree.settleSelection(
     val lead = leadSelectionPath
     // A listener's failure cuts the write short and leaves this outcome standing, over a tree the write may
     // have partly changed: only reading the tree back names what it shows open then.
-    var outcome = TreeSettleOutcome(SettledExpansion.Unnamed, collapseTookOver = false, closedAbove = emptyList())
-    var open: Set<List<Int>>? = null
+    var outcome = TreeSettleOutcome(SettledExpansion.Unnamed, collapseTookOver = false)
     // The write and the read-backs that record what survived it are one settlement of each mirror, which
     // is what the nested brackets state. Each mirror's write stays inside its own bracket: a settlement
     // marks the changes it made as answered, and the write is what a listener reads to tell the wrapper's
@@ -219,7 +198,7 @@ internal fun JTree.settleSelection(
             // it. Each settlement is closed against its own mirror, so the expansion's is named: inside
             // the selection's block it is the outer receiver.
             answered(readSelection(this@settleSelection, model))
-            open =
+            val settledOpen =
                 when (val settled = outcome.expansion) {
                     SettledExpansion.Standing -> null
                     is SettledExpansion.Named -> settled.open
@@ -227,7 +206,6 @@ internal fun JTree.settleSelection(
                 }
             // The write never touched the expansion, so the mirror already holds what the tree holds and
             // there is nothing to read back.
-            val settledOpen = open
             if (settledOpen == null) {
                 this@openness.unchanged()
             } else {
@@ -239,7 +217,6 @@ internal fun JTree.settleSelection(
     if (held != null && (declarations.declaredSelection == null || outcome.collapseTookOver)) {
         reportDropped(declarations.target, held, lead)
     }
-    reportOpened(declarations, outcome.closedAbove, open)
 }
 
 /**
@@ -278,7 +255,6 @@ internal fun JTree.applyDeclarations(
             !holdsExactly(before, selectionPaths.orEmpty().asList()) &&
             holdsExactly(before, resolved)
     }
-    val closed = closedAbove(resolved.orEmpty())
     val selected = !collapseTookOver && resolved != null && selectNodes(this, resolved)
     // A tree opens what it must to show a node it is given to select, and a structure change renames by
     // index every node after the one it moved: either leaves the tree to answer for what it shows open.
@@ -289,7 +265,7 @@ internal fun JTree.applyDeclarations(
             expansion != null -> SettledExpansion.Unnamed
             else -> SettledExpansion.Standing
         }
-    return TreeSettleOutcome(settled, collapseTookOver, closed)
+    return TreeSettleOutcome(settled, collapseTookOver)
 }
 
 /**
@@ -317,28 +293,4 @@ private fun TreeDeclarations.recordExpansion(
         }
     mirrors.appliedExpansion = synced
     state.expandedPaths = synced
-}
-
-/**
- * Reports the nodes of [opened] the tree now shows open - a node a listener refused stays closed and is left
- * out. The raw [expansion listener][TreeDeclarations.expansionTarget] hears each of them, shallowest first,
- * as the event a tree fires for a node it opens. [TreeDeclarations.onExpansionChange] hears them once, with
- * [open], the expansion they leave: the event a tree fires per node would hand it the same expansion again
- * for every node.
- */
-private fun JTree.reportOpened(
-    declarations: TreeDeclarations,
-    opened: List<TreePath>,
-    open: Set<List<Int>>?,
-) {
-    if (opened.isEmpty()) return
-    declarations.expansionTarget?.let { target ->
-        runReportingUncaught {
-            opened.fastForEach { node -> if (isExpanded(node)) target.treeExpanded(TreeExpansionEvent(this, node)) }
-        }
-    }
-    val onExpansionChange = declarations.onExpansionChange ?: return
-    if (open != null && opened.fastFirstOrNull { isExpanded(it) } != null) {
-        runReportingUncaught { onExpansionChange(open) }
-    }
 }

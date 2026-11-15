@@ -82,7 +82,7 @@ internal fun TreeSection() {
 @Composable
 private fun ColumnScope.SelectableTreeCard() {
     ExampleCard("Tree from nested data with selection bound to state") {
-        var selection by remember { mutableStateOf<Set<List<Int>>>(emptySet()) }
+        val state = rememberTreeState()
 
         val selectionModes =
             listOf(
@@ -124,10 +124,9 @@ private fun ColumnScope.SelectableTreeCard() {
                 Tree(
                     root = sampleTree,
                     children = { it.children },
+                    state = state,
                     modifier = SwingModifier.testTag(PRIMARY_TREE_TAG),
                     label = { it.name },
-                    selectedPaths = selection,
-                    onSelectionChange = { selection = it },
                     selectionMode = selectionModes[selectionModeIndex].second,
                     rootVisible = rootVisible,
                     showsRootHandles = showsRootHandles,
@@ -136,7 +135,7 @@ private fun ColumnScope.SelectableTreeCard() {
                 )
             }
         }
-        Label(text = "Selected path: ${describeSelection(selection)}")
+        Label(text = "Selected path: ${describeSelection(state.selectedPaths)}")
     }
 }
 
@@ -224,18 +223,17 @@ private fun ColumnScope.ModelBackedTreeCard() {
                 root.add(DefaultMutableTreeNode("veg"))
                 DefaultTreeModel(root)
             }
-        var selection by remember { mutableStateOf<Set<List<Int>>>(emptySet()) }
+        val state = rememberTreeState()
 
         ScrollPane(style = { preferredSize(Dimension(280, 140)) }) {
             Viewport {
                 Tree(
                     model = model,
-                    selectedPaths = selection,
-                    onSelectionChange = { selection = it },
+                    state = state,
                 )
             }
         }
-        Label("Selected: ${selection.firstOrNull()?.joinToString(",") ?: "none"}")
+        Label("Selected: ${state.selectedPaths.firstOrNull()?.joinToString(",") ?: "none"}")
         WrappedCaption("The tree renders this DefaultTreeModel as-is; the library never mutates it.")
     }
 }

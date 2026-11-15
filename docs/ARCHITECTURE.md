@@ -355,7 +355,7 @@ is decides which one a component uses.
 
 - **A declared value with a change callback** is the ordinary shape. The composition holds the value
   and passes it in, and the component reports the user's change back through a callback beside it - a
-  text field's `value` and `onValueChange`, a table's `selectedRowIndices` and `onSelectionChange`. A
+  text field's `value` and `onValueChange`, a check box's `checked` and `onCheckedChange`. A
   change the caller does not answer with a matching value is settled back onto the declared one, so the
   state the composition holds is what is on screen, and the component never stands on a value the
   caller has not adopted. A value the composition pushes in is not reported back through the callback,

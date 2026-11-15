@@ -4,15 +4,12 @@ package org.jetbrains.compose.swing.components.selection
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import org.jetbrains.compose.swing.assertUnadoptedChangeIsNeverPainted
 import org.jetbrains.compose.swing.countTests
-import org.jetbrains.compose.swing.fixtures.components.selection.ListBoxFixture
 import org.jetbrains.compose.swing.fixtures.components.selection.ListBoxModelFixture
 import org.jetbrains.compose.swing.fixtures.components.selection.ListBoxStateFixture
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.listSelectionListener
 import org.jetbrains.compose.swing.rawSwingTests
-import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
 import org.jetbrains.compose.swing.test.interaction.performAddSelection
@@ -21,6 +18,7 @@ import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.TestFactory
 import javax.swing.JList
 import javax.swing.ListSelectionModel
+import javax.swing.event.ListSelectionEvent
 import javax.swing.event.ListSelectionListener
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -38,60 +36,36 @@ class ListBoxBehaviorTest {
 
     @Test
     fun settledSelectionChangeFiresOnSelectionChange() = runComposeSwingTest {
-        val events = mutableListOf<Set<Int>>()
-        setContent { ListBox(items = listOf("a", "b", "c"), onSelectionChange = { events += it }) }
+        var events = 0
+        val listener = ListSelectionListener { event -> if (!event.valueIsAdjusting) events++ }
+        setContent { ListBox(items = listOf("a", "b", "c"), modifier = SwingModifier.listSelectionListener(listener)) }
 
         val list = onNodeOfType<JList<*>>().fetch()
         list.selectionModel.valueIsAdjusting = true
         onNodeOfType<JList<*>>().performAddSelection(1)
-        assertEquals(emptyList(), events, "an adjusting selection must not fire onSelectionChange")
+        assertEquals(0, events, "an adjusting selection must not report a settled selection")
 
         list.selectionModel.valueIsAdjusting = false
         awaitIdle()
-        assertEquals(listOf(setOf(1)), events, "settling should fire exactly one callback with the final selection")
+        assertEquals(1, events, "settling should report exactly once")
+        onNodeOfType<JList<*>>()
+            .assertProperty(listOf(1), "the settled selection should be the final one") { selectedIndices.toList() }
     }
 
     @Test
     fun selectedIndicesReAppliedAfterItemsChange() = runComposeSwingTest {
         var items by mutableStateOf(listOf("a", "b", "c"))
-        var selection by mutableStateOf(setOf(1))
-        setContent {
-            ListBox(
-                items = items,
-                selectedIndices = selection,
-                onSelectionChange = { selection = it },
-            )
-        }
+        val state = ListState(initialSelectedIndices = setOf(1))
+        setContent { ListBox(items = items, state = state) }
 
         val list = onNodeOfType<JList<*>>()
-        list.assertProperty(listOf(1), "the controlled selection should render initially") { selectedIndices.toList() }
+        list.assertProperty(listOf(1), "the state's selection should render initially") { selectedIndices.toList() }
 
         // setListData clears the JList selection; the wrapper must re-apply selectedIndices after the
         // model swap so the controlled selection survives an items change.
         items = listOf("a", "b", "c", "d")
         awaitIdle()
         list.assertProperty(listOf(1), "selection lost on items change") { selectedIndices.toList() }
-    }
-
-    /**
-     * The list twin of
-     * [TableBehaviorTest.aSelectionTheCallerDoesNotAdoptDoesNotStandWhenItIsMadeAgain], over a `JList`'s
-     * own selection model.
-     */
-    @Test
-    fun aSelectionTheCallerDoesNotAdoptDoesNotStandWhenItIsMadeAgain() = runComposeSwingTest {
-        setContent { ListBox(items = listOf("a", "b", "c"), selectedIndices = setOf(0)) }
-
-        val list = onNodeOfType<JList<*>>().fetch()
-        repeat(2) {
-            list.selectedIndex = 1
-            awaitIdle()
-        }
-
-        onNodeOfType<JList<*>>().assertProperty(
-            listOf(0),
-            "an unadopted selection change does not stand, however often it is made",
-        ) { selectedIndices.toList() }
     }
 
     @Test
@@ -131,11 +105,14 @@ class ListBoxBehaviorTest {
     @Test
     fun theLatestSelectionCallbackIsTheOneThatRuns() = runComposeSwingTest {
         val reported = mutableListOf<String>()
-        val first: (Set<Int>) -> Unit = { reported += "first" }
-        val second: (Set<Int>) -> Unit = { reported += "second" }
+        val first: (ListSelectionEvent) -> Unit = { reported += "first" }
+        val second: (ListSelectionEvent) -> Unit = { reported += "second" }
         var useSecond by mutableStateOf(false)
         setContent {
-            ListBox(items = listOf("a", "b", "c"), onSelectionChange = if (useSecond) second else first)
+            ListBox(
+                items = listOf("a", "b", "c"),
+                modifier = SwingModifier.listSelectionListener(if (useSecond) second else first),
+            )
         }
 
         useSecond = true
@@ -165,52 +142,23 @@ class ListBoxBehaviorTest {
     }
 
     @Test
-    fun aSelectionTheCallerDoesNotAdoptIsNeverPainted() = runSwingTest {
-        assertUnadoptedChangeIsNeverPainted(
-            type = JList::class.java,
-            declared = emptyList<Int>(),
-            content = { report ->
-                ListBox(
-                    items = listOf("Ada", "Alan", "Grace"),
-                    selectedIndices = emptySet(),
-                    onSelectionChange = { report() },
-                )
-            },
-            change = { it.selectedIndex = 1 },
-            read = { it.selectedIndices.toList() },
-        )
-    }
-
-    @Test
     fun draggingAcrossRowsDoesNotSettleUntilAdjustingEnds() = runComposeSwingTest {
-        var selection by mutableStateOf(setOf(0))
-        var changes = 0
-        setContent {
-            ListBox(
-                items = listOf("a", "b", "c"),
-                selectedIndices = selection,
-                onSelectionChange = {
-                    selection = it
-                    changes++
-                },
-            )
-        }
+        val state = ListState(initialSelectedIndices = setOf(0))
+        setContent { ListBox(items = listOf("a", "b", "c"), state = state) }
         val list = onNodeOfType<JList<*>>().fetch()
         list.selectionModel.valueIsAdjusting = true
         list.selectionModel.setSelectionInterval(1, 1)
         onNodeOfType<JList<*>>().performAddSelection(2)
 
-        assertEquals(0, changes, "a selection still under the user's hand is not the one to report")
+        assertEquals(
+            setOf(0),
+            state.selectedIndices,
+            "a selection still under the user's hand is not the one to report",
+        )
         list.selectionModel.valueIsAdjusting = false
         awaitIdle()
-        assertEquals(1, changes, "the selection the drag settles on is reported once")
+        assertEquals(setOf(1, 2), state.selectedIndices, "the selection the drag settles on is written to the state")
     }
-
-    @TestFactory
-    fun listBoxRawSwing() = ListBoxFixture.rawSwingTests()
-
-    @TestFactory
-    fun listBoxCounts() = ListBoxFixture.countTests()
 
     @TestFactory
     fun listBoxModelRawSwing() = ListBoxModelFixture.rawSwingTests()

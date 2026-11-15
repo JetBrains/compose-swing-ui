@@ -4,6 +4,8 @@ package org.jetbrains.compose.swing.components.selection
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.listener.listSelectionListener
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.performAddSelection
 import org.jetbrains.compose.swing.test.onNodeOfType
@@ -19,7 +21,7 @@ import kotlin.test.assertSame
  * End-to-end tests for the model-driven [ListBox] overload over a real
  * [SwingApplier][org.jetbrains.compose.swing.node.SwingApplier]. They assert observable behavior on
  * the rendered [JList]: the caller's [javax.swing.ListModel] is installed as-is, a settled
- * selection change fires `onSelectionChange`, the controlled selection survives a model swap
+ * selection change is written into the [ListState], the controlled selection survives a model swap
  * (which `setModel` clears), a programmatic selection set does not echo back, and the declared
  * selection mode and visible row count reach the list and follow a later change.
  */
@@ -35,21 +37,21 @@ class ListBoxModelBehaviorTest {
     }
 
     @Test
-    fun settledSelectionChangeFiresOnSelectionChange() = runComposeSwingTest {
+    fun settledSelectionChangeWritesTheState() = runComposeSwingTest {
         val model = DefaultListModel<String>().apply { addAll(listOf("a", "b", "c")) }
-        val events = mutableListOf<Set<Int>>()
-        setContent { ListBox(model = model, onSelectionChange = { events += it }) }
+        val state = ListState()
+        setContent { ListBox(model = model, state = state) }
 
         val list = onNodeOfType<JList<*>>().fetch()
         // An adjusting run must not fire interim callbacks.
         list.selectionModel.valueIsAdjusting = true
         onNodeOfType<JList<*>>().performAddSelection(1)
-        assertEquals(emptyList(), events, "an adjusting selection must not fire onSelectionChange")
+        assertEquals(emptySet(), state.selectedIndices, "an adjusting selection must not reach the state")
 
-        // Settling the run delivers exactly one callback with the final selection.
+        // Settling the run writes the final selection into the state.
         list.selectionModel.valueIsAdjusting = false
         awaitIdle()
-        assertEquals(listOf(setOf(1)), events, "settling should fire exactly one callback with the final selection")
+        assertEquals(setOf(1), state.selectedIndices, "settling should write the final selection into the state")
     }
 
     @Test
@@ -57,14 +59,8 @@ class ListBoxModelBehaviorTest {
         val first = DefaultListModel<String>().apply { addAll(listOf("a", "b", "c")) }
         val second = DefaultListModel<String>().apply { addAll(listOf("a", "b", "c", "d")) }
         var model by mutableStateOf(first)
-        var selection by mutableStateOf(setOf(1))
-        setContent {
-            ListBox(
-                model = model,
-                selectedIndices = selection,
-                onSelectionChange = { selection = it },
-            )
-        }
+        val state = ListState(setOf(1))
+        setContent { ListBox(model = model, state = state) }
 
         val list = onNodeOfType<JList<*>>().fetch()
         onNodeOfType<JList<*>>().assertProperty(
@@ -81,25 +77,27 @@ class ListBoxModelBehaviorTest {
     }
 
     @Test
-    fun reApplyingTheSameControlledSelectionDoesNotEcho() = runComposeSwingTest {
+    fun reApplyingTheSameStateSelectionDoesNotEcho() = runComposeSwingTest {
         val model = DefaultListModel<String>().apply { addAll(listOf("a", "b", "c")) }
-        val reported = mutableListOf<Set<Int>>()
+        val state = ListState(setOf(1))
+        var events = 0
         var trigger by mutableStateOf(0)
         setContent {
-            // Recompose without changing selectedIndices: the echo-guard must skip re-setting an
-            // unchanged selection so the programmatic set never re-enters the selection listener.
+            // Recompose without changing the state's selection: the echo-guard must skip re-setting an
+            // unchanged selection so the programmatic set never reaches the list's selection model again.
             trigger
             ListBox(
                 model = model,
-                selectedIndices = setOf(1),
-                onSelectionChange = { reported += it },
+                modifier = SwingModifier.listSelectionListener { events++ },
+                state = state,
             )
         }
-        assertEquals(emptyList(), reported, "rendering the controlled selection must not fire onSelectionChange")
+        val rendered = events
 
         trigger = 1
         awaitIdle()
-        assertEquals(emptyList(), reported, "re-applying an unchanged controlled selection must not echo")
+        assertEquals(rendered, events, "re-applying an unchanged controlled selection must not echo")
+        assertEquals(setOf(1), state.selectedIndices, "the state should keep the selection")
         onNodeOfType<JList<*>>().assertProperty(
             listOf(1),
             "the controlled selection should remain applied",

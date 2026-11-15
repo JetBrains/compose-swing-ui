@@ -56,9 +56,10 @@ class TreeNodeReuseTest {
     fun aReactivatedTreeStillHoldsItsControlledSelection() = runComposeSwingTest {
         var active by mutableStateOf(true)
         val model = treeModel()
+        val state = TreeState(initialSelectedPaths = setOf(listOf(1)))
         setContent {
             ReusableContentHost(active = active) {
-                Tree(model = model, selectedPaths = setOf(listOf(1)))
+                Tree(model = model, state = state)
             }
         }
         onNodeOfType<JTree>().assertProperty(

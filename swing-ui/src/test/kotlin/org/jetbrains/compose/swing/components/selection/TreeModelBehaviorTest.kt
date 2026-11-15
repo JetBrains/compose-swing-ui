@@ -8,10 +8,10 @@ import androidx.compose.runtime.setValue
 import io.mockk.mockk
 import io.mockk.verify
 import org.jetbrains.compose.swing.countTests
-import org.jetbrains.compose.swing.fixtures.components.selection.TreeModelFixture
 import org.jetbrains.compose.swing.fixtures.components.selection.TreeModelStateFixture
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.mouseListener
+import org.jetbrains.compose.swing.modifier.listener.treeSelectionListener
 import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
@@ -32,11 +32,12 @@ import kotlin.test.assertSame
  * Behavioral tests for the model-driven `Tree(model, ...)` overloads, driven through the real
  * composition pipeline and asserting against the live `JTree`.
  *
- * The central guarantees: a caller-supplied [TreeModel] backs the tree as-is; user selection fires
- * `onSelectionChange` with each selected node's index path; a controlled `selectedPaths` re-applies
- * after a model swap even though `setModel` clears the selection; and a controlled selection update
- * does not echo back as a spurious callback. Paths resolve through the model's own accessors, so a
- * model that does not use [DefaultMutableTreeNode] nodes still selects correctly.
+ * The central guarantees: a caller-supplied [TreeModel] backs the tree as-is; an undeclared tree reports
+ * user selection through a listener modifier; a [TreeState] holds each selected node's index path; the
+ * state's selection re-applies after a model swap even though `setModel` clears the selection; and
+ * re-applying an unchanged selection does not echo back as a spurious selection event. Paths resolve
+ * through the model's own accessors, so a model that does not use [DefaultMutableTreeNode] nodes still
+ * selects correctly.
  */
 class TreeModelBehaviorTest {
     /** Builds a `root -> {fruit -> {apple, pear}, veg -> {carrot}}` tree backed by a [DefaultTreeModel]. */
@@ -85,11 +86,11 @@ class TreeModelBehaviorTest {
     @Test
     fun selectingANodeFiresOnSelectionChange() = runComposeSwingTest {
         val model = sampleModel()
-        val reported = mutableListOf<Set<List<Int>>>()
+        val reported = mutableListOf<TreePath>()
         setContent {
             Tree(
                 model = model,
-                onSelectionChange = { reported += it },
+                modifier = SwingModifier.treeSelectionListener { reported += it.path },
             )
         }
 
@@ -100,9 +101,9 @@ class TreeModelBehaviorTest {
         awaitIdle()
 
         assertEquals(
-            listOf(setOf(listOf(0, 1))),
+            listOf<TreePath>(model.pathTo(0, 1)),
             reported,
-            "the selected node should be reported once, as its index path",
+            "the selected node should be reported once, as its path",
         )
     }
 
@@ -112,7 +113,7 @@ class TreeModelBehaviorTest {
         setContent {
             Tree(
                 model = model,
-                selectedPaths = setOf(listOf(0, 1)),
+                state = rememberTreeState(initialSelectedPaths = setOf(listOf(0, 1))),
             )
         }
 
@@ -181,12 +182,11 @@ class TreeModelBehaviorTest {
                     ),
                 ),
             )
-        val reported = mutableListOf<Set<List<Int>>>()
+        val state = TreeState(initialSelectedPaths = setOf(listOf(0, 1)))
         setContent {
             Tree(
                 model = model,
-                selectedPaths = setOf(listOf(0, 1)),
-                onSelectionChange = { reported += it },
+                state = state,
             )
         }
 
@@ -195,40 +195,35 @@ class TreeModelBehaviorTest {
 
         tree.selectionPath = model.pathTo(1, 0)
         awaitIdle()
-        assertEquals(setOf(listOf(1, 0)), reported.last(), "the selected node reads back as its index path")
+        assertEquals(setOf(listOf(1, 0)), state.selectedPaths, "the selected node reads back as its index path")
     }
 
     @Test
     fun reApplyingTheSameControlledSelectionDoesNotEcho() = runComposeSwingTest {
         val model = sampleModel()
-        val reported = mutableListOf<Set<List<Int>>>()
+        var events = 0
+        val state = TreeState(initialSelectedPaths = setOf(listOf(0, 1)))
         var trigger by mutableStateOf(0)
         setContent {
-            // Recompose without changing selectedPaths: the echo-guard must skip re-setting an
+            // Recompose without changing the state's selection: the echo-guard must skip re-setting an
             // unchanged selection so the programmatic set never re-enters the selection listener.
             trigger
             Tree(
                 model = remember { model },
-                selectedPaths = setOf(listOf(0, 1)),
-                onSelectionChange = { reported += it },
+                modifier = SwingModifier.treeSelectionListener { events++ },
+                state = state,
             )
         }
-        assertEquals(emptyList(), reported, "rendering the controlled selection must not fire onSelectionChange")
+        val afterRender = events
 
         trigger = 1
         awaitIdle()
-        assertEquals(emptyList(), reported, "re-applying an unchanged controlled selection must not echo")
+        assertEquals(afterRender, events, "re-applying an unchanged selection must not echo")
         onNodeOfType<JTree>().assertProperty(
             model.pathTo(0, 1),
             "the controlled selection should remain applied",
         ) { selectionPath }
     }
-
-    @TestFactory
-    fun rawSwing() = TreeModelFixture.rawSwingTests()
-
-    @TestFactory
-    fun counts() = TreeModelFixture.countTests()
 
     @TestFactory
     fun treeModelStateRawSwing() = TreeModelStateFixture.rawSwingTests()

@@ -38,14 +38,14 @@ public object TreeModelStateFixture : ComposableFixture<TreeModelStateParameters
             state.selectedPaths = emptySet()
             state.expandedPaths = expandedPaths
         }
-        val model = remember { TreeFixture.sampleModel("Root before", "Alpha", "Beta") }
+        val model = remember { sampleModel("Root before", "Alpha", "Beta") }
         Tree(model = model, state = state)
     }
 
     /** Builds a [JTree] over the fixed model with the fixed selection, before the expansion is applied. */
     override fun createRawSwing(): JTree {
-        val tree = JTree(TreeFixture.sampleModel("Root before", "Alpha", "Beta"))
-        TreeFixture.applySelection(tree, emptySet())
+        val tree = JTree(sampleModel("Root before", "Alpha", "Beta"))
+        applySelection(tree, emptySet())
         return tree
     }
 
@@ -54,6 +54,6 @@ public object TreeModelStateFixture : ComposableFixture<TreeModelStateParameters
         component: JTree,
         parameters: TreeModelStateParameters,
     ) {
-        TreeFixture.applyExpansion(component, parameters.expandedPaths)
+        applyExpansion(component, parameters.expandedPaths)
     }
 }

@@ -35,19 +35,21 @@ class SelectionModelWriteTest {
         case: String,
     ) = runComposeSwingTest {
         var marker by mutableStateOf("before")
+        val tableState = TableState(initialSelectedRowIndices = setOf(2, 3, 4))
+        val listState = ListState(initialSelectedIndices = setOf(2, 3, 4))
         setContent {
             if (widget == "Table") {
                 Table(
                     rows = (0..7).toList(),
                     columns = { column("Number") { it } },
                     modifier = SwingModifier.name(marker),
-                    selectedRowIndices = setOf(2, 3, 4),
+                    state = tableState,
                 )
             } else {
                 ListBox(
                     items = (0..7).toList(),
                     modifier = SwingModifier.name(marker),
-                    selectedIndices = setOf(2, 3, 4),
+                    state = listState,
                 )
             }
         }

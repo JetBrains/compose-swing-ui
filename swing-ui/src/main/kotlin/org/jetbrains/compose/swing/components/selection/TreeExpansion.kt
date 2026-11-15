@@ -1,8 +1,6 @@
 // Copyright 2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.jetbrains.compose.swing.components.selection
 
-import org.jetbrains.compose.swing.util.fastFirstOrNull
-import org.jetbrains.compose.swing.util.fastForEach
 import javax.swing.JTree
 import javax.swing.tree.TreeModel
 import javax.swing.tree.TreePath
@@ -159,30 +157,6 @@ private fun closeNodes(
         if (tree.isExpanded(path)) refused = true
     }
     return refused
-}
-
-/**
- * The nodes above [selection] that the tree does not show open, shallowest first: the ones a tree opens when
- * it is given [selection] to select.
- */
-internal fun JTree.closedAbove(selection: List<TreePath>): List<TreePath> {
-    // A tree shows a node open only where every node above it is open too, so a selection whose every parent
-    // is open has nothing closed above it.
-    if (selection.fastFirstOrNull { selected -> selected.parentPath?.let { !isExpanded(it) } == true } == null) {
-        return emptyList()
-    }
-    val closed = ArrayList<TreePath>()
-    val seen = HashSet<TreePath>()
-    selection.fastForEach { selected ->
-        var above = selected.parentPath
-        // A node already seen was seen with every node above it.
-        while (above != null && !isExpanded(above) && seen.add(above)) {
-            closed.add(above)
-            above = above.parentPath
-        }
-    }
-    closed.sortBy { it.pathCount }
-    return closed
 }
 
 /** Whether [prefix] names this node or one of the nodes above it. */

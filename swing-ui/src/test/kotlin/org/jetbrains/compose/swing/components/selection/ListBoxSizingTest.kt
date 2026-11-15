@@ -180,10 +180,10 @@ class ListBoxSizingTest {
             val model = DefaultListModel<String>().apply { rows.forEach { addElement(it) } }
             return listOf(
                 Named.of("items") { prototype: String? ->
-                    ListBox(::presetList, rows, rememberListState(), prototypeCellValue = prototype)
+                    ListBox(::presetList, rows, state = rememberListState(), prototypeCellValue = prototype)
                 },
                 Named.of("caller's model") { prototype: String? ->
-                    ListBox(::presetList, model, rememberListState(), prototypeCellValue = prototype)
+                    ListBox(::presetList, model, state = rememberListState(), prototypeCellValue = prototype)
                 },
             )
         }

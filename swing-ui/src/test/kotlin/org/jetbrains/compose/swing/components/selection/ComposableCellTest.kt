@@ -90,7 +90,7 @@ class ComposableCellTest {
                 Viewport {
                     ListBox(
                         items = listOf("first", "second"),
-                        selectedIndices = setOf(0),
+                        state = rememberListState(initialSelectedIndices = setOf(0)),
                     ) { item ->
                         Panel { Label(item) }
                     }
@@ -224,7 +224,7 @@ class ComposableCellTest {
             if (visible) {
                 ListBox(
                     items = listOf("alpha", "beta"),
-                    selectedIndices = setOf(0),
+                    state = rememberListState(initialSelectedIndices = setOf(0)),
                     itemContent =
                         if (enabled) {
                             { item -> Label(item) }
@@ -249,7 +249,7 @@ class ComposableCellTest {
                                 },
                         ) { it.name }
                     },
-                    selectedRowIndices = setOf(0),
+                    state = rememberTableState(initialSelectedRowIndices = setOf(0)),
                 )
             }
         },

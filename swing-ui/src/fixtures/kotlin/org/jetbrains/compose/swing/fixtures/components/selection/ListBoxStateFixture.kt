@@ -14,12 +14,14 @@ public data class ListBoxStateParameters(
 )
 
 /**
- * A [ListBox] driven by a list state against a raw [JList] selecting the same rows. The items are the ones of
- * [ListBoxFixture.initial].
+ * A [ListBox] driven by a list state against a raw [JList] selecting the same rows. The items are Alpha, Beta and
+ * Gamma.
  */
 public object ListBoxStateFixture : ComposableFixture<ListBoxStateParameters, JList<String>>(
     initial = ListBoxStateParameters(selectedIndices = setOf(0)),
 ) {
+    private val ITEMS: List<String> = listOf("Alpha", "Beta", "Gamma")
+
     /** The single-change copies of [initial], one for each parameter. */
     override val alternatives: List<ListBoxStateParameters> =
         listOf(
@@ -35,13 +37,13 @@ public object ListBoxStateFixture : ComposableFixture<ListBoxStateParameters, JL
         val state = rememberListState(initialSelectedIndices = selectedIndices)
         SideEffect { state.selectedIndices = selectedIndices }
         ListBox(
-            items = ListBoxFixture.initial.items,
+            items = ITEMS,
             state = state,
         )
     }
 
     /** Builds a [JList] showing the shared items, before any of the fixture's values are applied. */
-    override fun createRawSwing(): JList<String> = JList(ListBoxFixture.initial.items.toTypedArray())
+    override fun createRawSwing(): JList<String> = JList(ITEMS.toTypedArray())
 
     /** Selects the rows of [parameters] in [component], unless they are selected already. */
     override fun updateRawSwing(

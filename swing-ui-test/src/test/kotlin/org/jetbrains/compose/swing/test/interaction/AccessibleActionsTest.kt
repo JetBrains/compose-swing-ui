@@ -21,6 +21,7 @@ import org.jetbrains.compose.swing.components.layout.TabbedPane
 import org.jetbrains.compose.swing.components.menu.Menu
 import org.jetbrains.compose.swing.components.menu.MenuItem
 import org.jetbrains.compose.swing.components.selection.ListBox
+import org.jetbrains.compose.swing.components.selection.ListState
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.ComposeSwingTest
@@ -119,12 +120,12 @@ class AccessibleActionsTest {
 
     @Test
     fun selectionsReachCallbacksAndSettle() = runComposeSwingTest {
-        var list by mutableStateOf(setOf(0))
+        val list = ListState(setOf(0))
         var combo by mutableStateOf("one")
         val tabs = mutableListOf<Int>()
         setContent {
             Panel {
-                ListBox(items = listOf("one", "two"), selectedIndices = list, onSelectionChange = { list = it })
+                ListBox(items = listOf("one", "two"), state = list)
                 ComboBox(
                     items = listOf("one", "two"),
                     selectedItem = combo,
@@ -137,6 +138,7 @@ class AccessibleActionsTest {
             }
         }
         onNodeOfType<JList<*>>().performAddSelection(1).assertProperty(listOf(0, 1)) { selectedIndices.toList() }
+        assertEquals(setOf(0, 1), list.selectedIndices)
         onNodeOfType<JComboBox<*>>().performAddSelection(1).assertProperty("two") { selectedItem }
         onNodeOfType<JTabbedPane>().performAddSelection(1).assertProperty(0) { selectedIndex }
         assertEquals(listOf(1), tabs)

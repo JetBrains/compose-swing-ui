@@ -37,7 +37,7 @@ class RedundantSelectionWriteTest {
         setContent {
             ListBox(
                 items = listOf("red", "green", "blue"),
-                selectedIndices = linkedSetOf(2, 0, 1),
+                state = rememberListState(initialSelectedIndices = linkedSetOf(2, 0, 1)),
                 visibleRowCount = count,
             )
         }
@@ -71,7 +71,7 @@ class RedundantSelectionWriteTest {
                 rows = listOf(Person("Ada", 36), Person("Alan", 41), Person("Grace", 50)),
                 columns = { column("Name") { it.name } },
                 modifier = SwingModifier.name(label),
-                selectedRowIndices = linkedSetOf(2, 0, 1),
+                state = rememberTableState(initialSelectedRowIndices = linkedSetOf(2, 0, 1)),
             )
         }
 
@@ -152,7 +152,7 @@ class RedundantSelectionWriteTest {
                 rows = listOf(Person("Ada", 36), Person("Alan", 41), Person("Grace", 50)),
                 columns = { column("Name") { it.name } },
                 modifier = SwingModifier.name(label),
-                selectedRowIndices = linkedSetOf(2, 0, 1),
+                state = rememberTableState(initialSelectedRowIndices = linkedSetOf(2, 0, 1)),
                 sortable = true,
                 rowFilter = filter,
             )

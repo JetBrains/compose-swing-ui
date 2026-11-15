@@ -1,15 +1,15 @@
 // Copyright 2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.jetbrains.compose.swing.components.selection
 
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import org.jetbrains.compose.swing.assertUnadoptedChangeIsNeverPainted
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.name
-import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
 import org.jetbrains.compose.swing.test.onNodeOfType
@@ -26,7 +26,6 @@ import javax.swing.table.DefaultTableModel
 import javax.swing.table.TableColumn
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
@@ -131,52 +130,22 @@ class TableBehaviorTest {
 
     @Test
     fun selectingRowsFiresOnSelectionChange() = runComposeSwingTest {
-        val received = mutableListOf<Set<Int>>()
         setContent {
             Table(
                 rows = listOf(Person("Ada", 36), Person("Alan", 41), Person("Grace", 50)),
                 columns = { column("Name") { it.name } },
-                onSelectionChange = { received += it },
                 selectionMode = ListSelectionModel.MULTIPLE_INTERVAL_SELECTION,
             )
         }
 
-        val table = onNodeOfType<JTable>().fetch()
+        val table = onNodeOfType<JTable>()
         // Drive the selection through the table's selection model, where a real mouse gesture
-        // would land; the wrapper's listener observes it and fires onSelectionChange.
-        table.setRowSelectionInterval(0, 0)
-        table.addRowSelectionInterval(2, 2)
+        // would land; an undeclared selection is left to Swing and stands.
+        table.fetch().setRowSelectionInterval(0, 0)
+        table.fetch().addRowSelectionInterval(2, 2)
         awaitIdle()
 
-        assertEquals(setOf(0, 2), received.last(), "selected row indices reported to callback")
-    }
-
-    /**
-     * The table is settled back onto the declared selection by the time the change's own recomposition
-     * finishes, not once some later, unrelated recomposition happens to run. A declaration is the
-     * composition's state and is asserted again for every move made against it, so a user who makes the
-     * same move twice is answered twice: what the table was left holding after the first is not a reason
-     * to leave the second alone.
-     */
-    @Test
-    fun aSelectionTheCallerDoesNotAdoptDoesNotStandWhenItIsMadeAgain() = runComposeSwingTest {
-        setContent {
-            Table(
-                rows = listOf(Person("Ada", 36), Person("Alan", 41)),
-                columns = { column("Name") { it.name } },
-                selectedRowIndices = setOf(0),
-            )
-        }
-
-        val table = onNodeOfType<JTable>()
-        repeat(2) { attempt ->
-            table.fetch().setRowSelectionInterval(1, 1)
-            awaitIdle()
-            table.assertProperty(
-                listOf(0),
-                "attempt ${attempt + 1}: an unadopted selection change does not stand, however often it is made",
-            ) { selectedRows.toList() }
-        }
+        table.assertProperty(listOf(0, 2), "selected row indices") { selectedRows.toList() }
     }
 
     @Test
@@ -362,19 +331,13 @@ class TableBehaviorTest {
     @Test
     fun aSelectionTheUserMadeStandsWhenARowAboveItIsRemoved() = runComposeSwingTest {
         val rows = mutableStateListOf(Person("Ada", 36), Person("Alan", 41), Person("Grace", 45))
-        var lossReported = false
         setContent {
-            Table(
-                rows = rows,
-                columns = { column("Name") { it.name } },
-                onSelectionChange = { if (it.isEmpty()) lossReported = true },
-            )
+            Table(rows = rows, columns = { column("Name") { it.name } })
         }
 
         val table = onNodeOfType<JTable>()
         table.fetch().setRowSelectionInterval(2, 2)
         awaitIdle()
-        lossReported = false
 
         rows.removeAt(0)
         awaitIdle()
@@ -384,24 +347,14 @@ class TableBehaviorTest {
             listOf(1),
             "the row the user selected should shift up and stay selected",
         ) { selectedRows.toList() }
-        assertFalse(lossReported, "a row the table kept must not be reported as lost")
     }
 
     @Test
     fun draggingAcrossRowsDoesNotSettleUntilAdjustingEnds() = runComposeSwingTest {
         val rows = listOf(Person("Ada", 36), Person("Alan", 41), Person("Grace", 45))
-        var selection by mutableStateOf(setOf(0))
-        var changes = 0
+        val state = TableState(initialSelectedRowIndices = setOf(0))
         setContent {
-            Table(
-                rows = rows,
-                columns = { column("Name") { it.name } },
-                selectedRowIndices = selection,
-                onSelectionChange = {
-                    selection = it
-                    changes++
-                },
-            )
+            Table(rows = rows, columns = { column("Name") { it.name } }, state = state)
         }
         val table = onNodeOfType<JTable>().fetch()
         table.selectionModel.valueIsAdjusting = true
@@ -409,10 +362,10 @@ class TableBehaviorTest {
         table.selectionModel.addSelectionInterval(2, 2)
         awaitIdle()
 
-        assertEquals(0, changes, "a selection still under the user's hand is not the one to report")
+        assertEquals(setOf(0), state.selectedRowIndices, "a selection still under the user's hand is not written")
         table.selectionModel.valueIsAdjusting = false
         awaitIdle()
-        assertEquals(1, changes, "the selection the drag settles on is reported once")
+        assertEquals(setOf(1, 2), state.selectedRowIndices, "the selection the drag settles on is written")
     }
 
     /**
@@ -423,8 +376,9 @@ class TableBehaviorTest {
     @Test
     fun aDeclaredRunOfRowsLeavesTheAnchorAtItsStart() = runComposeSwingTest {
         val rows = listOf(Person("Ada", 36), Person("Alan", 41), Person("Grace", 45), Person("Edsger", 51))
+        val state = TableState(initialSelectedRowIndices = setOf(1, 2, 3))
         setContent {
-            Table(rows = rows, columns = { column("Name") { it.name } }, selectedRowIndices = setOf(1, 2, 3))
+            Table(rows = rows, columns = { column("Name") { it.name } }, state = state)
         }
 
         val table = onNodeOfType<JTable>()
@@ -433,47 +387,39 @@ class TableBehaviorTest {
         table.assertProperty(1, "the start of the run should be the anchor") { selectionModel.anchorSelectionIndex }
     }
 
-    @Test
-    fun controlledSelectionUpdateConvergesWithoutALoop() = runComposeSwingTest {
-        // The controller mirrors the callback back into the controlled state, exactly as a real
-        // caller would. The selection guard must make this converge: applying an external update
-        // settles on that selection without oscillating between values frame after frame.
-        var selection by mutableStateOf(setOf(0))
-        val received = mutableListOf<Set<Int>>()
-        setContent {
-            Table(
-                rows = listOf(Person("Ada", 36), Person("Alan", 41), Person("Grace", 50)),
-                columns = { column("Name") { it.name } },
-                selectedRowIndices = selection,
-                onSelectionChange = {
-                    received += it
-                    selection = it
-                },
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("tablesOverAStateOfThreeRows")
+    fun aSelectionAssignedToTheStateConvergesWithoutALoop(table: @Composable (TableState) -> Unit) =
+        runComposeSwingTest {
+            // The table writes the user's selection back to the state, so an assignment to the state must
+            // settle on that selection without oscillating between values frame after frame.
+            val state = TableState(initialSelectedRowIndices = setOf(0))
+            val observed = mutableListOf<Set<Int>>()
+            setContent {
+                val selection = state.selectedRowIndices
+                SideEffect { observed += selection }
+                table(state)
+            }
+
+            val node = onNodeOfType<JTable>()
+            node.assertProperty(listOf(0), "initial selection applied") { selectedRows.toList() }
+
+            val passesBeforeUpdate = observed.size
+            state.selectedRowIndices = setOf(2)
+            awaitIdle()
+
+            node.assertProperty(listOf(2), "assigned selection applied") { selectedRows.toList() }
+            assertEquals(setOf(2), state.selectedRowIndices, "the state settled on the new selection")
+            assertTrue(
+                observed.drop(passesBeforeUpdate).all { it == setOf(2) },
+                "selection oscillated instead of converging: $observed",
             )
+
+            // A second idle pass produces no further churn.
+            val observedAfterSettle = observed.size
+            awaitIdle()
+            assertEquals(observedAfterSettle, observed.size, "selection kept changing after settling")
         }
-
-        val table = onNodeOfType<JTable>()
-        table.assertProperty(listOf(0), "initial selection applied") { selectedRows.toList() }
-
-        // A purely external selection update applies to the table and settles. Because the guard
-        // skips re-applying an unchanged selection, any echoed callback carries the SAME new
-        // indices the controller already holds, so it does not bounce back to the old value.
-        selection = setOf(2)
-        awaitIdle()
-
-        table.assertProperty(listOf(2), "external selection applied") { selectedRows.toList() }
-        assertEquals(setOf(2), selection, "controlled state settled on the new selection")
-        assertTrue(
-            received.all { it == setOf(2) },
-            "selection oscillated instead of converging: $received",
-        )
-
-        // A second idle pass produces no further churn: the guard sees the selection unchanged
-        // and re-applies nothing, so no new callback fires.
-        val callbacksAfterSettle = received.size
-        awaitIdle()
-        assertEquals(callbacksAfterSettle, received.size, "selection kept firing callbacks after settling")
-    }
 
     @Test
     fun aPassThatChangedNoDataLeavesTheColumnsAlone() = runComposeSwingTest {
@@ -502,24 +448,6 @@ class TableBehaviorTest {
             123,
             "and so does the width set on it",
         ) { columnModel.getColumn(0).preferredWidth }
-    }
-
-    @Test
-    fun aSelectionTheCallerDoesNotAdoptIsNeverPainted() = runSwingTest {
-        assertUnadoptedChangeIsNeverPainted(
-            type = JTable::class.java,
-            declared = emptyList<Int>(),
-            content = { report ->
-                Table(
-                    rows = listOf("Ada", "Alan"),
-                    columns = { column("Name") { it } },
-                    selectedRowIndices = emptySet(),
-                    onSelectionChange = { report() },
-                )
-            },
-            change = { it.setRowSelectionInterval(1, 1) },
-            read = { it.selectedRows.toList() },
-        )
     }
 
     @ParameterizedTest(name = "{0}")
@@ -559,6 +487,29 @@ class TableBehaviorTest {
         fun factoryTablesThatWouldNotBuildColumns(): List<Named<() -> JTable>> = listOf(
             Named.of("autoCreateColumnsFromModel off") { JTable().apply { autoCreateColumnsFromModel = false } },
             Named.of("column model preset") { JTable(null, columnModelOf("Stale"), null) },
+        )
+
+        @JvmStatic
+        fun tablesOverAStateOfThreeRows(): List<Named<@Composable (TableState) -> Unit>> = listOf(
+            Named.of("declared rows") { state ->
+                Table(
+                    rows = listOf(Person("Ada", 36), Person("Alan", 41), Person("Grace", 50)),
+                    columns = { column("Name") { it.name } },
+                    state = state,
+                )
+            },
+            Named.of("caller's model") { state ->
+                Table(
+                    model =
+                        remember {
+                            DefaultTableModel(
+                                arrayOf(arrayOf<Any?>("Ada"), arrayOf<Any?>("Alan"), arrayOf<Any?>("Grace")),
+                                arrayOf<Any?>("Name"),
+                            )
+                        },
+                    state = state,
+                )
+            },
         )
     }
 }

@@ -4,7 +4,7 @@ package org.jetbrains.compose.swing.modifier.listener
 import org.jetbrains.compose.swing.components.Slider
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.selection.Table
-import org.jetbrains.compose.swing.components.selection.TableColumnLayout
+import org.jetbrains.compose.swing.components.selection.TableState
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -17,7 +17,7 @@ import javax.swing.table.DefaultTableModel
 import javax.swing.table.TableColumn
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
+import kotlin.test.assertNotNull
 
 /**
  * A widget that publishes through a model it holds can be handed another one. Every registration the
@@ -49,13 +49,12 @@ class ModelSwapRegistrationTest {
 
     @Test
     fun aTableSelectionRegistrationRidesASelectionModelSwap() = runComposeSwingTest {
-        val seen = mutableListOf<Set<Int>>()
+        val state = TableState()
         setContent {
             Panel {
                 Table(
                     model = DefaultTableModel(arrayOf(arrayOf("a"), arrayOf("b"), arrayOf("c")), arrayOf("col")),
-                    selectedRowIndices = emptySet(),
-                    onSelectionChange = { seen += it },
+                    state = state,
                 )
             }
         }
@@ -66,21 +65,20 @@ class ModelSwapRegistrationTest {
         table.setRowSelectionInterval(1, 1)
 
         assertEquals(
-            listOf(setOf(1)),
-            seen,
+            setOf(1),
+            state.selectedRowIndices,
             "the selection registration followed the table onto the model it was given",
         )
     }
 
     @Test
     fun aTableColumnRegistrationRidesAColumnModelSwap() = runComposeSwingTest {
-        val layouts = mutableListOf<TableColumnLayout>()
+        val state = TableState()
         setContent {
             Panel {
                 Table(
                     model = DefaultTableModel(arrayOf(arrayOf("a", "b")), arrayOf("one", "two")),
-                    selectedRowIndices = emptySet(),
-                    onColumnLayoutChange = { layouts += it },
+                    state = state,
                 )
             }
         }
@@ -95,8 +93,8 @@ class ModelSwapRegistrationTest {
 
         replacement.moveColumn(0, 1)
 
-        assertTrue(
-            layouts.isNotEmpty(),
+        assertNotNull(
+            state.columnLayout,
             "the column registration followed the table onto the model it was given",
         )
     }

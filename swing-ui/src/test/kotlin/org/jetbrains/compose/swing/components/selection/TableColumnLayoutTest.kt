@@ -14,14 +14,12 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 /**
- * The column-layout channel of [Table]: the order the columns are in and how wide they are, reported through
- * `onColumnLayoutChange` and held by a [TableState].
+ * The column-layout channel of [Table]: the order the columns are in and how wide they are, held by a [TableState].
  *
  * Reordering and resizing columns are both live in a Swing table by default, and new columns rebuild the
  * column model from scratch - so a layout that is not put back is destroyed by any change of the declared
- * columns or of the model. The layout a state holds survives that rebuild and no callback carries it back;
- * the user's own layout is carried across the rebuild all the same, and is reported where the new columns
- * cannot hold all of it.
+ * columns or of the model. The layout a state holds survives that rebuild; the user's own layout is carried
+ * across the rebuild all the same, and is written to the state.
  *
  * A reorder is a mouse drag on a header cell and a resize a mouse drag on a divider, on the header the scroll
  * pane shows.
@@ -77,8 +75,8 @@ class TableColumnLayoutTest {
     }
 
     @Test
-    fun reorderingColumnsReportsTheLayoutTheyAreIn() = runComposeSwingTest {
-        val received = mutableListOf<TableColumnLayout>()
+    fun reorderingColumnsWritesTheLayoutTheyAreInToTheState() = runComposeSwingTest {
+        val state = TableState()
         setContent {
             HeaderPane {
                 Table(
@@ -87,7 +85,7 @@ class TableColumnLayoutTest {
                         column("Name") { it.name }
                         column("Age") { it.age }
                     },
-                    onColumnLayoutChange = { received += it },
+                    state = state,
                 )
             }
         }
@@ -95,12 +93,16 @@ class TableColumnLayoutTest {
         dragColumn(from = 1, to = 0)
         awaitIdle()
 
-        assertEquals(listOf(1, 0), received.last().modelIndices, "the reordered columns should be reported")
+        assertEquals(
+            listOf(1, 0),
+            state.columnLayout?.modelIndices,
+            "the reordered columns should be written to the state",
+        )
     }
 
     @Test
-    fun resizingAColumnReportsTheLayoutItIsIn() = runComposeSwingTest {
-        val received = mutableListOf<TableColumnLayout>()
+    fun resizingAColumnWritesTheLayoutItIsInToTheState() = runComposeSwingTest {
+        val state = TableState()
         setContent {
             HeaderPane {
                 Table(
@@ -109,7 +111,7 @@ class TableColumnLayoutTest {
                         column("Name") { it.name }
                         column("Age") { it.age }
                     },
-                    onColumnLayoutChange = { received += it },
+                    state = state,
                     autoResizeMode = JTable.AUTO_RESIZE_OFF,
                 )
             }
@@ -119,13 +121,14 @@ class TableColumnLayoutTest {
         dragColumnDivider(position = 0, dx = 40)
         awaitIdle()
 
-        assertTrue(received.isNotEmpty(), "a resize should be reported")
+        val layout = state.columnLayout
+        assertTrue(layout != null, "a resize should be written to the state")
         assertEquals(
             table.columnModel.getColumn(0).preferredWidth,
-            received.last().preferredWidths[0],
-            "the resized column's preferred width should be reported",
+            layout.preferredWidths[0],
+            "the resized column's preferred width should be written to the state",
         )
-        assertEquals(listOf(0, 1), received.last().modelIndices, "a resize should leave the order alone")
+        assertEquals(listOf(0, 1), layout.modelIndices, "a resize should leave the order alone")
     }
 
     @Test
@@ -162,9 +165,9 @@ class TableColumnLayoutTest {
     }
 
     @Test
-    fun anUndeclaredLayoutSurvivesAColumnStructureChange() = runComposeSwingTest {
+    fun aUsersLayoutSurvivesAColumnStructureChange() = runComposeSwingTest {
         var withCity by mutableStateOf(false)
-        val received = mutableListOf<TableColumnLayout>()
+        val state = TableState()
         setContent {
             HeaderPane {
                 Table(
@@ -174,7 +177,7 @@ class TableColumnLayoutTest {
                         column("Age") { it.age }
                         if (withCity) column("City") { "Cambridge" }
                     },
-                    onColumnLayoutChange = { received += it },
+                    state = state,
                 )
             }
         }
@@ -182,19 +185,19 @@ class TableColumnLayoutTest {
         val table = onNodeOfType<JTable>().fetch()
         dragColumn(from = 1, to = 0)
         awaitIdle()
-        received.clear()
+        val before = state.columnLayout
 
         withCity = true
         awaitIdle()
 
         assertEquals(listOf(1, 0, 2), table.columnModel.modelIndices(), "the user's order should survive the rebuild")
-        assertEquals(emptyList(), received, "a layout the rebuild could hold should report nothing")
+        assertEquals(before, state.columnLayout, "a layout the rebuild could hold should write nothing to the state")
     }
 
     @Test
-    fun aStructureChangeThatDropsAColumnReportsWhatIsLeftOfTheUsersLayout() = runComposeSwingTest {
+    fun aStructureChangeThatDropsAColumnKeepsTheSurvivingColumn() = runComposeSwingTest {
         var withAge by mutableStateOf(true)
-        val received = mutableListOf<TableColumnLayout>()
+        val state = TableState()
         setContent {
             HeaderPane {
                 Table(
@@ -203,7 +206,7 @@ class TableColumnLayoutTest {
                         column("Name") { it.name }
                         if (withAge) column("Age") { it.age }
                     },
-                    onColumnLayoutChange = { received += it },
+                    state = state,
                 )
             }
         }
@@ -211,23 +214,23 @@ class TableColumnLayoutTest {
         val table = onNodeOfType<JTable>().fetch()
         dragColumn(from = 1, to = 0)
         awaitIdle()
-        received.clear()
+        assertEquals(listOf(1, 0), state.columnLayout?.modelIndices, "the drag should have written its layout")
 
         withAge = false
         awaitIdle()
 
         assertEquals(listOf(0), table.columnModel.modelIndices(), "only the surviving column should be left")
         assertEquals(
-            listOf(listOf(0)),
-            received.map { it.modelIndices },
-            "the layout the surviving columns were left holding should be reported once",
+            listOf("Name"),
+            (0 until table.columnModel.columnCount).map { table.columnModel.getColumn(it).headerValue },
+            "the surviving column should be the one left in view",
         )
     }
 
     @Test
-    fun aRowsOnlyRefreshLeavesTheColumnLayoutAloneAndSilent() = runComposeSwingTest {
+    fun aRowsOnlyRefreshLeavesTheColumnLayoutAndTheStateAlone() = runComposeSwingTest {
         var rows by mutableStateOf(people)
-        val received = mutableListOf<TableColumnLayout>()
+        val state = TableState()
         setContent {
             HeaderPane {
                 Table(
@@ -236,7 +239,7 @@ class TableColumnLayoutTest {
                         column("Name") { it.name }
                         column("Age") { it.age }
                     },
-                    onColumnLayoutChange = { received += it },
+                    state = state,
                     autoResizeMode = JTable.AUTO_RESIZE_OFF,
                 )
             }
@@ -248,7 +251,7 @@ class TableColumnLayoutTest {
         awaitIdle()
         val order = table.columnModel.modelIndices()
         val widths = table.columnModel.preferredWidths()
-        received.clear()
+        val before = state.columnLayout
 
         rows = people + Person("Grace", 50)
         awaitIdle()
@@ -261,12 +264,12 @@ class TableColumnLayoutTest {
             widths,
             "a rows-only refresh should keep the widths",
         ) { columnModel.preferredWidths() }
-        assertEquals(emptyList(), received, "a rows-only refresh should report no column change")
+        assertEquals(before, state.columnLayout, "a rows-only refresh should write no column change")
     }
 
     @Test
     fun aTableResizeThatOnlyRedistributesWidthsIsSilent() = runComposeSwingTest {
-        val received = mutableListOf<TableColumnLayout>()
+        val state = TableState()
         setContent {
             HeaderPane {
                 Table(
@@ -275,19 +278,19 @@ class TableColumnLayoutTest {
                         column("Name") { it.name }
                         column("Age") { it.age }
                     },
-                    onColumnLayoutChange = { received += it },
+                    state = state,
                 )
             }
         }
 
         val table = onNodeOfType<JTable>().fetch()
-        received.clear()
+        val before = state.columnLayout
         // A table spreads its width across its columns at every layout pass, which changes each column's
         // width without touching the layout the columns are in.
         table.setSize(table.width * 2, table.height)
         table.doLayout()
         awaitIdle()
 
-        assertEquals(emptyList(), received, "redistributing widths across a wider table is no column change")
+        assertEquals(before, state.columnLayout, "redistributing widths across a wider table is no column change")
     }
 }

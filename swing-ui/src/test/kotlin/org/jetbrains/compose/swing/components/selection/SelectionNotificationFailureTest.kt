@@ -2,13 +2,11 @@
 package org.jetbrains.compose.swing.components.selection
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.ListenerRegistration
 import org.jetbrains.compose.swing.modifier.listener.listSelectionListener
 import org.jetbrains.compose.swing.modifier.listener.listener
+import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.DynamicTest
@@ -51,7 +49,8 @@ class SelectionNotificationFailureTest {
         failure: Throwable,
         case: String,
     ) = runComposeSwingTest {
-        var selected by mutableStateOf(setOf(0))
+        val listState = ListState(setOf(0))
+        val tableState = TableState(setOf(0))
         var armed = false
         val events = mutableListOf<Boolean>()
         val reported = mutableListOf<Throwable>()
@@ -60,13 +59,8 @@ class SelectionNotificationFailureTest {
                 events += it.valueIsAdjusting
                 if (armed && it.valueIsAdjusting == adjusting) throw failure
             }
-        setContent { SelectionWidget(widget, selected, listener) }
-        val model =
-            if (widget == "Table") {
-                onNodeOfType<JTable>().fetch().selectionModel as DefaultListSelectionModel
-            } else {
-                onNodeOfType<JList<*>>().fetch().selectionModel as DefaultListSelectionModel
-            }
+        setContent { SelectionWidget(widget, listState, tableState, listener) }
+        val model = selectionModelOf(widget)
         model.isLeadAnchorNotificationEnabled = announced
         val laterEvents = mutableListOf<Boolean>()
         model.addListSelectionListener { laterEvents += it.valueIsAdjusting }
@@ -76,7 +70,13 @@ class SelectionNotificationFailureTest {
         try {
             armed = true
             events.clear()
-            selected = setOf(1, 2)
+            if (widget ==
+                "Table"
+            ) {
+                tableState.selectedRowIndices = setOf(1, 2)
+            } else {
+                listState.selectedIndices = setOf(1, 2)
+            }
             val caught = runCatching { awaitIdle() }.exceptionOrNull()
             assertTrue(events.contains(adjusting), "$case: the declared change must reach the throwing listener")
             assertTrue(
@@ -106,6 +106,12 @@ class SelectionNotificationFailureTest {
         }
     }
 
+    private fun ComposeSwingTest.selectionModelOf(widget: String): DefaultListSelectionModel = if (widget == "Table") {
+        onNodeOfType<JTable>().fetch().selectionModel as DefaultListSelectionModel
+    } else {
+        onNodeOfType<JList<*>>().fetch().selectionModel as DefaultListSelectionModel
+    }
+
     private fun assertLaterNotifications(
         model: DefaultListSelectionModel,
         events: MutableList<Boolean>,
@@ -130,7 +136,8 @@ class SelectionNotificationFailureTest {
     @Composable
     private fun SelectionWidget(
         widget: String,
-        selected: Set<Int>,
+        listState: ListState,
+        tableState: TableState,
         listener: ListSelectionListener,
     ) {
         val registration =
@@ -145,13 +152,13 @@ class SelectionNotificationFailureTest {
                 rows = listOf("a", "b", "c"),
                 columns = { column("Name") { it } },
                 modifier = SwingModifier.listener(listener, registration),
-                selectedRowIndices = selected,
+                state = tableState,
             )
         } else {
             ListBox(
                 items = listOf("a", "b", "c"),
                 modifier = SwingModifier.listSelectionListener(listener),
-                selectedIndices = selected,
+                state = listState,
             )
         }
     }

@@ -7,15 +7,19 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import org.jetbrains.compose.swing.assertUnadoptedChangeIsNeverPainted
-import org.jetbrains.compose.swing.runSwingTest
+import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.listener.treeExpansionListener
+import org.jetbrains.compose.swing.modifier.listener.treeSelectionListener
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JTree
 import javax.swing.LookAndFeel
+import javax.swing.event.TreeExpansionEvent
+import javax.swing.event.TreeSelectionEvent
 import javax.swing.tree.DefaultMutableTreeNode
+import javax.swing.tree.TreePath
 import javax.swing.tree.TreeSelectionModel
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -387,13 +391,13 @@ class TreeBehaviorTest {
 
     @Test
     fun selectingANodeFiresOnSelectionChange() = runComposeSwingTest {
-        val reported = mutableListOf<Set<List<Int>>>()
+        val reported = mutableListOf<List<TreePath>>()
         setContent {
             Tree(
                 root = sample,
                 children = { it.children },
                 label = { it.name },
-                onSelectionChange = { reported += it },
+                modifier = SwingModifier.treeSelectionListener { reported += it.paths.toList() },
             )
         }
 
@@ -404,38 +408,9 @@ class TreeBehaviorTest {
         awaitIdle()
 
         assertEquals(
-            listOf(setOf(listOf(0, 1))),
+            listOf(listOf(tree.pathTo(0, 1))),
             reported,
-            "the selected node should be reported once, as its index path",
-        )
-    }
-
-    /**
-     * The tree twin of
-     * [TableBehaviorTest.aSelectionTheCallerDoesNotAdoptDoesNotStandWhenItIsMadeAgain], over selection
-     * paths rather than row indices.
-     */
-    @Test
-    fun aSelectionTheCallerDoesNotAdoptDoesNotStandWhenItIsMadeAgain() = runComposeSwingTest {
-        setContent {
-            Tree(
-                root = sample,
-                children = { it.children },
-                label = { it.name },
-                selectedPaths = setOf(listOf(0)),
-            )
-        }
-
-        val tree = onNodeOfType<JTree>().fetch()
-        repeat(2) {
-            tree.selectionPath = tree.pathTo(1)
-            awaitIdle()
-        }
-
-        assertEquals(
-            listOf(tree.pathTo(0)),
-            tree.selectionPaths?.toList(),
-            "an unadopted selection change does not stand, however often it is made",
+            "the selected node should be reported once, as its path",
         )
     }
 
@@ -493,18 +468,20 @@ class TreeBehaviorTest {
     @Test
     fun theLatestCallbacksAreTheOnesThatRun() = runComposeSwingTest {
         val reported = mutableListOf<String>()
-        val firstSelection: (Set<List<Int>>) -> Unit = { reported += "first selection" }
-        val secondSelection: (Set<List<Int>>) -> Unit = { reported += "second selection" }
-        val firstExpansion: (Set<List<Int>>) -> Unit = { reported += "first expansion" }
-        val secondExpansion: (Set<List<Int>>) -> Unit = { reported += "second expansion" }
+        val firstSelection: (TreeSelectionEvent) -> Unit = { reported += "first selection" }
+        val secondSelection: (TreeSelectionEvent) -> Unit = { reported += "second selection" }
+        val firstExpansion: (TreeExpansionEvent) -> Unit = { reported += "first expansion" }
+        val secondExpansion: (TreeExpansionEvent) -> Unit = { reported += "second expansion" }
         var second by mutableStateOf(false)
         setContent {
             Tree(
                 root = sample,
                 children = { it.children },
                 label = { it.name },
-                onSelectionChange = if (second) secondSelection else firstSelection,
-                onExpansionChange = if (second) secondExpansion else firstExpansion,
+                modifier =
+                    SwingModifier
+                        .treeSelectionListener(if (second) secondSelection else firstSelection)
+                        .treeExpansionListener(if (second) secondExpansion else firstExpansion),
             )
         }
 
@@ -520,24 +497,6 @@ class TreeBehaviorTest {
             listOf("second selection", "second expansion"),
             reported,
             "a callback the recomposition replaced is not the one that runs",
-        )
-    }
-
-    @Test
-    fun aSelectionTheCallerDoesNotAdoptIsNeverPainted() = runSwingTest {
-        assertUnadoptedChangeIsNeverPainted(
-            type = JTree::class.java,
-            declared = emptyList<Int>(),
-            content = { report ->
-                Tree(
-                    root = "root",
-                    children = { node -> if (node == "root") listOf("one", "two") else emptyList() },
-                    selectedPaths = emptySet(),
-                    onSelectionChange = { report() },
-                )
-            },
-            change = { it.setSelectionRow(0) },
-            read = { it.selectionRows?.toList().orEmpty() },
         )
     }
 }

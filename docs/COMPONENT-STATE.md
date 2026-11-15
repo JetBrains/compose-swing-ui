@@ -206,9 +206,10 @@ There are four cases:
    reports the user moving it is required immediately after it: `CheckBox`'s `checked` and
    `onCheckedChange`, `Slider`'s `value` and `onValueChange`, `TabbedPane`'s `selectedIndex` and
    `onSelectedIndexChange`.
-2. **Undeclared** - the widget owns it. The parameter is nullable, defaults to `null`, and its callback
-   is optional beside it: `ListBox`'s `selectedIndices` and `onSelectionChange`, `Tree`'s
-   `selectedPaths` and `onSelectionChange`.
+2. **Undeclared** - the widget owns it. The state holder is nullable and defaults to `null`, with no
+   callback beside it: `ListBox`'s `state` is a `ListState?`, `Table`'s a `TableState?` and `Tree`'s a
+   `TreeState?`. Left out, the selection is the user's and Swing keeps it, as with any undeclared state;
+   given, it is declared and two-way, and the caller hoists one to set the selection or read it.
 3. **Model-owned** - the caller hands the widget a model, which takes the value out of the composition
    altogether. The model holds it, the widget renders whatever it holds, and nothing is declared over it,
    so there is no half for a callback to pair with. The callback is then only a report of where the model
@@ -234,14 +235,14 @@ public fun CheckBox(
     modifier: SwingModifier = SwingModifier,
 )
 
-// Undeclared: leaving `selectedIndices` out leaves the selection to the list, and the pair follows
-// `modifier`.
+// Undeclared: leaving `state` out leaves the selection with the list, as Swing keeps it, and the state
+// follows `modifier` and `style`.
 @Composable
 public fun <T> ListBox(
     items: List<T>,
     modifier: SwingModifier = SwingModifier,
-    selectedIndices: Set<Int>? = null,
-    onSelectionChange: (Set<Int>) -> Unit = {},
+    style: SwingStyle<ListBoxStyleScope> = SwingStyle,
+    state: ListState? = null,
     // ...
 )
 

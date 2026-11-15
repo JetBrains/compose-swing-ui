@@ -31,32 +31,36 @@ import javax.swing.event.ListSelectionEvent
 import javax.swing.event.ListSelectionListener
 
 /**
- * A column of rows the user picks from: a `JList` showing one row per item, reporting what the user
- * selects.
+ * A column of rows the user picks from: a `JList` showing one row per item, with the selection declared
+ * and read through a [ListState].
  *
  * Items are declarative data. By default each row renders its item's `toString`; supply [itemContent]
- * to render an arbitrary composable cell per row (a `Row` of an icon, labels, ...). Selection is declared
- * with [selectedIndices] and reported through [onSelectionChange], expressed as the general multi-select
- * shape so one component covers all of [SelectionMode]'s modes. Place it in a
+ * to render an arbitrary composable cell per row (a `Row` of an icon, labels, ...). The [state] owns the
+ * selection, expressed as the general multi-select shape so one component covers all of [SelectionMode]'s
+ * modes: the rows it holds are what the list shows selected, the user's own selecting is written back
+ * into it, and it is where a row is revealed from. Place the list in a
  * [org.jetbrains.compose.swing.components.layout.ScrollPane] to scroll:
  *
  * ```
+ * val state = rememberListState()
+ *
  * ScrollPane {
  *     Viewport {
- *         ListBox(items = rows, selectedIndices = sel, onSelectionChange = { sel = it }) { row ->
+ *         ListBox(items = rows, state = state) { row ->
  *             Panel { Label(row.icon); Label(row.name) }
  *         }
  *     }
  * }
+ * Label("Selected: ${state.selectedIndices.size}")
  * ```
  *
- * [onSelectionChange] reports the user's selection changes only, once per settled change - so dragging
- * across rows produces one callback at the end rather than one per row crossed, and rendering new
- * [items] produces none. A declared selection is the composition's state and is re-applied on every pass:
- * it survives an items change (an index the current items no longer cover is dropped), and a user change
- * the caller does not adopt does not stand. Undeclared, the selection is the user's alone - never
- * imposed, and kept across an items change all the same; where the new items are too few to hold it, the
- * rows that fall outside them leave the selection and [onSelectionChange] reports what is left of it.
+ * The user's selecting is written into [state] once per settled change - so dragging across rows
+ * produces one write at the end rather than one per row crossed, and rendering new [items] produces
+ * none. The selection the state holds is the composition's own and is re-applied on every pass: it
+ * survives an items change (a row the current items do not cover is left out of the list while the state
+ * goes on naming it), and a user change the state does not hold does not stand. Where new items are too
+ * few to hold the user's selection, the rows that fall outside them leave the selection and the state
+ * is written with what is left of it.
  *
  * [layoutOrientation] decides how the cells are laid out: a single column, or wrapped into as many
  * columns or rows as the space the list is given allows. A wrapping list draws far more cells at once,
@@ -68,9 +72,8 @@ import javax.swing.event.ListSelectionListener
  * @param items the items to display
  * @param modifier the [SwingModifier] applied to the underlying component
  * @param style the [SwingStyle] applied to the underlying component
- * @param selectedIndices the selected row indices the caller declares; `null` - the default - leaves the
- *   selection to the user
- * @param onSelectionChange callback invoked when the user settles on a new selection
+ * @param state the hoistable selection state the list applies and reports into; see [ListState]. `null` -
+ *   the default - leaves the selection to Swing: none is declared, and the user's selecting is not reported
  * @param selectionMode how many rows/ranges may be selected; `MULTIPLE_INTERVAL_SELECTION` - the
  *   default - lets the user select any number of ranges
  * @param visibleRowCount how many rows the list asks a viewport to make room for; `8` is the default.
@@ -89,13 +92,13 @@ import javax.swing.event.ListSelectionListener
  *   the default `toString` rendering
  * @see javax.swing.JList
  */
+@NonRestartableComposable
 @Composable
 public fun <T> ListBox(
     items: List<T>,
     modifier: SwingModifier = SwingModifier,
     style: SwingStyle<ListBoxStyleScope> = SwingStyle,
-    selectedIndices: Set<Int>? = null,
-    onSelectionChange: (Set<Int>) -> Unit = {},
+    state: ListState? = null,
     @SelectionMode selectionMode: Int = ListSelectionModel.MULTIPLE_INTERVAL_SELECTION,
     visibleRowCount: Int = 8,
     @ListLayoutOrientation layoutOrientation: Int = JList.VERTICAL,
@@ -104,13 +107,12 @@ public fun <T> ListBox(
     fixedCellHeight: Int = -1,
     itemContent: (@Composable ListItemScope.(item: T) -> Unit)? = null,
 ) {
-    ListBoxItemsImpl(
+    ListBox(
         factory = { JList() },
         items = items,
-        listSelectionListener = settledSelectionListener(onSelectionChange),
         modifier = modifier,
         style = style,
-        selectedIndices = selectedIndices,
+        state = state,
         selectionMode = selectionMode,
         visibleRowCount = visibleRowCount,
         layoutOrientation = layoutOrientation,
@@ -121,31 +123,60 @@ public fun <T> ListBox(
     )
 }
 
-@Suppress("NOTHING_TO_INLINE")
+/**
+ * A [ListBox] whose selection is declared and read through a [ListState], showing the `JList` [factory]
+ * builds instead of a stock one.
+ *
+ * [factory] runs once for each node and returns a new component on every call. A changed capture is not
+ * applied, as with [SwingNode]: to build another component, wrap the call in `key(...)`. What the other
+ * parameters declare is written over what the factory set.
+ *
+ * @param factory builds the component this composable drives.
+ * @param items the items to display
+ * @param state the hoistable selection state the list applies and reports into; see [ListState]. `null`
+ *   leaves the selection to Swing: none is declared, and the user's selecting is not reported
+ * @param modifier the [SwingModifier] applied to the underlying component
+ * @param style the [SwingStyle] applied to the underlying component
+ * @param selectionMode how many rows/ranges may be selected; `MULTIPLE_INTERVAL_SELECTION` - the
+ *   default - lets the user select any number of ranges
+ * @param visibleRowCount how many rows the list asks a viewport to make room for; `8` is the default.
+ *   Under `VERTICAL_WRAP` it is the number of rows a column holds before the cells wrap into the next
+ *   one. Under `HORIZONTAL_WRAP` the list takes its column count from it and then fits the items into as
+ *   few rows as those columns need, which can come out below the count asked for
+ * @param layoutOrientation whether the cells form a single column or wrap into columns or rows;
+ *   `VERTICAL` - the default - is the single column
+ * @param prototypeCellValue an item measured once, through the same renderer the rows use, to size every
+ *   cell; `null` - the default - measures each row for itself
+ * @param fixedCellWidth the width of every cell; `-1` - the default - takes the width from
+ *   [prototypeCellValue], or from each row's own measurement where no prototype is declared
+ * @param fixedCellHeight the height of every cell; `-1` - the default - takes the height from
+ *   [prototypeCellValue], or from each row's own measurement where no prototype is declared
+ * @param itemContent optional composable cell rendered per row against a [ListItemScope]; `null` - the
+ *   default - renders each item through the renderer the list carries
+ * @see javax.swing.JList
+ */
 @SwingComponentLibraryApi
 @Composable
-private inline fun <T> ListBoxItemsImpl(
-    noinline factory: () -> JList<T>,
+public fun <T> ListBox(
+    factory: () -> JList<T>,
     items: List<T>,
-    listSelectionListener: ListSelectionListener,
-    modifier: SwingModifier,
-    style: SwingStyle<ListBoxStyleScope>,
-    selectedIndices: Set<Int>?,
-    @SelectionMode selectionMode: Int,
-    visibleRowCount: Int,
-    @ListLayoutOrientation layoutOrientation: Int,
-    prototypeCellValue: T?,
-    fixedCellWidth: Int,
-    fixedCellHeight: Int,
-    noinline itemContent: (@Composable ListItemScope.(item: T) -> Unit)?,
+    state: ListState?,
+    modifier: SwingModifier = SwingModifier,
+    style: SwingStyle<ListBoxStyleScope> = SwingStyle,
+    @SelectionMode selectionMode: Int = ListSelectionModel.MULTIPLE_INTERVAL_SELECTION,
+    visibleRowCount: Int = 8,
+    @ListLayoutOrientation layoutOrientation: Int = JList.VERTICAL,
+    prototypeCellValue: T? = null,
+    fixedCellWidth: Int = -1,
+    fixedCellHeight: Int = -1,
+    itemContent: (@Composable ListItemScope.(item: T) -> Unit)? = null,
 ) {
     val declaredItems = rememberDeclaredList(items)
     ListBoxNode(
         factory = factory,
-        listSelectionListener = listSelectionListener,
         modifier = modifier,
         style = style,
-        selectedIndices = selectedIndices,
+        state = state,
         selectionMode = selectionMode,
         visibleRowCount = visibleRowCount,
         layoutOrientation = layoutOrientation,
@@ -153,7 +184,7 @@ private inline fun <T> ListBoxItemsImpl(
         fixedCellWidth = fixedCellWidth,
         fixedCellHeight = fixedCellHeight,
         itemContent = itemContent,
-    ) { mirror ->
+    ) { mirror, selectedIndices, listSelectionListener ->
         set(declaredItems) { newItems ->
             installContent(mirror, selectedIndices, listSelectionListener) { setListData(Vector(newItems)) }
         }
@@ -161,262 +192,33 @@ private inline fun <T> ListBoxItemsImpl(
 }
 
 /**
- * A [ListBox] driven by a caller-owned [ListModel] instead of a declarative `items` list. The model
- * is installed as-is and observed only: the library never mutates it, so element changes are the
- * caller's responsibility. Selection is declared with [selectedIndices] and reported through
- * [onSelectionChange], and survives a model swap whether declared or not.
+ * A [ListBox] over a caller-owned [ListModel], with the selection declared and read through a
+ * [ListState]. The state owns the selection: the rows it holds are what the list shows selected, the
+ * user's own selecting is written back into it, and it is where a row is revealed from.
  *
- * ```
- * ScrollPane {
- *     Viewport {
- *         ListBox(model = myModel, selectedIndices = sel, onSelectionChange = { sel = it })
- *     }
- * }
- * ```
- *
- * [onSelectionChange] reports the user's selection changes only, once per settled change - so dragging
- * across rows produces one callback at the end rather than one per row crossed, and installing a new
- * [model] produces none. A declared selection is the composition's state and is re-applied on every pass,
- * so a user change the caller does not adopt does not stand; undeclared, the selection is the user's alone
- * and is never imposed - where the new model is too short to hold it, the rows that fall outside it leave
- * the selection and [onSelectionChange] reports what is left of it.
- *
- * @param model the caller-owned list model to display; installed as-is and never mutated
- * @param modifier the [SwingModifier] applied to the underlying component
- * @param style the [SwingStyle] applied to the underlying component
- * @param selectedIndices the selected row indices the caller declares; `null` - the default - leaves the
- *   selection to the user
- * @param onSelectionChange callback invoked when the user settles on a new selection
- * @param selectionMode how many rows/ranges may be selected; `MULTIPLE_INTERVAL_SELECTION` - the
- *   default - lets the user select any number of ranges
- * @param visibleRowCount how many rows the list asks a viewport to make room for; `8` is the default.
- *   Under `VERTICAL_WRAP` it is the number of rows a column holds before the cells wrap into the next
- *   one. Under `HORIZONTAL_WRAP` the list takes its column count from it and then fits the items into as
- *   few rows as those columns need, which can come out below the count asked for
- * @param layoutOrientation whether the cells form a single column or wrap into columns or rows;
- *   `VERTICAL` - the default - is the single column
- * @param prototypeCellValue an item measured once, through the same renderer the rows use, to size every
- *   cell; `null` - the default - measures each row for itself
- * @param fixedCellWidth the width of every cell; `-1` - the default - takes the width from
- *   [prototypeCellValue], or from each row's own measurement where no prototype is declared
- * @param fixedCellHeight the height of every cell; `-1` - the default - takes the height from
- *   [prototypeCellValue], or from each row's own measurement where no prototype is declared
- * @param itemContent optional composable cell rendered per row against a [ListItemScope]; `null` keeps
- *   the default `toString` rendering
- * @see javax.swing.JList
- */
-@Composable
-public fun <T> ListBox(
-    model: ListModel<T>,
-    modifier: SwingModifier = SwingModifier,
-    style: SwingStyle<ListBoxStyleScope> = SwingStyle,
-    selectedIndices: Set<Int>? = null,
-    onSelectionChange: (Set<Int>) -> Unit = {},
-    @SelectionMode selectionMode: Int = ListSelectionModel.MULTIPLE_INTERVAL_SELECTION,
-    visibleRowCount: Int = 8,
-    @ListLayoutOrientation layoutOrientation: Int = JList.VERTICAL,
-    prototypeCellValue: T? = null,
-    fixedCellWidth: Int = -1,
-    fixedCellHeight: Int = -1,
-    itemContent: (@Composable ListItemScope.(item: T) -> Unit)? = null,
-) {
-    ListBoxModelImpl(
-        factory = { JList() },
-        model = model,
-        listSelectionListener = settledSelectionListener(onSelectionChange),
-        modifier = modifier,
-        style = style,
-        selectedIndices = selectedIndices,
-        selectionMode = selectionMode,
-        visibleRowCount = visibleRowCount,
-        layoutOrientation = layoutOrientation,
-        prototypeCellValue = prototypeCellValue,
-        fixedCellWidth = fixedCellWidth,
-        fixedCellHeight = fixedCellHeight,
-        itemContent = itemContent,
-    )
-}
-
-@Suppress("NOTHING_TO_INLINE")
-@SwingComponentLibraryApi
-@Composable
-private inline fun <T> ListBoxModelImpl(
-    noinline factory: () -> JList<T>,
-    model: ListModel<T>,
-    listSelectionListener: ListSelectionListener,
-    modifier: SwingModifier,
-    style: SwingStyle<ListBoxStyleScope>,
-    selectedIndices: Set<Int>?,
-    @SelectionMode selectionMode: Int,
-    visibleRowCount: Int,
-    @ListLayoutOrientation layoutOrientation: Int,
-    prototypeCellValue: T?,
-    fixedCellWidth: Int,
-    fixedCellHeight: Int,
-    noinline itemContent: (@Composable ListItemScope.(item: T) -> Unit)?,
-) {
-    ListBoxNode(
-        factory = factory,
-        listSelectionListener = listSelectionListener,
-        modifier = modifier,
-        style = style,
-        selectedIndices = selectedIndices,
-        selectionMode = selectionMode,
-        visibleRowCount = visibleRowCount,
-        layoutOrientation = layoutOrientation,
-        prototypeCellValue = prototypeCellValue,
-        fixedCellWidth = fixedCellWidth,
-        fixedCellHeight = fixedCellHeight,
-        itemContent = itemContent,
-    ) { mirror ->
-        set(model) { newModel ->
-            installContent(mirror, selectedIndices, listSelectionListener) { this.model = newModel }
-        }
-    }
-}
-
-/**
- * A [ListBox] driven by a [ListState] instead of a declared `selectedIndices` and an `onSelectionChange`
- * lambda. The state owns the selection: the rows it holds are what the list shows selected, the user's
- * own selecting is written back into it, and it is where a row is revealed from.
+ * The [model] is installed as-is and observed only: the library never mutates it, so element changes are
+ * the caller's responsibility, and the selection survives a model swap.
  *
  * ```
  * val state = rememberListState()
  *
  * ScrollPane {
- *     Viewport { ListBox(items = rows, state = state) }
+ *     Viewport { ListBox(model = myModel, state = state) }
  * }
- * Label("Selected: ${state.selectedIndices.size}")
  * ```
  *
- * @param items the items to display
- * @param state the hoistable selection state the list applies and reports into; see [ListState]
- * @param modifier the [SwingModifier] applied to the underlying component
- * @param style the [SwingStyle] applied to the underlying component
- * @param selectionMode how many rows/ranges may be selected; `MULTIPLE_INTERVAL_SELECTION` - the
- *   default - lets the user select any number of ranges
- * @param visibleRowCount how many rows the list asks a viewport to make room for; `8` is the default.
- *   Under `VERTICAL_WRAP` it is the number of rows a column holds before the cells wrap into the next
- *   one. Under `HORIZONTAL_WRAP` the list takes its column count from it and then fits the items into as
- *   few rows as those columns need, which can come out below the count asked for
- * @param layoutOrientation whether the cells form a single column or wrap into columns or rows;
- *   `VERTICAL` - the default - is the single column
- * @param prototypeCellValue an item measured once, through the same renderer the rows use, to size every
- *   cell; `null` - the default - measures each row for itself
- * @param fixedCellWidth the width of every cell; `-1` - the default - takes the width from
- *   [prototypeCellValue], or from each row's own measurement where no prototype is declared
- * @param fixedCellHeight the height of every cell; `-1` - the default - takes the height from
- *   [prototypeCellValue], or from each row's own measurement where no prototype is declared
- * @param itemContent optional composable cell rendered per row against a [ListItemScope]; `null` keeps
- *   the default `toString` rendering
- * @see javax.swing.JList
- */
-@NonRestartableComposable
-@Composable
-public fun <T> ListBox(
-    items: List<T>,
-    state: ListState,
-    modifier: SwingModifier = SwingModifier,
-    style: SwingStyle<ListBoxStyleScope> = SwingStyle,
-    @SelectionMode selectionMode: Int = ListSelectionModel.MULTIPLE_INTERVAL_SELECTION,
-    visibleRowCount: Int = 8,
-    @ListLayoutOrientation layoutOrientation: Int = JList.VERTICAL,
-    prototypeCellValue: T? = null,
-    fixedCellWidth: Int = -1,
-    fixedCellHeight: Int = -1,
-    itemContent: (@Composable ListItemScope.(item: T) -> Unit)? = null,
-) {
-    ListBox(
-        factory = { JList() },
-        items = items,
-        state = state,
-        modifier = modifier,
-        style = style,
-        selectionMode = selectionMode,
-        visibleRowCount = visibleRowCount,
-        layoutOrientation = layoutOrientation,
-        prototypeCellValue = prototypeCellValue,
-        fixedCellWidth = fixedCellWidth,
-        fixedCellHeight = fixedCellHeight,
-        itemContent = itemContent,
-    )
-}
-
-/**
- * A [ListBox] driven by a [ListState] that shows the `JList` [factory] builds instead of a stock one.
- *
- * [factory] runs once for each node and returns a new component on every call. A changed capture is not
- * applied, as with [SwingNode]: to build another component, wrap the call in `key(...)`. What the other
- * parameters declare is written over what the factory set.
- *
- * @param factory builds the component this composable drives.
- * @param items the items to display
- * @param state the hoistable selection state the list applies and reports into; see [ListState]
- * @param modifier the [SwingModifier] applied to the underlying component
- * @param style the [SwingStyle] applied to the underlying component
- * @param selectionMode how many rows/ranges may be selected; `MULTIPLE_INTERVAL_SELECTION` - the
- *   default - lets the user select any number of ranges
- * @param visibleRowCount how many rows the list asks a viewport to make room for; `8` is the default.
- *   Under `VERTICAL_WRAP` it is the number of rows a column holds before the cells wrap into the next
- *   one. Under `HORIZONTAL_WRAP` the list takes its column count from it and then fits the items into as
- *   few rows as those columns need, which can come out below the count asked for
- * @param layoutOrientation whether the cells form a single column or wrap into columns or rows;
- *   `VERTICAL` - the default - is the single column
- * @param prototypeCellValue an item measured once, through the same renderer the rows use, to size every
- *   cell; `null` - the default - measures each row for itself
- * @param fixedCellWidth the width of every cell; `-1` - the default - takes the width from
- *   [prototypeCellValue], or from each row's own measurement where no prototype is declared
- * @param fixedCellHeight the height of every cell; `-1` - the default - takes the height from
- *   [prototypeCellValue], or from each row's own measurement where no prototype is declared
- * @param itemContent optional composable cell rendered per row against a [ListItemScope]; `null` - the
- *   default - renders each item through the renderer the list carries
- * @see javax.swing.JList
- */
-@SwingComponentLibraryApi
-@Composable
-public fun <T> ListBox(
-    factory: () -> JList<T>,
-    items: List<T>,
-    state: ListState,
-    modifier: SwingModifier = SwingModifier,
-    style: SwingStyle<ListBoxStyleScope> = SwingStyle,
-    @SelectionMode selectionMode: Int = ListSelectionModel.MULTIPLE_INTERVAL_SELECTION,
-    visibleRowCount: Int = 8,
-    @ListLayoutOrientation layoutOrientation: Int = JList.VERTICAL,
-    prototypeCellValue: T? = null,
-    fixedCellWidth: Int = -1,
-    fixedCellHeight: Int = -1,
-    itemContent: (@Composable ListItemScope.(item: T) -> Unit)? = null,
-) {
-    ListBoxItemsImpl(
-        factory = factory,
-        items = items,
-        listSelectionListener = settledSelectionListener { indices -> state.selectedIndices = indices },
-        modifier = modifier.listStateBinding(state),
-        style = style,
-        selectedIndices = state.selectedIndices,
-        selectionMode = selectionMode,
-        visibleRowCount = visibleRowCount,
-        layoutOrientation = layoutOrientation,
-        prototypeCellValue = prototypeCellValue,
-        fixedCellWidth = fixedCellWidth,
-        fixedCellHeight = fixedCellHeight,
-        itemContent = itemContent,
-    )
-}
-
-/**
- * A model-driven [ListBox] driven by a [ListState] instead of a declared `selectedIndices` and an
- * `onSelectionChange` lambda. The state owns the selection: the rows it holds are what the list shows
- * selected, the user's own selecting is written back into it, and it is where a row is revealed from.
- *
- * The [model] is installed as-is and observed only: the library never mutates it, so element changes are
- * the caller's responsibility, and the selection survives a model swap.
+ * The user's selecting is written into [state] once per settled change - so dragging across rows
+ * produces one write at the end rather than one per row crossed, and installing a new [model] produces
+ * none. The selection the state holds is the composition's own and is re-applied on every pass, so a
+ * user change the state does not hold does not stand; where a new model is too short to hold the user's
+ * selection, the rows that fall outside it leave the selection and the state is written with what is
+ * left of it.
  *
  * @param model the caller-owned list model to display; installed as-is and never mutated
- * @param state the hoistable selection state the list applies and reports into; see [ListState]
  * @param modifier the [SwingModifier] applied to the underlying component
  * @param style the [SwingStyle] applied to the underlying component
+ * @param state the hoistable selection state the list applies and reports into; see [ListState]. `null` -
+ *   the default - leaves the selection to Swing: none is declared, and the user's selecting is not reported
  * @param selectionMode how many rows/ranges may be selected; `MULTIPLE_INTERVAL_SELECTION` - the
  *   default - lets the user select any number of ranges
  * @param visibleRowCount how many rows the list asks a viewport to make room for; `8` is the default.
@@ -439,9 +241,9 @@ public fun <T> ListBox(
 @Composable
 public fun <T> ListBox(
     model: ListModel<T>,
-    state: ListState,
     modifier: SwingModifier = SwingModifier,
     style: SwingStyle<ListBoxStyleScope> = SwingStyle,
+    state: ListState? = null,
     @SelectionMode selectionMode: Int = ListSelectionModel.MULTIPLE_INTERVAL_SELECTION,
     visibleRowCount: Int = 8,
     @ListLayoutOrientation layoutOrientation: Int = JList.VERTICAL,
@@ -453,9 +255,9 @@ public fun <T> ListBox(
     ListBox(
         factory = { JList() },
         model = model,
-        state = state,
         modifier = modifier,
         style = style,
+        state = state,
         selectionMode = selectionMode,
         visibleRowCount = visibleRowCount,
         layoutOrientation = layoutOrientation,
@@ -467,8 +269,8 @@ public fun <T> ListBox(
 }
 
 /**
- * A model-driven [ListBox] driven by a [ListState] that shows the `JList` [factory] builds instead of a stock
- * one.
+ * A model-driven [ListBox] whose selection is declared and read through a [ListState], showing the `JList`
+ * [factory] builds instead of a stock one.
  *
  * [factory] runs once for each node and returns a new component on every call. A changed capture is not
  * applied, as with [SwingNode]: to build another component, wrap the call in `key(...)`. What the other
@@ -479,7 +281,8 @@ public fun <T> ListBox(
  *
  * @param factory builds the component this composable drives.
  * @param model the caller-owned list model to display; installed as-is and never mutated
- * @param state the hoistable selection state the list applies and reports into; see [ListState]
+ * @param state the hoistable selection state the list applies and reports into; see [ListState]. `null`
+ *   leaves the selection to Swing: none is declared, and the user's selecting is not reported
  * @param modifier the [SwingModifier] applied to the underlying component
  * @param style the [SwingStyle] applied to the underlying component
  * @param selectionMode how many rows/ranges may be selected; `MULTIPLE_INTERVAL_SELECTION` - the
@@ -505,7 +308,7 @@ public fun <T> ListBox(
 public fun <T> ListBox(
     factory: () -> JList<T>,
     model: ListModel<T>,
-    state: ListState,
+    state: ListState?,
     modifier: SwingModifier = SwingModifier,
     style: SwingStyle<ListBoxStyleScope> = SwingStyle,
     @SelectionMode selectionMode: Int = ListSelectionModel.MULTIPLE_INTERVAL_SELECTION,
@@ -516,13 +319,11 @@ public fun <T> ListBox(
     fixedCellHeight: Int = -1,
     itemContent: (@Composable ListItemScope.(item: T) -> Unit)? = null,
 ) {
-    ListBoxModelImpl(
+    ListBoxNode(
         factory = factory,
-        model = model,
-        listSelectionListener = settledSelectionListener { indices -> state.selectedIndices = indices },
-        modifier = modifier.listStateBinding(state),
+        modifier = modifier,
         style = style,
-        selectedIndices = state.selectedIndices,
+        state = state,
         selectionMode = selectionMode,
         visibleRowCount = visibleRowCount,
         layoutOrientation = layoutOrientation,
@@ -530,7 +331,11 @@ public fun <T> ListBox(
         fixedCellWidth = fixedCellWidth,
         fixedCellHeight = fixedCellHeight,
         itemContent = itemContent,
-    )
+    ) { mirror, selectedIndices, listSelectionListener ->
+        set(model) { newModel ->
+            installContent(mirror, selectedIndices, listSelectionListener) { this.model = newModel }
+        }
+    }
 }
 
 /** [ListBoxStyleScope] for ListBox styles. No component state is supplied. */
@@ -543,9 +348,10 @@ private val ListBoxKind =
 
 /**
  * The `JList` node every [ListBox] overload renders: all of it but the content, which [installContent]
- * declares - a declarative items list in one family of overloads, the caller's own model in the other.
+ * declares - a declarative items list in one overload, the caller's own model in the other.
  * [installContent] is handed the [MirrorState] mirroring the list's selection, since giving the list new
- * content is one of the writes that changes it.
+ * content is one of the writes that changes it, together with the rows [state] declares and the listener
+ * that writes the user's selecting back into it.
  *
  * Inlined into its caller, so the two share one restart scope.
  */
@@ -553,10 +359,9 @@ private val ListBoxKind =
 @SwingComponentLibraryApi
 private inline fun <T> ListBoxNode(
     noinline factory: () -> JList<T>,
-    listSelectionListener: ListSelectionListener,
     modifier: SwingModifier,
     style: SwingStyle<ListBoxStyleScope>,
-    selectedIndices: Set<Int>?,
+    state: ListState?,
     @SelectionMode selectionMode: Int,
     visibleRowCount: Int,
     @ListLayoutOrientation layoutOrientation: Int,
@@ -564,10 +369,13 @@ private inline fun <T> ListBoxNode(
     fixedCellWidth: Int,
     fixedCellHeight: Int,
     noinline itemContent: (@Composable ListItemScope.(item: T) -> Unit)?,
-    crossinline installContent: SwingNodeUpdater<JList<T>>.(MirrorState<Set<Int>?>) -> Unit,
+    crossinline installContent:
+        SwingNodeUpdater<JList<T>>.(MirrorState<Set<Int>?>, Set<Int>?, ListSelectionListener) -> Unit,
 ) {
+    val selectedIndices = state?.selectedIndices
+    val listSelectionListener = settledSelectionListener { indices -> state?.selectedIndices = indices }
     val cells = itemContent?.let { rememberListItemRenderer(null, it) }
-    val mirror = rememberMirrorState(selectedIndices)
+    val mirror = rememberMirrorState<Set<Int>?>(selectedIndices)
     // A drag publishes one selection per row crossed before it settles, so only the settled value is worth
     // mirroring - mirroring an adjusting one would invalidate this composition, and re-assert the
     // declaration, before the user has let go, one row at a time.
@@ -589,7 +397,7 @@ private inline fun <T> ListBoxNode(
         // order they are declared: a prototype is measured through whichever renderer is installed,
         // and the composable cell is the one whose per-row measurement the caller is buying out.
         modifier =
-            modifier
+            (if (state == null) modifier else modifier.listStateBinding(state))
                 .listSelectionListener(JList::class, onUserSelection)
                 .declaredListItemRenderer(cells)
                 .listCellSizing(prototypeCellValue, fixedCellWidth, fixedCellHeight)
@@ -600,7 +408,7 @@ private inline fun <T> ListBoxNode(
             }
             set(visibleRowCount) { count -> applyVisibleRowCount(count) }
             set(layoutOrientation) { orientation -> this.layoutOrientation = orientation }
-            installContent(mirror)
+            installContent(mirror, selectedIndices, listSelectionListener)
             // Run on every pass regardless of whether a selection is declared, so the set calls this makes
             // always number the same and no later slot in this block shifts when one flips to the other.
             // An undeclared (null) selection settles to itself: applySelection leaves the list alone for a

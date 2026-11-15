@@ -7,6 +7,7 @@ import org.jetbrains.compose.swing.components.selection.ListBox
 import org.jetbrains.compose.swing.components.selection.firstLabel
 import org.jetbrains.compose.swing.components.selection.listItemRenderer
 import org.jetbrains.compose.swing.components.selection.rememberListItemRenderer
+import org.jetbrains.compose.swing.components.selection.rememberListState
 import org.jetbrains.compose.swing.components.selection.renderCell
 import org.jetbrains.compose.swing.components.style.Labels
 import org.jetbrains.compose.swing.modifier.SwingModifier
@@ -46,7 +47,7 @@ class StyleHostRepaintTest {
                 }
             ListBox(
                 items = listOf("first", "second"),
-                selectedIndices = setOf(0),
+                state = rememberListState(initialSelectedIndices = setOf(0)),
                 fixedCellWidth = 120,
                 fixedCellHeight = 40,
                 modifier = SwingModifier.listItemRenderer(renderer),
@@ -107,7 +108,7 @@ class StyleHostRepaintTest {
                 itemContent = {
                     ListBox(
                         items = listOf("a", "b"),
-                        selectedIndices = setOf(0),
+                        state = rememberListState(initialSelectedIndices = setOf(0)),
                         fixedCellWidth = 120,
                         fixedCellHeight = 20,
                         itemContent = { item ->

@@ -2,9 +2,6 @@
 package org.jetbrains.compose.swing.components.selection
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.interaction.SwingNodeInteraction
 import org.jetbrains.compose.swing.test.interaction.assertProperty
@@ -37,15 +34,15 @@ class SelectionDifferenceTest {
     @ParameterizedTest(name = "{0}")
     @MethodSource("widgets")
     fun aSelectionDeclaredTwiceLeavesTheSameSelectionLeadAndAnchor(widget: SelectionWidget<*>) = runComposeSwingTest {
-        var selection by mutableStateOf(setOf(1, 2, 4))
-        setContent { widget.content(selection) }
+        widget.select(setOf(1, 2, 4))
+        setContent { widget.content() }
 
         val first = Triple(listOf(1, 2, 4), 4, 4)
         widget.run { assertState(first, "the declared rows and the last run's ends") }
 
-        selection = setOf(0)
+        widget.select(setOf(0))
         awaitIdle()
-        selection = setOf(1, 2, 4)
+        widget.select(setOf(1, 2, 4))
         awaitIdle()
 
         widget.run {
@@ -58,12 +55,12 @@ class SelectionDifferenceTest {
 
     @Test
     fun aTableSelectionThatShrinksKeepsTheRowsItStillNames() = runComposeSwingTest {
-        var selection by mutableStateOf(setOf(0, 1, 2, 3))
+        val state = TableState(initialSelectedRowIndices = setOf(0, 1, 2, 3))
         setContent {
-            Table(rows = people, columns = { column("Name") { it.name } }, selectedRowIndices = selection)
+            Table(rows = people, columns = { column("Name") { it.name } }, state = state)
         }
 
-        selection = setOf(1, 2)
+        state.selectedRowIndices = setOf(1, 2)
         awaitIdle()
 
         onNodeOfType<JTable>().assertProperty(
@@ -75,12 +72,12 @@ class SelectionDifferenceTest {
     @ParameterizedTest(name = "{0}")
     @MethodSource("widgets")
     fun aSelectionThatGainsAndLosesRowsHoldsExactlyWhatIsDeclared(widget: SelectionWidget<*>) = runComposeSwingTest {
-        var selection by mutableStateOf(setOf(0, 1, 4))
-        setContent { widget.content(selection) }
+        widget.select(setOf(0, 1, 4))
+        setContent { widget.content() }
         awaitIdle()
         mainClock.autoAdvance = false
 
-        selection = setOf(1, 2, 5)
+        widget.select(setOf(1, 2, 5))
         mainClock.advanceTimeByFrame()
 
         widget.run {
@@ -96,12 +93,12 @@ class SelectionDifferenceTest {
     @MethodSource("widgets")
     fun theAnchorAndLeadFollowTheDeclarationAndNotTheRowsThatJoinedIt(widget: SelectionWidget<*>) =
         runComposeSwingTest {
-            var selection by mutableStateOf(setOf(4, 5))
-            setContent { widget.content(selection) }
+            widget.select(setOf(4, 5))
+            setContent { widget.content() }
 
             // Rows 0 and 1 join a selection that already holds the declaration's last run, so they are the rows
             // written and rows 4 and 5 are the rows the anchor and the lead belong on.
-            selection = setOf(0, 1, 4, 5)
+            widget.select(setOf(0, 1, 4, 5))
             awaitIdle()
 
             widget.run {
@@ -116,12 +113,12 @@ class SelectionDifferenceTest {
     @MethodSource("widgets")
     fun aWidgetWritesOnlyTheRowsThatChangedAndNotTheOnesItAlreadyHeld(widget: SelectionWidget<*>) =
         runComposeSwingTest {
-            var selection by mutableStateOf(setOf(0, 1, 2, 3))
-            setContent { widget.content(selection) }
+            widget.select(setOf(0, 1, 2, 3))
+            setContent { widget.content() }
 
             val settled = SettledSpan(widget.run { heldModel() })
 
-            selection = setOf(0, 1, 2, 3, 4)
+            widget.select(setOf(0, 1, 2, 3, 4))
             awaitIdle()
 
             assertEquals(
@@ -135,10 +132,10 @@ class SelectionDifferenceTest {
     @ParameterizedTest(name = "{0}")
     @MethodSource("widgets")
     fun aSelectionDeclaredEmptyLeavesNoRowSelected(widget: SelectionWidget<*>) = runComposeSwingTest {
-        var selection by mutableStateOf(setOf(1, 2))
-        setContent { widget.content(selection) }
+        widget.select(setOf(1, 2))
+        setContent { widget.content() }
 
-        selection = emptySet()
+        widget.select(emptySet())
         awaitIdle()
 
         widget.run {
@@ -164,32 +161,39 @@ class SelectionDifferenceTest {
         private val colors = listOf("red", "green", "blue", "amber", "violet", "teal")
 
         @JvmStatic
-        fun widgets(): List<Named<SelectionWidget<*>>> = listOf(
-            Named.of(
-                "table",
-                SelectionWidget(
+        fun widgets(): List<Named<SelectionWidget<*>>> {
+            val tableState = TableState()
+            val listState = ListState()
+            return listOf(
+                Named.of(
                     "table",
-                    { Table(rows = people, columns = { column("Name") { it.name } }, selectedRowIndices = it) },
-                    { onNodeOfType<JTable>() },
-                    { selectionModel },
+                    SelectionWidget(
+                        "table",
+                        { tableState.selectedRowIndices = it },
+                        { Table(rows = people, columns = { column("Name") { it.name } }, state = tableState) },
+                        { onNodeOfType<JTable>() },
+                        { selectionModel },
+                    ),
                 ),
-            ),
-            Named.of(
-                "list",
-                SelectionWidget(
+                Named.of(
                     "list",
-                    { ListBox(items = colors, selectedIndices = it) },
-                    { onNodeOfType<JList<*>>() },
-                    { selectionModel },
+                    SelectionWidget(
+                        "list",
+                        { listState.selectedIndices = it },
+                        { ListBox(items = colors, state = listState) },
+                        { onNodeOfType<JList<*>>() },
+                        { selectionModel },
+                    ),
                 ),
-            ),
-        )
+            )
+        }
     }
 }
 
 class SelectionWidget<T : Component>(
     private val name: String,
-    val content: @Composable (Set<Int>) -> Unit,
+    val select: (Set<Int>) -> Unit,
+    val content: @Composable () -> Unit,
     private val node: ComposeSwingTest.() -> SwingNodeInteraction<T>,
     private val selectionModel: T.() -> ListSelectionModel,
 ) {

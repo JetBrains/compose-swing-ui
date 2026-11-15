@@ -81,11 +81,12 @@ class TableNodeReuseTest {
     fun aReactivatedTableStillHoldsItsControlledSelection() = runComposeSwingTest {
         var active by mutableStateOf(true)
         setContent {
+            val state = rememberTableState(initialSelectedRowIndices = setOf(1))
             ReusableContentHost(active = active) {
                 Table(
                     rows = people,
                     columns = { column("Name") { it.name } },
-                    selectedRowIndices = setOf(1),
+                    state = state,
                 )
             }
         }
@@ -110,8 +111,9 @@ class TableNodeReuseTest {
         var active by mutableStateOf(true)
         val model = tableModel()
         setContent {
+            val state = rememberTableState(initialSelectedRowIndices = setOf(1))
             ReusableContentHost(active = active) {
-                Table(model = model, selectedRowIndices = setOf(1))
+                Table(model = model, state = state)
             }
         }
         onNodeOfType<JTable>().assertProperty(

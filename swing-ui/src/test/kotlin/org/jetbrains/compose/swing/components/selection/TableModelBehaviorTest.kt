@@ -3,7 +3,6 @@ package org.jetbrains.compose.swing.components.selection
 
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
@@ -16,41 +15,19 @@ import javax.swing.table.DefaultTableModel
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertSame
-import kotlin.test.assertTrue
 
 /**
  * Behavioral tests for the model-driven `Table(model, ...)` overloads, driven through the real
  * composition pipeline and asserting against the live `JTable`.
  *
- * The central guarantees: a caller-supplied `TableModel` renders as-is; user selection fires
- * `onSelectionChange` with the selected row indices, which name rows of the model however the rows are
- * sorted on screen; a controlled `selectedRowIndices` re-applies after a model swap even though
- * `setModel` clears the selection; and a controlled selection update does not echo back as a spurious
- * callback.
+ * The central guarantees: a caller-supplied `TableModel` renders as-is; user selection stands on the table
+ * and, with a `TableState`, is written to it as row indices, which name rows of the model however the rows
+ * are sorted on screen; the state's selection re-applies after a model swap even though `setModel` clears
+ * the selection.
  */
 class TableModelBehaviorTest {
     private fun tableModel(vararg names: String): DefaultTableModel =
         DefaultTableModel(names.map { arrayOf<Any?>(it) }.toTypedArray(), arrayOf<Any?>("Name"))
-
-    /**
-     * The twin of [TableBehaviorTest.aSelectionTheCallerDoesNotAdoptDoesNotStandWhenItIsMadeAgain] for a
-     * model the caller owns.
-     */
-    @Test
-    fun aSelectionTheCallerDoesNotAdoptDoesNotStandWhenItIsMadeAgain() = runComposeSwingTest {
-        val model = tableModel("Ada", "Alan", "Grace")
-        setContent { Table(model = model, selectedRowIndices = setOf(0)) }
-
-        val table = onNodeOfType<JTable>()
-        repeat(2) { attempt ->
-            table.fetch().setRowSelectionInterval(1, 1)
-            awaitIdle()
-            table.assertProperty(
-                listOf(0),
-                "attempt ${attempt + 1}: an unadopted selection change does not stand, however often it is made",
-            ) { selectedRows.toList() }
-        }
-    }
 
     @Test
     fun modelRendersAsTheTableModel() = runComposeSwingTest {
@@ -66,11 +43,9 @@ class TableModelBehaviorTest {
 
     @Test
     fun selectingRowsFiresOnSelectionChange() = runComposeSwingTest {
-        val received = mutableListOf<Set<Int>>()
         setContent {
             Table(
                 model = tableModel("Ada", "Alan", "Grace"),
-                onSelectionChange = { received += it },
                 selectionMode = ListSelectionModel.MULTIPLE_INTERVAL_SELECTION,
             )
         }
@@ -80,23 +55,24 @@ class TableModelBehaviorTest {
         table.fetch().addRowSelectionInterval(2, 2)
         awaitIdle()
 
-        assertEquals(setOf(0, 2), received.last(), "selected row indices reported to callback")
+        table.assertProperty(listOf(0, 2), "selected rows stand on the table") { selectedRows.toList() }
     }
 
     @Test
-    fun controlledSelectionReAppliesAfterModelSwap() = runComposeSwingTest {
+    fun stateSelectionReAppliesAfterModelSwap() = runComposeSwingTest {
         var model by mutableStateOf(tableModel("Ada", "Alan", "Grace"))
+        val state = TableState(initialSelectedRowIndices = setOf(1))
         setContent {
             Table(
                 model = model,
-                selectedRowIndices = setOf(1),
+                state = state,
             )
         }
 
         val table = onNodeOfType<JTable>()
         table.assertProperty(listOf(1), "initial selection applied") { selectedRows.toList() }
 
-        // A model swap runs setModel, which clears selection; the controlled selection must
+        // A model swap runs setModel, which clears selection; the state's selection must
         // re-apply so the selection survives the swap.
         model = tableModel("Nikola", "Marie", "Rosalind")
         awaitIdle()
@@ -104,7 +80,7 @@ class TableModelBehaviorTest {
         assertSame(model, table.fetch().model, "the swapped-in model should back the table")
         table.assertProperty(
             listOf(1),
-            "controlled selection survives the model swap",
+            "the state's selection survives the model swap",
         ) { selectedRows.toList() }
     }
 
@@ -125,36 +101,5 @@ class TableModelBehaviorTest {
         awaitIdle()
 
         assertEquals(setOf(2), state.selectedRowIndices, "the row on top is reported by its place in the model")
-    }
-
-    @Test
-    fun controlledSelectionUpdateConvergesWithoutALoop() = runComposeSwingTest {
-        var selection by mutableStateOf(setOf(0))
-        val received = mutableListOf<Set<Int>>()
-        setContent {
-            val model = remember { tableModel("Ada", "Alan", "Grace") }
-            Table(
-                model = model,
-                selectedRowIndices = selection,
-                onSelectionChange = {
-                    received += it
-                    selection = it
-                },
-            )
-        }
-
-        val table = onNodeOfType<JTable>()
-        table.assertProperty(listOf(0), "initial selection applied") { selectedRows.toList() }
-
-        selection = setOf(2)
-        awaitIdle()
-
-        table.assertProperty(listOf(2), "external selection applied") { selectedRows.toList() }
-        assertEquals(setOf(2), selection, "controlled state settled on the new selection")
-        assertTrue(received.all { it == setOf(2) }, "selection oscillated instead of converging: $received")
-
-        val callbacksAfterSettle = received.size
-        awaitIdle()
-        assertEquals(callbacksAfterSettle, received.size, "selection kept firing callbacks after settling")
     }
 }

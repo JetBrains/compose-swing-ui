@@ -4,10 +4,13 @@ package org.jetbrains.compose.swing.components.selection
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.listener.treeSelectionListener
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JTree
+import javax.swing.event.TreeSelectionEvent
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -68,9 +71,14 @@ class TreeStructureUpdateTest {
     @Test
     fun aSelectedNodeStaysSelectedWhenANodeIsAddedBeforeIt() = runComposeSwingTest {
         var root by mutableStateOf(start)
-        val received = mutableListOf<Set<List<Int>>>()
+        val received = mutableListOf<TreeSelectionEvent>()
         setContent {
-            Tree(root = root, children = { it.children }, label = { it.name }, onSelectionChange = { received += it })
+            Tree(
+                root = root,
+                children = { it.children },
+                label = { it.name },
+                modifier = SwingModifier.treeSelectionListener { received += it },
+            )
         }
 
         val tree = onNodeOfType<JTree>().fetch()
@@ -119,9 +127,14 @@ class TreeStructureUpdateTest {
     @Test
     fun aRemovedNodeLeavesTheSelectionAndIsReportedOnce() = runComposeSwingTest {
         var root by mutableStateOf(start)
-        val received = mutableListOf<Set<List<Int>>>()
+        val received = mutableListOf<TreeSelectionEvent>()
         setContent {
-            Tree(root = root, children = { it.children }, label = { it.name }, onSelectionChange = { received += it })
+            Tree(
+                root = root,
+                children = { it.children },
+                label = { it.name },
+                modifier = SwingModifier.treeSelectionListener { received += it },
+            )
         }
 
         val tree = onNodeOfType<JTree>().fetch()
@@ -139,7 +152,11 @@ class TreeStructureUpdateTest {
             listOf(1),
             "the node the new structure still has stays selected",
         ) { selectionRows?.toList() }
-        assertEquals(listOf(setOf(listOf(0))), received, "the node the user loses is reported once")
+        val lost =
+            received.flatMap { event ->
+                event.paths.filterNot(event::isAddedPath).map { it.lastPathComponent.toString() }
+            }
+        assertEquals(listOf("opened"), lost, "the node the user loses is reported once")
     }
 
     /**

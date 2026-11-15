@@ -10,7 +10,6 @@ import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JTable
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 
 /**
  * The column-layout channel of a [Table] driven by the caller's own `TableModel`: how the user's changes are
@@ -53,14 +52,11 @@ class TableColumnLayoutModelTest {
     }
 
     @Test
-    fun aUserReorderOfAModelDrivenTableIsReported() = runComposeSwingTest {
-        val received = mutableListOf<TableColumnLayout>()
+    fun aUserReorderOfAModelDrivenTableIsHeldByItsState() = runComposeSwingTest {
+        val state = TableState()
         setContent {
             HeaderPane {
-                Table(
-                    model = modelWithColumns("Name", "Age", "City"),
-                    onColumnLayoutChange = { received += it },
-                )
+                Table(model = modelWithColumns("Name", "Age", "City"), state = state)
             }
         }
 
@@ -68,20 +64,20 @@ class TableColumnLayoutModelTest {
         awaitIdle()
 
         assertEquals(
-            listOf(listOf(1, 0, 2)),
-            received.map { it.modelIndices },
-            "a reorder is the user's own gesture and reaches the caller",
+            listOf(1, 0, 2),
+            state.columnLayout?.modelIndices,
+            "a reorder is the user's own gesture and should reach the state",
         )
     }
 
     @Test
-    fun aUserResizeOfAModelDrivenTableIsReported() = runComposeSwingTest {
-        val received = mutableListOf<TableColumnLayout>()
+    fun aUserResizeOfAModelDrivenTableIsHeldByItsState() = runComposeSwingTest {
+        val state = TableState()
         setContent {
             HeaderPane {
                 Table(
                     model = modelWithColumns("Name", "Age", "City"),
-                    onColumnLayoutChange = { received += it },
+                    state = state,
                     autoResizeMode = JTable.AUTO_RESIZE_OFF,
                 )
             }
@@ -92,16 +88,12 @@ class TableColumnLayoutModelTest {
         dragColumnDivider(position = 0, dx = 40)
         val resized = listOf(before[0] + 40, before[1], before[2])
 
-        assertTrue(
-            received.isNotEmpty(),
-            "a resize is the user's own gesture and reaches the caller",
-        )
         assertEquals(
             resized,
-            received.last().preferredWidths,
-            "the widths the drag left the columns at should be reported",
+            state.columnLayout?.preferredWidths,
+            "the widths the drag left the columns at should reach the state",
         )
-        assertEquals(listOf(0, 1, 2), received.last().modelIndices, "a resize should leave the order alone")
+        assertEquals(listOf(0, 1, 2), state.columnLayout?.modelIndices, "a resize should leave the order alone")
         table.assertProperty(
             resized,
             "the user's resize should stand",
@@ -109,14 +101,14 @@ class TableColumnLayoutModelTest {
     }
 
     @Test
-    fun anUndeclaredLayoutSurvivesAModelSwap() = runComposeSwingTest {
+    fun aUsersLayoutHeldByTheStateIsUnchangedByAModelSwapItSurvives() = runComposeSwingTest {
         var model by mutableStateOf(modelWithColumns("Name", "Age", "City"))
-        val received = mutableListOf<TableColumnLayout>()
-        setContent { HeaderPane { Table(model = model, onColumnLayoutChange = { received += it }) } }
+        val state = TableState()
+        setContent { HeaderPane { Table(model = model, state = state) } }
 
         dragColumn(from = 2, to = 0)
         awaitIdle()
-        received.clear()
+        val before = state.columnLayout
 
         model = modelWithColumns("Given", "Years", "Town")
         awaitIdle()
@@ -125,18 +117,19 @@ class TableColumnLayoutModelTest {
             listOf(2, 0, 1),
             "the user's order should survive a model swap",
         ) { columnModel.modelIndices() }
-        assertEquals(emptyList(), received, "a model swap the layout survives should report nothing")
+        assertEquals(listOf(2, 0, 1), before?.modelIndices, "the drag should have reached the state")
+        assertEquals(before, state.columnLayout, "a model swap the layout survives should leave the state alone")
     }
 
     @Test
-    fun aModelSwapThatDropsAColumnReportsWhatIsLeftOfTheUsersLayout() = runComposeSwingTest {
+    fun aModelSwapThatDropsAColumnKeepsTheSurvivingColumnsInTheUsersOrder() = runComposeSwingTest {
         var model by mutableStateOf(modelWithColumns("Name", "Age", "City"))
-        val received = mutableListOf<TableColumnLayout>()
-        setContent { HeaderPane { Table(model = model, onColumnLayoutChange = { received += it }) } }
+        val state = TableState()
+        setContent { HeaderPane { Table(model = model, state = state) } }
 
         dragColumn(from = 2, to = 0)
         awaitIdle()
-        received.clear()
+        val before = state.columnLayout
 
         model = modelWithColumns("Given", "Years")
         awaitIdle()
@@ -145,10 +138,6 @@ class TableColumnLayoutModelTest {
             listOf(0, 1),
             "only the surviving columns should be left",
         ) { columnModel.modelIndices() }
-        assertEquals(
-            listOf(listOf(0, 1)),
-            received.map { it.modelIndices },
-            "the layout the surviving columns were left holding should be reported once",
-        )
+        assertEquals(listOf(2, 0, 1), before?.modelIndices, "the drag should have reached the state")
     }
 }

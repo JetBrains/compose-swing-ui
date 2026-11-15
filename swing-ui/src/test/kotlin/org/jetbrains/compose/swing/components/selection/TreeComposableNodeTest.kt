@@ -170,13 +170,14 @@ class TreeComposableNodeTest {
 
     @Test
     fun theNodeScopeReflectsSelection() = runComposeSwingTest {
-        var selection by mutableStateOf<Set<List<Int>>>(emptySet())
+        // The state declares expansion too, so the root Swing would open on its own is declared open here.
+        val state = TreeState(initialExpandedPaths = setOf(emptyList()))
         setContent {
             Tree(
                 root = sample,
                 children = { it.children },
+                state = state,
                 label = { it.name },
-                selectedPaths = selection,
             ) { value ->
                 Label(if (isSelected) "${value.name}*" else value.name)
             }
@@ -187,7 +188,7 @@ class TreeComposableNodeTest {
             "an unselected row should render plainly",
         ) { renderRow(2).firstLabelText() }
 
-        selection = setOf(listOf(1))
+        state.selectedPaths = setOf(listOf(1))
         awaitIdle()
         onNodeOfType<JTree>().assertProperty(
             "veg*",
@@ -231,14 +232,15 @@ class TreeComposableNodeTest {
         // The composable node's node composition joins the enclosing composition, and its own nodes belong
         // to the renderer rather than to the pane the tree is installed in: they render the row, they do
         // not install themselves as the viewport's view.
+        val state = TreeState(initialSelectedPaths = setOf(emptyList()))
         setContent {
             ScrollPane {
                 Viewport {
                     Tree(
                         root = sample,
                         children = { it.children },
+                        state = state,
                         label = { it.name },
-                        selectedPaths = setOf(emptyList()),
                     ) { value ->
                         Panel { Label(value.name) }
                     }

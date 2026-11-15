@@ -12,6 +12,7 @@ import org.jetbrains.compose.swing.components.button.CheckBox
 import org.jetbrains.compose.swing.components.desktop.DesktopPane
 import org.jetbrains.compose.swing.components.selection.ListBox
 import org.jetbrains.compose.swing.components.selection.Tree
+import org.jetbrains.compose.swing.components.selection.rememberListState
 import org.jetbrains.compose.swing.components.text.EditorPane
 import org.jetbrains.compose.swing.foundation.layout.ColumnScope
 import org.jetbrains.compose.swing.modifier.SwingModifier
@@ -43,15 +44,14 @@ import javax.swing.tree.ExpandVetoException
 internal fun ColumnScope.ListSelectionListenerCard() {
     ExampleCard("listSelectionListener (raw ListSelectionListener, additive on ListBox)") {
         val fruits = listOf("Apple", "Banana", "Cherry", "Date")
-        var selected by remember { mutableStateOf(setOf(0)) }
+        val state = rememberListState(initialSelectedIndices = setOf(0))
         var events by remember { mutableIntStateOf(0) }
         val listener = remember { ListSelectionListener { event -> if (!event.valueIsAdjusting) events++ } }
         ListBox(
             items = fruits,
             modifier = SwingModifier.listSelectionListener(listener),
             style = { preferredSize(Dimension(160, 90)) },
-            selectedIndices = selected,
-            onSelectionChange = { selected = it },
+            state = state,
             visibleRowCount = 4,
         )
         Label("Selection events: $events")
@@ -99,8 +99,6 @@ internal fun ColumnScope.TreeListenersCard() {
                     .treeWillExpandListener(willExpandListener),
             style = { preferredSize(Dimension(200, 120)) },
             label = { it.name },
-            onSelectionChange = {},
-            onExpansionChange = {},
         )
         Label("Selection events: $selectionEvents, expansion events: $expansionEvents")
     }

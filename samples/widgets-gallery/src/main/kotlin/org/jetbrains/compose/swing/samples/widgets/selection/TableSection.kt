@@ -113,7 +113,7 @@ internal fun TableSection() {
 private fun ColumnScope.SelectableTableCard() {
     ExampleCard("Table with selection & editable column") {
         var people by remember { mutableStateOf(initialPeople) }
-        var selection by remember { mutableStateOf(setOf(0)) }
+        val selectionState = rememberTableState(initialSelectedRowIndices = setOf(0))
         var selectionModeIndex by remember { mutableIntStateOf(0) }
 
         SelectionModeControl(
@@ -141,14 +141,13 @@ private fun ColumnScope.SelectableTableCard() {
                         ) { it.age }
                     },
                     modifier = SwingModifier.testTag(PRIMARY_TABLE_TAG),
-                    selectedRowIndices = selection,
-                    onSelectionChange = { selection = it },
+                    state = selectionState,
                     selectionMode = tableSelectionModes[selectionModeIndex].second,
                 )
             }
         }
 
-        val selected = selection.firstOrNull()?.let { people.getOrNull(it) }
+        val selected = selectionState.selectedRowIndices.firstOrNull()?.let { people.getOrNull(it) }
         Label("Selected: ${selected?.let { "${it.name} (age ${it.age})" } ?: "none"}")
         Label("Double-click an Age cell to edit it.")
     }
@@ -311,7 +310,7 @@ private fun ColumnScope.ModelBackedTableCard() {
                     addRow(arrayOf<Any?>("Grace Hopper", 95))
                 }
             }
-        var selection by remember { mutableStateOf<Set<Int>>(emptySet()) }
+        val modelTableState = rememberTableState()
         var nextScore by remember { mutableIntStateOf(80) }
         var rowCount by remember { mutableIntStateOf(model.rowCount) }
 
@@ -329,8 +328,7 @@ private fun ColumnScope.ModelBackedTableCard() {
             Viewport {
                 Table(
                     model = model,
-                    selectedRowIndices = selection,
-                    onSelectionChange = { selection = it },
+                    state = modelTableState,
                 )
             }
         }

@@ -92,31 +92,30 @@ and `List` - and `changeListener` everything that publishes a change event - a `
 a `JTabbedPane`, a `JProgressBar`, an `AbstractButton`, a `JViewport` and a `JColorChooser`, which
 publishes through the `selectionModel` it holds when the listener is installed.
 
-### Declaring a selection, or leaving it alone
+### Declaring a selection
 
-`ListBox`, `Table` and `Tree` take their selection as a nullable parameter, and the two cases differ.
+`ListBox`, `Table` and `Tree` take their selection as an optional state: a `ListState?`, a `TableState?`
+or a `TreeState?`, which defaults to `null`. A state given holds the selection as two-way state (a
+`TableState` also holds the sort order and the column layout, and a `TreeState` the expansion), reveals a
+row and reads back what the widget shows besides; see [Lists and tables](#lists-and-tables).
 
-Declare it - `selectedIndices = mine` - and the selection is the composition's state, reapplied on
-every pass: it survives new items, and a user change your callback does not adopt is undone. Leave it
-`null` and the selection belongs to the user alone: never imposed, and carried across new items; where
-the new items are too few to hold it, what falls outside them leaves and the callback reports what is
-left.
+The selection a given state holds is the composition's own and is reapplied on every pass: it survives new
+items, and a user change the state does not hold is undone. Where the new items are too few to hold what
+the user selected, what falls outside them leaves and the state is written with what is left. Leave the
+state out and the selection is the user's and Swing keeps it, as with any undeclared state: never imposed,
+and carried across new items. Hoist a state when the application sets the selection or reads it.
 
-A `ListBox`, a `Table` and a `Tree` also take a `ListState`, a `TableState` or a `TreeState` in place
-of those parameters, which holds the same facets as two-way state (a `TableState` also holds the sort
-order and the column layout), reveals a row and reads back what the widget shows besides; see
-[Lists and tables](#lists-and-tables).
+A `Tree`'s expansion lives in its `TreeState` as well, and with no state it is Swing's. The user opens and
+closes nodes and a given state is written with the result, along with a node the tree opens to show a
+selection; assigning the state's expansion is how an application sets it or keeps it when the tree is
+recreated.
 
-A `Tree`'s expansion has no parameter. The user opens and closes nodes, and `onExpansionChange` reports
-it, along with a node the tree opens to show a selection; a `TreeState` is where an application sets the
-expansion or keeps it when the tree is recreated.
-
-Either way the callback reports the user's changes, once per settled change: dragging across rows
-produces one call at the end. Rendering fresh items produces a call only where they take away part of a
-selection the user made, or where a `Tree` opens nodes to show its selection. A `ComboBox` is always
-controlled instead: its `selectedItem` names the chosen item, `null` names none, and so does an item
-the current `items` do not contain. The selection names an item and not a position, so items that
-compare equal are one and the same selection.
+A given state is written with the user's changes once per settled change: dragging across rows produces
+one write at the end. Rendering fresh items writes it only where they take away part of a selection the
+user made, or where a `Tree` opens nodes to show its selection. A `ComboBox` is always controlled
+instead: its `selectedItem` names the chosen item, `null` names none, and so does an item the current
+`items` do not contain. The selection names an item and not a position, so items that compare equal are
+one and the same selection.
 
 ---
 
@@ -344,12 +343,11 @@ be, which is what lets a composable node size itself.
 
 ```kotlin
 val languages = listOf("Kotlin", "Java", "Scala")
-var selection by remember { mutableStateOf(setOf(0)) }
+val state = rememberListState(initialSelectedIndices = setOf(0))
 
 ListBox(
     items = languages,
-    selectedIndices = selection,
-    onSelectionChange = { selection = it },
+    state = state,
     selectionMode = ListSelectionModel.SINGLE_SELECTION,
     visibleRowCount = 4,
 ) { item ->
@@ -411,11 +409,11 @@ composition that both adds and removes rows ends an edit on any row at or past t
 two lists differ - and on any row at all where the table is sorted or filtered.
 
 Sorting is off until `sortable` turns it on, as it is on a bare `JTable`. With it on, a click on a
-column header sorts by that column and `onSortChange` reports the order the click leaves the rows in,
-and `rowFilter` decides which of them are shown at all. Each column brings its own `isSortable` and
-`comparator` to that sorting.
+column header sorts by that column and the order the click leaves the rows in is written into the
+table's state when one is given, and `rowFilter` decides which of them are shown at all. Each column
+brings its own `isSortable` and `comparator` to that sorting.
 
-The sizing surface is the same shape. `onColumnLayoutChange` reports the order and the preferred widths
+The sizing surface is the same shape. The table's state is written with the order and the preferred widths
 a header drag or a divider drag left the columns in; a column's own `minWidth` and `maxWidth` bound
 every width it can be left at; `autoResizeMode` decides how the columns share out a change to the
 table's width; and `fillsViewportHeight` stretches the table to the viewport showing it rather than to
@@ -423,7 +421,7 @@ the rows it holds.
 
 The sort order and the column layout are the user's: a table never imposes them, and the rows and
 columns it is declared with and a new `model` keep them. A structure change the caller makes to their
-own model in place starts them over, as it does on a `JTable`. To set them, drive the table with a
+own model in place starts them over, as it does on a `JTable`. To set them, assign them to the
 [`TableState`](#tablestate). To refuse a gesture, turn it off: `sortable` or a column's `isSortable` for
 a sort, and `Header(reorderingAllowed, resizingAllowed)` for a reorder or a resize.
 
@@ -435,7 +433,7 @@ back the values the `Header` declaration replaced. The content holds nothing els
 not a part is refused, and so is a second `Header`.
 
 ```kotlin
-var selection by remember { mutableStateOf(emptySet<Int>()) }
+val state = rememberTableState()
 
 ScrollPane {
     Viewport {
@@ -450,8 +448,7 @@ ScrollPane {
                 ) { it.age }
                 column("Owner", cellContent = { row -> Panel { Label(row.avatar); Label(row.owner) } }) { it.owner }
             },
-            selectedRowIndices = selection,
-            onSelectionChange = { selection = it },
+            state = state,
             sortable = true,
             rowHeight = 28,
         ) {
@@ -484,8 +481,8 @@ structure.
 selection or a `TreeState`'s expansion - and returning `false` leaves it closed. Together with
 `hasChildren` that is also how children are loaded lazily: a value `children` yields nothing for is a
 leaf with no handle to click, and declaring `hasChildren` lets such a value call itself a branch all
-the same, so the user can ask for children the data does not hold yet and `onWillExpand` - or
-`onExpansionChange` - is where fetching them starts.
+the same, so the user can ask for children the data does not hold yet and `onWillExpand` is where
+fetching them starts.
 
 ```kotlin
 val state = rememberTreeState(initialExpandedPaths = setOf(emptyList()))
@@ -512,9 +509,8 @@ A `ListState` holds what one `ListBox` has selected, a `TableState` what one `Ta
 sorts its rows and how its columns are laid out, and a `TreeState` what one `Tree` has selected and open.
 Each also carries the gesture that brings one row into view when the application decides to - a row just
 added, a search hit, a node a load has just filled in. Hoist one with `rememberListState()`,
-`rememberTableState()` or `rememberTreeState()` and pass it as `state`; a widget driven by a state takes no
-parameter for a facet the state holds and no callback reporting it, since the state is where those facets
-live.
+`rememberTableState()` or `rememberTreeState()` and pass it as `state`; the state is where those facets
+live, and a widget takes no other parameter for a facet the state holds.
 
 `revealIndex(index)` reveals a `ListBox` row, `revealRow(rowIndex)` a `Table` row, and
 `revealPath(path)` a `Tree` node, opening every ancestor hiding it. Each call answers whether it
@@ -1320,9 +1316,8 @@ the items do not reach has no row to be selected at. Neither is snapshot state, 
 subscribes to nothing; a composable that has to follow the user reads `selectedIndices`. An unbound
 state reports no items and nothing selected.
 
-Create it with `rememberListState(initialSelectedIndices)` and pass it to `ListBox` as `state`, in
-place of `selectedIndices` and `onSelectionChange`. A state drives one list at a time - passing it to a
-second moves it there. See [Lists and tables](#lists-and-tables).
+Create it with `rememberListState(initialSelectedIndices)` and pass it to `ListBox` as `state`. A state
+drives one list at a time - passing it to a second moves it there. See [Lists and tables](#lists-and-tables).
 
 ### `TableState`
 
@@ -1348,8 +1343,7 @@ model index like `selectedRowIndices`. A row a filter hides has nowhere to be sh
 among them.
 
 Create it with `rememberTableState(initialSelectedRowIndices, initialSortKeys, initialColumnLayout)`
-and pass it to `Table` as `state`, in place of `selectedRowIndices`/`onSelectionChange`,
-`onSortChange` and `onColumnLayoutChange`. A state drives one table at a time.
+and pass it to `Table` as `state`. A state drives one table at a time.
 
 ### `TreeState`
 
@@ -1372,8 +1366,7 @@ Closing a node over selected descendants selects that node in their place, in `s
 Selecting a node under a closed one opens the nodes above it, in `expandedPaths`.
 
 Create it with `rememberTreeState(initialSelectedPaths, initialExpandedPaths)` and pass it to `Tree` as
-`state`, in place of `selectedPaths`/`onSelectionChange` and `onExpansionChange`. A state is the only
-place a tree's expansion is held, and it drives one tree at a time.
+`state`. A state is the only place a tree's expansion is held, and it drives one tree at a time.
 
 ---
 

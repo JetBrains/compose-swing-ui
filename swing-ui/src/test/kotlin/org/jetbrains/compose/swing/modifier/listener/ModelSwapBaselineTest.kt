@@ -7,7 +7,7 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Slider
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.selection.Table
-import org.jetbrains.compose.swing.components.selection.TableColumnLayout
+import org.jetbrains.compose.swing.components.selection.TableState
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.components.text.documentChangeListener
 import org.jetbrains.compose.swing.modifier.SwingModifier
@@ -44,10 +44,10 @@ class ModelSwapBaselineTest {
 
     @Test
     fun aColumnLayoutIsMeasuredAgainstTheModelTheTableWasGiven() = runComposeSwingTest {
-        val layouts = mutableListOf<TableColumnLayout>()
+        val state = TableState()
         setContent {
             Panel {
-                Table(model = table(), selectedRowIndices = emptySet(), onColumnLayoutChange = { layouts += it })
+                Table(model = table(), state = state)
             }
         }
         val jTable = onNodeOfType<JTable>().fetch<JTable>()
@@ -55,26 +55,24 @@ class ModelSwapBaselineTest {
         val replacement = reversedColumns()
         jTable.columnModel = replacement
         awaitIdle()
-        assertEquals(emptyList(), layouts, "handing the table a column model reports nothing by itself")
+        assertEquals(null, state.columnLayout, "handing the table a column model reports nothing by itself")
 
         // Back into the order the outgoing model was in - news about the model now current, however it
         // compares to the one it replaced.
         replacement.moveColumn(0, 1)
-        assertTrue(layouts.isNotEmpty(), "and a reorder on it reaches the caller")
+        assertTrue(state.columnLayout != null, "and a reorder on it reaches the caller")
     }
 
     @Test
     fun aSelectionIsMeasuredAgainstTheModelTheTableWasGiven() = runComposeSwingTest {
-        val seen = mutableListOf<Set<Int>>()
-        var declared by mutableStateOf(setOf(1))
+        val state = TableState(initialSelectedRowIndices = setOf(1))
         setContent {
             Panel {
-                Table(model = table(), selectedRowIndices = declared, onSelectionChange = { seen += it })
+                Table(model = table(), state = state)
             }
         }
         val jTable = onNodeOfType<JTable>().fetch<JTable>()
         assertEquals(setOf(1), jTable.selectedModelRows(), "the table starts on the declared selection")
-        seen.clear()
 
         // The replacement arrives holding no selection. The declaration is unchanged, so only a mirror
         // that knows the selection was lost can put it back.
@@ -85,9 +83,9 @@ class ModelSwapBaselineTest {
             jTable.selectedModelRows(),
             "a selection model the table is given takes the declared selection",
         )
-        assertEquals(emptyList(), seen, "and the swap reaches no callback of the caller's")
+        assertEquals(setOf(1), state.selectedRowIndices, "and the swap leaves the state's selection as declared")
 
-        declared = setOf(0)
+        state.selectedRowIndices = setOf(0)
         awaitIdle()
         assertEquals(setOf(0), jTable.selectedModelRows(), "a later declaration lands on it too")
     }

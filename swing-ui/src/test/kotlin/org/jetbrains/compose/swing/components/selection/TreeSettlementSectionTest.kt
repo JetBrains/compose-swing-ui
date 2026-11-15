@@ -1,9 +1,6 @@
 // Copyright 2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.jetbrains.compose.swing.components.selection
 
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.core.TracedTest
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import kotlin.test.Test
@@ -32,20 +29,19 @@ class TreeSettlementSectionTest : TracedTest() {
 
     @Test
     fun applyingADeclaredSelectionSettlesBothMirrorsThroughOneNestedWrite() = runComposeSwingTest {
-        var selected by mutableStateOf(setOf(listOf(0)))
+        val state = TreeState(initialSelectedPaths = setOf(listOf(0)))
         setContent {
             Tree(
                 root = sample,
                 children = { it.children },
                 label = { it.name },
-                selectedPaths = selected,
-                onSelectionChange = { selected = it },
+                state = state,
             )
         }
         awaitIdle()
         tracer.clear()
 
-        selected = setOf(listOf(1))
+        state.selectedPaths = setOf(listOf(1))
         awaitIdle()
 
         val settlements = tracer.sections.filter { it.name == "settle" }

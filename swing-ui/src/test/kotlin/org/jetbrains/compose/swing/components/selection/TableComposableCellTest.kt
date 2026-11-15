@@ -130,7 +130,7 @@ class TableComposableCellTest {
                     Table(
                         rows = people,
                         columns = { column("Name", cellContent = { row -> Panel { Label(row.name) } }) { it.name } },
-                        selectedRowIndices = setOf(0),
+                        state = rememberTableState(initialSelectedRowIndices = setOf(0)),
                     )
                 }
             }

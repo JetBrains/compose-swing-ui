@@ -10,11 +10,15 @@ import org.jetbrains.compose.swing.assertDeclaredChainCarriedOnce
 import org.jetbrains.compose.swing.components.ComboBox
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.name
+import org.jetbrains.compose.swing.modifier.listener.treeSelectionListener
 import org.jetbrains.compose.swing.node.MirrorState
 import org.jetbrains.compose.swing.test.interaction.assertIsOfType
 import org.jetbrains.compose.swing.test.interaction.assertProperty
+import org.jetbrains.compose.swing.test.interaction.performAddSelection
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 import javax.swing.DefaultListCellRenderer
 import javax.swing.DefaultListModel
 import javax.swing.JComboBox
@@ -29,14 +33,13 @@ import javax.swing.tree.DefaultMutableTreeNode
 import javax.swing.tree.DefaultTreeModel
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertSame
 
 /**
- * Selection is either the caller's state or the user's, and [Table], [ListBox] and [Tree] answer the
- * same way in every variant: a declared selection is owned by the composition and re-applied whenever
- * the composition runs, so a change the caller declines to adopt is undone on the widget; an undeclared
- * selection belongs to the user, is never imposed, and survives the writes the library makes to its own
- * widget while rendering new data. A [ComboBox] always has a declared selection, so it answers the first
- * half of that alike.
+ * [Table], [ListBox] and [Tree] without a state leave selection to the user, which survives the writes the
+ * library makes to its own widget while rendering new data. With a state, the user's selection is written
+ * back to it and what is assigned to the state is applied to the widget. A [ComboBox] declares its
+ * selection, so a change the caller declines to adopt is undone on the widget.
  *
  * A user's click reaches a widget as a selection write, so these tests select through the widget's own
  * selection API to stand in for one. The recomposition each test provokes changes a property
@@ -78,19 +81,16 @@ class SelectionDeclarationTest {
     @Test
     fun anUndeclaredTableSelectionSurvivesARecomposition() = runComposeSwingTest {
         var label by mutableStateOf("first")
-        val received = mutableListOf<Set<Int>>()
         setContent {
             Table(
                 rows = people,
                 columns = { column("Name") { it.name } },
                 modifier = SwingModifier.name(label),
-                onSelectionChange = { received += it },
             )
         }
 
         val table = onNodeOfType<JTable>().fetch()
         table.selectionModel.setSelectionInterval(1, 1)
-        received.clear()
 
         label = "second"
         awaitIdle()
@@ -99,24 +99,20 @@ class SelectionDeclarationTest {
             listOf(1),
             "an undeclared selection is the user's",
         ) { selectedRows.toList() }
-        assertEquals(emptyList(), received, "a recomposition reported a selection change")
     }
 
     @Test
     fun anUndeclaredTableSelectionSurvivesARowsRefresh() = runComposeSwingTest {
         val rows = mutableStateListOf(*people.toTypedArray())
-        val received = mutableListOf<Set<Int>>()
         setContent {
             Table(
                 rows = rows.toList(),
                 columns = { column("Name") { it.name } },
-                onSelectionChange = { received += it },
             )
         }
 
         val table = onNodeOfType<JTable>().fetch()
         table.selectionModel.setSelectionInterval(1, 1)
-        received.clear()
 
         rows[2] = Person("Grace Hopper", 50)
         awaitIdle()
@@ -125,20 +121,17 @@ class SelectionDeclarationTest {
             listOf(1),
             "an undeclared selection survives new rows",
         ) { selectedRows.toList() }
-        assertEquals(emptyList(), received, "a rows refresh reported a selection change")
     }
 
     @Test
     fun anUndeclaredTableSelectionSurvivesAModelSwap() = runComposeSwingTest {
         var model by mutableStateOf(tableModel("Ada", "Alan", "Grace"))
-        val received = mutableListOf<Set<Int>>()
         setContent {
-            Table(model = model, onSelectionChange = { received += it })
+            Table(model = model)
         }
 
         val table = onNodeOfType<JTable>().fetch()
         table.selectionModel.setSelectionInterval(1, 1)
-        received.clear()
 
         model = tableModel("Barbara", "Edsger", "Ada")
         awaitIdle()
@@ -147,20 +140,32 @@ class SelectionDeclarationTest {
             listOf(1),
             "an undeclared selection survives a model swap",
         ) { selectedRows.toList() }
-        assertEquals(emptyList(), received, "a model swap reported a selection change")
+    }
+
+    @Test
+    fun aSwappedTableModelShowsTheNewModelsRows() = runComposeSwingTest {
+        var model by mutableStateOf(tableModel("Ada", "Alan", "Grace"))
+        setContent {
+            Table(model = model, state = rememberTableState())
+        }
+
+        model = tableModel("Barbara", "Edsger")
+        awaitIdle()
+
+        val table = onNodeOfType<JTable>().fetch()
+        assertSame(model, table.model, "the swapped-in model should be installed on the table")
+        assertEquals(listOf("Barbara", "Edsger"), List(table.rowCount) { table.getValueAt(it, 0) })
     }
 
     @Test
     fun anUndeclaredListSelectionSurvivesAnItemsChange() = runComposeSwingTest {
         val items = mutableStateListOf("red", "green", "blue")
-        val received = mutableListOf<Set<Int>>()
         setContent {
-            ListBox(items = items.toList(), onSelectionChange = { received += it })
+            ListBox(items = items.toList())
         }
 
         val list = onNodeOfType<JList<*>>().fetch()
         list.selectionModel.setSelectionInterval(1, 1)
-        received.clear()
 
         items.add("violet")
         awaitIdle()
@@ -169,20 +174,17 @@ class SelectionDeclarationTest {
             listOf(1),
             "an undeclared selection survives new items",
         ) { selectedIndices.toList() }
-        assertEquals(emptyList(), received, "an items change reported a selection change")
     }
 
     @Test
     fun anUndeclaredListSelectionSurvivesAModelSwap() = runComposeSwingTest {
         var model by mutableStateOf(listModel("red", "green"))
-        val received = mutableListOf<Set<Int>>()
         setContent {
-            ListBox(model = model, onSelectionChange = { received += it })
+            ListBox(model = model)
         }
 
         val list = onNodeOfType<JList<*>>().fetch()
         list.selectionModel.setSelectionInterval(1, 1)
-        received.clear()
 
         model = listModel("cyan", "magenta")
         awaitIdle()
@@ -191,25 +193,24 @@ class SelectionDeclarationTest {
             listOf(1),
             "an undeclared selection survives a model swap",
         ) { selectedIndices.toList() }
-        assertEquals(emptyList(), received, "a model swap reported a selection change")
     }
 
     @Test
     fun anUndeclaredTreeSelectionSurvivesAStructureChange() = runComposeSwingTest {
         var label by mutableStateOf("root")
-        val received = mutableListOf<Set<List<Int>>>()
+        var events = 0
         setContent {
             Tree(
                 root = sample.copy(name = label),
                 children = { it.children },
                 label = { it.name },
-                onSelectionChange = { received += it },
+                modifier = SwingModifier.treeSelectionListener { events++ },
             )
         }
 
         val tree = onNodeOfType<JTree>().fetch()
         tree.setSelectionRow(1)
-        received.clear()
+        events = 0
 
         label = "trunk"
         awaitIdle()
@@ -218,20 +219,18 @@ class SelectionDeclarationTest {
             listOf("fruit"),
             "an undeclared selection survives a structure change",
         ) { selectedLabels() }
-        assertEquals(emptyList(), received, "a structure change reported a selection change")
+        assertEquals(0, events, "a structure change reported a selection change")
     }
 
     @Test
     fun anUndeclaredTreeSelectionSurvivesAModelSwap() = runComposeSwingTest {
         var model by mutableStateOf(treeModel("root"))
-        val received = mutableListOf<Set<List<Int>>>()
         setContent {
-            Tree(model = model, onSelectionChange = { received += it })
+            Tree(model = model)
         }
 
         val tree = onNodeOfType<JTree>().fetch()
         tree.setSelectionRow(1)
-        received.clear()
 
         model = treeModel("trunk")
         awaitIdle()
@@ -240,150 +239,122 @@ class SelectionDeclarationTest {
             listOf("apple"),
             "an undeclared selection survives a model swap",
         ) { selectedLabels() }
-        assertEquals(emptyList(), received, "a model swap reported a selection change")
     }
 
     @Test
-    fun aRefusedTableRowsSelectionIsRestored() = runComposeSwingTest {
+    fun aTableRowSelectionAssignedToTheStateIsAppliedAlongsideAModifierChange() = runComposeSwingTest {
         var label by mutableStateOf("first")
+        val state = TableState()
         setContent {
             Table(
                 rows = people,
                 columns = { column("Name") { it.name } },
                 modifier = SwingModifier.name(label),
-                selectedRowIndices = setOf(0),
-            )
-        }
-
-        val table = onNodeOfType<JTable>().fetch()
-        table.selectionModel.setSelectionInterval(2, 2)
-        onNodeOfType<JTable>().assertProperty(
-            listOf(2),
-            "the user's choice reaches the widget",
-        ) { selectedRows.toList() }
-
-        label = "second"
-        awaitIdle()
-
-        onNodeOfType<JTable>().assertProperty(
-            listOf(0),
-            "the declared selection is re-applied",
-        ) { selectedRows.toList() }
-    }
-
-    @Test
-    fun aDeclaredEmptySelectionClearsWhatTheUserPicked() = runComposeSwingTest {
-        var label by mutableStateOf("first")
-        setContent {
-            Table(
-                rows = people,
-                columns = { column("Name") { it.name } },
-                modifier = SwingModifier.name(label),
-                selectedRowIndices = emptySet(),
-            )
-        }
-
-        val table = onNodeOfType<JTable>().fetch()
-        table.selectionModel.setSelectionInterval(1, 1)
-
-        label = "second"
-        awaitIdle()
-
-        onNodeOfType<JTable>().assertProperty(
-            emptyList(),
-            "an empty selection is a declaration like any other",
-        ) { selectedRows.toList() }
-    }
-
-    @Test
-    fun aRefusedTableModelSelectionIsRestored() = runComposeSwingTest {
-        var label by mutableStateOf("first")
-        val model = tableModel("Ada", "Alan", "Grace")
-        setContent {
-            Table(model = model, modifier = SwingModifier.name(label), selectedRowIndices = setOf(0))
-        }
-
-        val table = onNodeOfType<JTable>().fetch()
-        table.selectionModel.setSelectionInterval(2, 2)
-
-        label = "second"
-        awaitIdle()
-
-        onNodeOfType<JTable>().assertProperty(
-            listOf(0),
-            "the declared selection is re-applied",
-        ) { selectedRows.toList() }
-    }
-
-    @Test
-    fun aTableRowSelectionDeclaredForTheFirstTimeIsAppliedAlongsideAModifierChange() = runComposeSwingTest {
-        var label by mutableStateOf("first")
-        var selection by mutableStateOf<Set<Int>?>(null)
-        setContent {
-            Table(
-                rows = people,
-                columns = { column("Name") { it.name } },
-                modifier = SwingModifier.name(label),
-                selectedRowIndices = selection,
+                state = state,
             )
         }
 
         label = "second"
-        selection = setOf(1)
+        state.selectedRowIndices = setOf(1)
         awaitIdle()
 
         onNodeWithName("second")
             .assertIsOfType<JTable>()
-            .assertProperty(listOf(1), "the newly declared selection is applied") { selectedRows.toList() }
+            .assertProperty(listOf(1), "the newly assigned selection is applied") { selectedRows.toList() }
     }
 
-    @Test
-    fun aRefusedListSelectionIsRestored() = runComposeSwingTest {
-        var count by mutableStateOf(8)
-        setContent {
-            ListBox(items = listOf("red", "green", "blue"), selectedIndices = setOf(0), visibleRowCount = count)
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(strings = ["ListBox", "Table", "Tree"])
+    fun aSelectionHeldByAStateBoundForTheFirstTimeIsAppliedAlongsideAModifierChange(widget: String) =
+        runComposeSwingTest {
+            var label by mutableStateOf("first")
+            var listState by mutableStateOf<ListState?>(null)
+            var tableState by mutableStateOf<TableState?>(null)
+            var treeState by mutableStateOf<TreeState?>(null)
+            setContent {
+                val modifier = SwingModifier.name(label)
+                when (widget) {
+                    "ListBox" -> {
+                        ListBox(items = listOf("red", "green", "blue"), modifier = modifier, state = listState)
+                    }
+
+                    "Table" -> {
+                        Table(
+                            rows = people,
+                            columns = { column("Name") { it.name } },
+                            modifier = modifier,
+                            state = tableState,
+                        )
+                    }
+
+                    else -> {
+                        Tree(model = treeModel("root"), modifier = modifier, state = treeState)
+                    }
+                }
+            }
+
+            label = "second"
+            listState = ListState(initialSelectedIndices = setOf(1))
+            tableState = TableState(initialSelectedRowIndices = setOf(1))
+            treeState = TreeState(initialSelectedPaths = setOf(listOf(1)))
+            awaitIdle()
+
+            val node = onNodeWithName("second")
+            val message = "$widget shows the selection its state holds"
+            when (widget) {
+                "ListBox" -> {
+                    node.assertIsOfType<JList<*>>().assertProperty(listOf(1), message) { selectedIndices.toList() }
+                }
+
+                "Table" -> {
+                    node.assertIsOfType<JTable>().assertProperty(listOf(1), message) { selectedRows.toList() }
+                }
+
+                else -> {
+                    node.assertIsOfType<JTree>().assertProperty(listOf("pear"), message) { selectedLabels() }
+                }
+            }
         }
 
-        val list = onNodeOfType<JList<*>>().fetch()
-        list.selectionModel.setSelectionInterval(2, 2)
-        onNodeOfType<JList<*>>().assertProperty(
-            listOf(2),
-            "the user's choice reaches the widget",
-        ) { selectedIndices.toList() }
-
-        count = 6
-        awaitIdle()
-
-        onNodeOfType<JList<*>>().assertProperty(
-            listOf(0),
-            "the declared selection is re-applied",
-        ) { selectedIndices.toList() }
-    }
-
-    @Test
-    fun aRefusedListModelSelectionIsRestored() = runComposeSwingTest {
-        var count by mutableStateOf(8)
-        val model = listModel("red", "green", "blue")
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(strings = ["ListBox", "Table", "Tree"])
+    fun anEmptySelectionAssignedToTheStateClearsWhatTheUserPicked(widget: String) = runComposeSwingTest {
+        val listState = ListState()
+        val tableState = TableState()
+        val treeState = TreeState()
         setContent {
-            ListBox(model = model, selectedIndices = setOf(0), visibleRowCount = count)
+            when (widget) {
+                "ListBox" -> ListBox(items = listOf("red", "green", "blue"), state = listState)
+                "Table" -> Table(rows = people, columns = { column("Name") { it.name } }, state = tableState)
+                else -> Tree(model = treeModel("root"), state = treeState)
+            }
         }
 
-        val list = onNodeOfType<JList<*>>().fetch()
-        list.selectionModel.setSelectionInterval(2, 2)
-
-        count = 6
+        when (widget) {
+            "ListBox" -> onNodeOfType<JList<*>>().performAddSelection(1)
+            "Table" -> onNodeOfType<JTable>().performAddSelection(1)
+            else -> onNodeOfType<JTree>().performAddSelection(0)
+        }
         awaitIdle()
 
-        onNodeOfType<JList<*>>().assertProperty(
-            listOf(0),
-            "the declared selection is re-applied",
-        ) { selectedIndices.toList() }
+        listState.selectedIndices = emptySet()
+        tableState.selectedRowIndices = emptySet()
+        treeState.selectedPaths = emptySet()
+        awaitIdle()
+
+        val message = "$widget drops the pick"
+        when (widget) {
+            "ListBox" -> onNodeOfType<JList<*>>().assertProperty(emptyList(), message) { selectedIndices.toList() }
+            "Table" -> onNodeOfType<JTable>().assertProperty(emptyList(), message) { selectedRows.toList() }
+            else -> onNodeOfType<JTree>().assertProperty(emptyList(), message) { selectedLabels() }
+        }
     }
 
     @Test
     fun aTableSelectionIsAppliedAscendingWhateverOrderItIsDeclaredIn() = runComposeSwingTest {
+        val state = TableState(initialSelectedRowIndices = linkedSetOf(2, 0, 1))
         setContent {
-            Table(rows = people, columns = { column("Name") { it.name } }, selectedRowIndices = linkedSetOf(2, 0, 1))
+            Table(rows = people, columns = { column("Name") { it.name } }, state = state)
         }
 
         val table = onNodeOfType<JTable>()
@@ -393,8 +364,9 @@ class SelectionDeclarationTest {
 
     @Test
     fun aListSelectionIsAppliedAscendingWhateverOrderItIsDeclaredIn() = runComposeSwingTest {
+        val state = ListState(initialSelectedIndices = linkedSetOf(2, 0, 1))
         setContent {
-            ListBox(items = listOf("red", "green", "blue"), selectedIndices = linkedSetOf(2, 0, 1))
+            ListBox(items = listOf("red", "green", "blue"), state = state)
         }
 
         val list = onNodeOfType<JList<*>>()
@@ -425,38 +397,11 @@ class SelectionDeclarationTest {
     }
 
     @Test
-    fun aRefusedTreeSelectionIsRestored() = runComposeSwingTest {
-        var label by mutableStateOf("first")
-        val model = treeModel("root")
-        setContent {
-            Tree(model = model, modifier = SwingModifier.name(label), selectedPaths = setOf(listOf(0)))
-        }
-        awaitIdle()
-        mainClock.autoAdvance = false
-
-        val tree = onNodeOfType<JTree>().fetch()
-        tree.setSelectionRow(2)
-        onNodeOfType<JTree>().assertProperty(
-            listOf("pear"),
-            "the user's choice reaches the widget",
-        ) { selectedLabels() }
-
-        label = "second"
-        mainClock.advanceTimeByFrame()
-
-        onNodeOfType<JTree>().assertProperty(
-            listOf("apple"),
-            "the one pass that re-declares the selection should already have taken the tree off the node " +
-                "the user moved it to",
-        ) { selectedLabels() }
-    }
-
-    @Test
     fun aTreeSelectionMovedFromOneVisibleNodeToAnotherIsAppliedByThePassThatDeclaresIt() = runComposeSwingTest {
-        var selection by mutableStateOf(setOf(listOf(0)))
+        val state = TreeState(initialSelectedPaths = setOf(listOf(0)))
         val model = treeModel("root")
         setContent {
-            Tree(model = model, selectedPaths = selection)
+            Tree(model = model, state = state)
         }
         awaitIdle()
         mainClock.autoAdvance = false
@@ -464,7 +409,7 @@ class SelectionDeclarationTest {
         val tree = onNodeOfType<JTree>()
         tree.assertProperty(listOf("apple"), "the tree opens on the node it first names") { selectedLabels() }
 
-        selection = setOf(listOf(1))
+        state.selectedPaths = setOf(listOf(1))
         mainClock.advanceTimeByFrame()
 
         tree.assertProperty(

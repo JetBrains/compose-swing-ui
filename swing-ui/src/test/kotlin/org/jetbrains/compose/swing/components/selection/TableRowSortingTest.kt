@@ -4,9 +4,6 @@ package org.jetbrains.compose.swing.components.selection
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import org.jetbrains.compose.swing.countTests
-import org.jetbrains.compose.swing.fixtures.components.selection.TableFixture
-import org.jetbrains.compose.swing.fixtures.components.selection.TableModelFixture
 import org.jetbrains.compose.swing.fixtures.components.selection.TableModelStateFixture
 import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.test.interaction.assertProperty
@@ -69,15 +66,10 @@ class TableRowSortingTest {
     @Test
     fun withoutASorterAModelRowIsTheRowOnScreen() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
-        val received = mutableListOf<Set<Int>>()
+        val state = TableState()
         setContent {
             HeaderPane {
-                Table(
-                    rows = people,
-                    columns = { column("Name") { it.name } },
-                    selectedRowIndices = null,
-                    onSelectionChange = { received += it },
-                )
+                Table(rows = people, columns = { column("Name") { it.name } }, state = state)
             }
         }
 
@@ -85,7 +77,7 @@ class TableRowSortingTest {
         table.performClick(table.fetch().rowCenter(2))
         awaitIdle()
 
-        assertEquals(setOf(2), received.last(), "the row the user picked is reported by its model index")
+        assertEquals(setOf(2), state.selectedRowIndices, "the row the user picked is held by its model index")
         table.assertProperty(listOf(2), "which is the row the table has selected") { selectedRows.toList() }
     }
 
@@ -142,10 +134,10 @@ class TableRowSortingTest {
     }
 
     @Test
-    fun aFilterThatHidesASelectedRowDropsItFromTheReport() = runComposeSwingTest {
+    fun aFilterThatHidesASelectedRowLeavesItNamedInTheStateButNotShownSelected() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         var filter by mutableStateOf<RowFilter<in TableModel, in Int>?>(null)
-        val received = mutableListOf<Set<Int>>()
+        val state = TableState()
         setContent {
             HeaderPane {
                 Table(
@@ -154,7 +146,7 @@ class TableRowSortingTest {
                         column("Name") { it.name }
                         column("Age") { it.age }
                     },
-                    onSelectionChange = { received += it },
+                    state = state,
                     sortable = true,
                     rowFilter = filter,
                 )
@@ -165,29 +157,25 @@ class TableRowSortingTest {
         table.performClick(table.fetch().rowCenter(0))
         table.performClick(table.fetch().rowCenter(2), modifiers = InputEvent.SHIFT_DOWN_MASK)
         awaitIdle()
-        assertEquals(setOf(0, 1, 2), received.last(), "every row is selected to start with")
+        assertEquals(setOf(0, 1, 2), state.selectedRowIndices, "every row is selected to start with")
 
         filter = RowFilter.regexFilter("Ada", 0)
         awaitIdle()
 
         table.assertProperty(listOf("Ada"), "only the rows the filter admits are shown") { shownNames() }
-        assertEquals(setOf(0), received.last(), "the rows it hides leave the selection and are reported gone")
+        assertEquals(setOf(0), state.shownSelectedRowIndices, "the rows it hides leave the table's selection")
+        assertEquals(setOf(0, 1, 2), state.selectedRowIndices, "while the state goes on naming them")
     }
 
     @Test
-    fun aDeclaredSelectionSurvivesAFilterChangeAndIsNeverReportedBack() = runComposeSwingTest {
+    fun aStatesSelectionSurvivesAFilterChangeAndIsNeverWrittenBack() = runComposeSwingTest {
         var filter by mutableStateOf<RowFilter<in TableModel, in Int>?>(null)
-        var selection by mutableStateOf(setOf(0, 1))
-        val received = mutableListOf<Set<Int>>()
+        val state = TableState(initialSelectedRowIndices = setOf(0, 1))
         setContent {
             Table(
                 rows = people,
                 columns = { column("Name") { it.name } },
-                selectedRowIndices = selection,
-                onSelectionChange = {
-                    received += it
-                    selection = it
-                },
+                state = state,
                 sortable = true,
                 rowFilter = filter,
             )
@@ -197,27 +185,28 @@ class TableRowSortingTest {
         table.assertProperty(setOf(0, 1), "the declared rows should be selected to start with") { selectedModelRows() }
 
         // A filter takes hidden rows out of the table's selection - the wrapper's own write. The rows it drops
-        // are re-selected once the filter admits them again, and reach no callback.
+        // are re-selected once the filter admits them again, and are never written to the state.
         filter = RowFilter.regexFilter("Ada", 0)
         awaitIdle()
         table.assertProperty(setOf(0), "the row the filter hides has no screen row to hold") { selectedModelRows() }
+        assertEquals(setOf(0, 1), state.selectedRowIndices, "and is not written back to the state")
 
         filter = null
         awaitIdle()
         table.assertProperty(setOf(0, 1), "the declared selection should be back in full") { selectedModelRows() }
-        assertEquals(emptyList(), received, "a selection the filter moved is the wrapper's doing, not the user's")
+        assertEquals(setOf(0, 1), state.selectedRowIndices, "a selection the filter moved is not the user's")
     }
 
     @Test
-    fun aDeclaredSelectionChangeAloneStillNarrowsAgainstAnUnchangedFilter() = runComposeSwingTest {
+    fun aStatesSelectionChangeAloneStillNarrowsAgainstAnUnchangedFilter() = runComposeSwingTest {
         // Held across the whole test so it is the same instance every pass; the filter itself never moves.
         val filter = RowFilter.regexFilter<TableModel, Int>("A", 0)
-        var selection by mutableStateOf(setOf(0))
+        val state = TableState(initialSelectedRowIndices = setOf(0))
         setContent {
             Table(
                 rows = people,
                 columns = { column("Name") { it.name } },
-                selectedRowIndices = selection,
+                state = state,
                 sortable = true,
                 rowFilter = filter,
             )
@@ -227,7 +216,7 @@ class TableRowSortingTest {
         table.assertProperty(setOf(0), "the first declared selection should be applied") { selectedModelRows() }
 
         // Grace never matches the filter, whether or not the caller declares her selected.
-        selection = setOf(0, 1, 2)
+        state.selectedRowIndices = setOf(0, 1, 2)
         awaitIdle()
 
         table.assertProperty(setOf(0, 1), "the row the filter hides should be left out") { selectedModelRows() }
@@ -256,12 +245,12 @@ class TableRowSortingTest {
     @Test
     fun aFilterDeclaredInTheSamePassAsASelectionChangeStillReachesTheSorter() = runComposeSwingTest {
         var filter by mutableStateOf<RowFilter<in TableModel, in Int>?>(null)
-        var selection by mutableStateOf(setOf(0))
+        val state = TableState(initialSelectedRowIndices = setOf(0))
         setContent {
             Table(
                 rows = people,
                 columns = { column("Name") { it.name } },
-                selectedRowIndices = selection,
+                state = state,
                 sortable = true,
                 rowFilter = filter,
             )
@@ -271,7 +260,7 @@ class TableRowSortingTest {
         table.assertProperty(people.map { it.name }, "every row is shown before a filter is declared") { shownNames() }
 
         filter = RowFilter.regexFilter("Ada", 0)
-        selection = setOf(1)
+        state.selectedRowIndices = setOf(1)
         awaitIdle()
 
         val installed: Any? =
@@ -320,8 +309,8 @@ class TableRowSortingTest {
     }
 
     @Test
-    fun sortingByAColumnHeaderReachesOnSortChange() = runComposeSwingTest {
-        val received = mutableListOf<List<SortKey>>()
+    fun sortingByAColumnHeaderReachesTheState() = runComposeSwingTest {
+        val state = TableState()
         setContent {
             HeaderPane {
                 Table(
@@ -330,8 +319,8 @@ class TableRowSortingTest {
                         column("Name") { it.name }
                         column("Age") { it.age }
                     },
+                    state = state,
                     sortable = true,
-                    onSortChange = { received += it },
                 )
             }
         }
@@ -341,16 +330,16 @@ class TableRowSortingTest {
 
         assertEquals(
             listOf(SortKey(1, SortOrder.ASCENDING)),
-            received.last(),
-            "the order the user sorted the rows into should be reported",
+            state.sortKeys,
+            "the order the user sorted the rows into should be written to the state",
         )
     }
 
     @TestFactory
-    fun onlyHeaderGesturesReachOnSortChange(): List<DynamicTest> =
+    fun onlyHeaderGesturesReachTheSortKeys(): List<DynamicTest> =
         listOf("declared rows" to false, "caller-owned model" to true).map { (name, modelDriven) ->
             dynamicTest(name) {
-                assertOnlyHeaderGesturesReachOnSortChange(modelDriven, people)
+                assertOnlyHeaderGesturesReachTheSortKeys(modelDriven, people)
             }
         }
 
@@ -656,7 +645,7 @@ class TableRowSortingTest {
     }
 
     @Test
-    fun theAnchorCarriedAcrossASortIsNotReportedAsTheUsersSelection() = runComposeSwingTest {
+    fun theAnchorCarriedAcrossASortLeavesTheStatesSelectionAlone() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val rows = List(10) { "row $it" }
         // Two instances ordering alike: handing over the second is an ordering the caller redeclared, which
@@ -664,14 +653,13 @@ class TableRowSortingTest {
         val byName = Comparator<Any?> { first, second -> (first as String).compareTo(second as String) }
         val byNameAgain = Comparator<Any?> { first, second -> (first as String).compareTo(second as String) }
         var comparator by mutableStateOf(byName)
-        val received = mutableListOf<Set<Int>>()
+        val state = TableState()
         setContent {
             HeaderPane {
                 Table(
                     rows = rows,
                     columns = { column("Name", comparator = comparator) { it } },
-                    selectedRowIndices = null,
-                    onSelectionChange = { received += it },
+                    state = state,
                     sortable = true,
                 )
             }
@@ -682,13 +670,17 @@ class TableRowSortingTest {
         table.performClick(table.fetch().rowCenter(2))
         table.performClick(table.fetch().rowCenter(5), modifiers = InputEvent.SHIFT_DOWN_MASK)
         awaitIdle()
-        val reported = received.size
+        val reported = state.selectedRowIndices
 
         comparator = byNameAgain
         awaitIdle()
 
         table.assertProperty(2, "the anchor is put back across the re-sort") { selectionModel.anchorSelectionIndex }
-        assertEquals(reported, received.size, "putting it back is the wrapper's own write, not a selection change")
+        assertEquals(
+            reported,
+            state.selectedRowIndices,
+            "putting it back is the wrapper's own write, not a selection change",
+        )
     }
 
     @Test
@@ -735,39 +727,30 @@ class TableRowSortingTest {
     }
 
     @TestFactory
-    fun tableRawSwing() = TableFixture.rawSwingTests()
-
-    @TestFactory
-    fun tableCounts() = TableFixture.countTests()
-
-    @TestFactory
-    fun tableModelRawSwing() = TableModelFixture.rawSwingTests()
-
-    @TestFactory
     fun tableModelStateRawSwing() = TableModelStateFixture.rawSwingTests()
 }
 
 private fun tableModel(vararg names: String): DefaultTableModel =
     DefaultTableModel(names.map { arrayOf<Any?>(it) }.toTypedArray(), arrayOf<Any?>("Name"))
 
-private fun assertOnlyHeaderGesturesReachOnSortChange(
+private fun assertOnlyHeaderGesturesReachTheSortKeys(
     modelDriven: Boolean,
     people: List<Person>,
 ) = runComposeSwingTest {
-    val received = mutableListOf<List<SortKey>>()
+    val state = TableState()
     var rows by mutableStateOf(people)
     var header by mutableStateOf("Name")
     var model by mutableStateOf(tableModel("Ada", "Alan", "Grace"))
     setContent {
         HeaderPane {
             if (modelDriven) {
-                Table(model = model, sortable = true, onSortChange = { received += it })
+                Table(model = model, state = state, sortable = true)
             } else {
                 Table(
                     rows = rows,
                     columns = { column(header) { it.name } },
+                    state = state,
                     sortable = true,
-                    onSortChange = { received += it },
                 )
             }
         }
@@ -776,13 +759,13 @@ private fun assertOnlyHeaderGesturesReachOnSortChange(
     val table = onNodeOfType<JTable>()
     val ascending = listOf(SortKey(0, SortOrder.ASCENDING))
     val descending = listOf(SortKey(0, SortOrder.DESCENDING))
-    assertEquals(emptyList(), received, "installing the table reports no user gesture")
+    assertEquals(emptyList(), state.sortKeys, "installing the table writes no user gesture")
 
     onNodeOfType<JTableHeader>().performClick(table.fetch().headerCenterOf(0))
-    assertEquals(listOf(ascending), received, "one header click reports its order exactly once")
+    assertEquals(ascending, state.sortKeys, "one header click writes its order")
 
     onNodeOfType<JTableHeader>().performClick(table.fetch().headerCenterOf(0))
-    assertEquals(listOf(ascending, descending), received, "another click reports the new order exactly once")
+    assertEquals(descending, state.sortKeys, "another click writes the new order")
     table.assertProperty(listOf("Grace", "Alan", "Ada"), "the user's order reaches the rows") { shownNames() }
 
     val before = table.fetch()
@@ -794,20 +777,12 @@ private fun assertOnlyHeaderGesturesReachOnSortChange(
     }
     awaitIdle()
 
-    assertEquals(
-        listOf(ascending, descending),
-        received,
-        "putting the user's order back after a content refresh reports no new gesture",
-    )
+    assertEquals(descending, state.sortKeys, "putting the user's order back after a content refresh changes nothing")
     assertSame(before, table.fetch(), "the content refresh updates the same table")
     table.assertProperty(listOf("Grace", "Bob", "Alan", "Ada"), "the new rows keep the user's order") { shownNames() }
 
     onNodeOfType<JTableHeader>().performClick(table.fetch().headerCenterOf(0))
-    assertEquals(
-        listOf(ascending, descending, ascending),
-        received,
-        "header gestures are still reported after the refresh",
-    )
+    assertEquals(ascending, state.sortKeys, "header gestures are still written after the refresh")
     table.assertProperty(
         listOf("Ada", "Alan", "Bob", "Grace"),
         "the next gesture sorts the refreshed rows",

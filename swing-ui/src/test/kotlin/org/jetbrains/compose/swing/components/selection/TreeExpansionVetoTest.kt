@@ -334,14 +334,15 @@ class TreeExpansionVetoTest {
 
     @Test
     fun aSelectionWhoseOpeningIsRefusedReportsNoExpansion() = runComposeSwingTest {
-        val expansions = mutableListOf<Set<List<Int>>>()
+        val expansions = mutableListOf<TreePath>()
+        val state = TreeState(initialSelectedPaths = setOf(listOf(0, 0)))
         setContent {
             Tree(
                 root = sample,
                 children = { it.children },
+                state = state,
                 label = { it.name },
-                selectedPaths = setOf(listOf(0, 0)),
-                onExpansionChange = { expansions += it },
+                modifier = SwingModifier.treeExpansionListener { expansions += it.path },
                 onWillExpand = { value, _ -> value.name != "fruit" },
             )
         }
@@ -350,13 +351,24 @@ class TreeExpansionVetoTest {
             false,
             "the node above the selection is refused and stays closed",
         ) { isExpanded(pathTo(0)) }
-        assertEquals(emptyList(), expansions, "a refused opening changes no expansion, so none is reported")
+        // Opening the root is how the tree reaches the selection; it is not the refused node.
+        assertEquals(
+            emptyList(),
+            expansions.filter { it.pathCount > 1 },
+            "a refused opening changes no expansion, so none is reported",
+        )
+        assertEquals(
+            setOf(emptyList<Int>()),
+            state.expandedPaths,
+            "and the state holds only the root the tree opened to reach the selection",
+        )
     }
 
     @Test
     fun aNodeRefusedWhileOpeningForASelectionIsNotAnnounced() = runComposeSwingTest {
         val nested = Section("root", listOf(Section("fruit", listOf(Section("apple", listOf(Section("seed")))))))
         val opened = mutableListOf<TreePath>()
+        val state = TreeState(initialSelectedPaths = setOf(listOf(0, 0, 0)))
         val expansionListener =
             object : TreeExpansionListener {
                 override fun treeExpanded(event: TreeExpansionEvent) {
@@ -378,8 +390,8 @@ class TreeExpansionVetoTest {
             Tree(
                 root = nested,
                 children = { it.children },
+                state = state,
                 label = { it.name },
-                selectedPaths = setOf(listOf(0, 0, 0)),
                 modifier =
                     SwingModifier
                         .treeExpansionListener(expansionListener)
@@ -390,7 +402,11 @@ class TreeExpansionVetoTest {
         val tree = onNodeOfType<JTree>().fetch()
         assertTrue(tree.isExpanded(tree.pathTo(0)), "the node the listener allows opens")
         assertFalse(tree.isExpanded(tree.pathTo(0, 0)), "the node it refuses stays closed")
-        assertEquals(listOf(tree.pathTo(0)), opened, "only the node that opened is announced")
+        assertEquals(
+            listOf(tree.pathTo(0)),
+            opened.filter { it.pathCount > 1 },
+            "only the node that opened is announced below the root",
+        )
     }
 
     @Test

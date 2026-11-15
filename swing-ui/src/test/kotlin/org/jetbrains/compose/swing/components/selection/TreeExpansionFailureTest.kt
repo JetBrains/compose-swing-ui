@@ -8,11 +8,14 @@ import androidx.compose.runtime.setValue
 import kotlinx.coroutines.DisposableHandle
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.core.SwingRecomposer
+import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.listener.treeExpansionListener
+import org.jetbrains.compose.swing.pressKey
 import org.jetbrains.compose.swing.reportedUncaught
 import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.setContent
-import org.junit.jupiter.api.DynamicTest
-import org.junit.jupiter.api.TestFactory
+import org.junit.jupiter.api.Test
+import java.awt.event.KeyEvent
 import javax.swing.JLabel
 import javax.swing.JPanel
 import javax.swing.JTree
@@ -26,12 +29,13 @@ private data class Category(
 )
 
 /**
- * A callback or listener that throws on an expansion the user makes is reported to the thread's
+ * A listener that throws on an expansion the user makes is reported to the thread's
  * uncaught-exception handler, and the expansion is still settled: the tree stays as the user left it and
- * the pass the event owes runs before the event returns.
+ * the pass the event owes is settled before the event's repaint.
  *
- * Tests drive expansion through `JTree.expandPath`, the same call the tree's UI makes when the user
- * clicks a handle, over a real recomposer, which can run that pass inside the event.
+ * Tests drive expansion through a delivered key event (Right on the selected node), because a modifier
+ * listener's state write is settled by the event-dispatch hook for a delivered AWT event, not inside a
+ * programmatic `JTree.expandPath`, over a real recomposer.
  */
 class TreeExpansionFailureTest {
     private val sample =
@@ -63,36 +67,36 @@ class TreeExpansionFailureTest {
         }
     }
 
-    @TestFactory
-    fun aThrowingExpansionCallbackIsReportedAndTheEventStillSettles(): List<DynamicTest> =
-        listOf<Pair<String, @Composable (heard: () -> Unit) -> Unit>>(
-            "onExpansionChange" to { heard ->
-                Tree(root = sample, children = { it.children }, label = { it.name }, onExpansionChange = { heard() })
-            },
-        ).map { (name, declared) ->
-            DynamicTest.dynamicTest(name) {
-                runSwingTest {
-                    val failure = IllegalStateException("the $name fails")
-                    var heard by mutableIntStateOf(0)
-                    withMountedTree(
-                        content = {
-                            Label(text = "heard: $heard")
-                            declared {
-                                heard++
-                                throw failure
-                            }
+    @Test
+    fun aThrowingExpansionCallbackIsReportedAndTheEventStillSettles() = runSwingTest {
+        val failure = IllegalStateException("the onExpansionChange fails")
+        var heard by mutableIntStateOf(0)
+        withMountedTree(
+            content = {
+                Label(text = "heard: $heard")
+                Tree(
+                    root = sample,
+                    children = { it.children },
+                    modifier =
+                        SwingModifier.treeExpansionListener {
+                            heard++
+                            throw failure
                         },
-                    ) { tree, label ->
-                        val reported = reportedUncaught { tree.expandPath(tree.pathTo(0)) }
+                    label = { it.name },
+                )
+            },
+        ) { tree, label ->
+            tree.selectionPath = tree.pathTo(0)
+            val reported = reportedUncaught { tree.pressKey(KeyEvent.VK_RIGHT) }
 
-                        assertEquals(listOf<Throwable>(failure), reported, "the failure is reported unchanged")
-                        assertTrue(tree.isExpanded(tree.pathTo(0)), "the user's expansion stands")
-                        assertEquals("heard: 1", label.text, "the pass the expansion owes runs in the event")
+            assertEquals(listOf<Throwable>(failure), reported, "the failure is reported unchanged")
+            assertTrue(tree.isExpanded(tree.pathTo(0)), "the user's expansion stands")
+            assertEquals("heard: 1", label.text, "the pass the expansion owes runs in the event")
 
-                        reportedUncaught { tree.expandPath(tree.pathTo(1)) }
-                        assertEquals("heard: 2", label.text, "a later expansion is settled the same way")
-                    }
-                }
-            }
+            tree.selectionPath = tree.pathTo(1)
+            reportedUncaught { tree.pressKey(KeyEvent.VK_RIGHT) }
+            assertTrue(tree.isExpanded(tree.pathTo(1)), "a later expansion is settled the same way")
+            assertEquals("heard: 2", label.text, "a later expansion is settled the same way")
         }
+    }
 }

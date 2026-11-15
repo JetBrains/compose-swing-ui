@@ -43,16 +43,11 @@ import org.jetbrains.compose.swing.fixtures.components.menu.MenuItemFixture
 import org.jetbrains.compose.swing.fixtures.components.menu.MenuSeparatorFixture
 import org.jetbrains.compose.swing.fixtures.components.menu.PopupMenuFixture
 import org.jetbrains.compose.swing.fixtures.components.menu.RadioButtonMenuItemFixture
-import org.jetbrains.compose.swing.fixtures.components.selection.ListBoxFixture
 import org.jetbrains.compose.swing.fixtures.components.selection.ListBoxModelFixture
 import org.jetbrains.compose.swing.fixtures.components.selection.ListBoxStateFixture
 import org.jetbrains.compose.swing.fixtures.components.selection.RadioGroupFixture
-import org.jetbrains.compose.swing.fixtures.components.selection.TableFixture
-import org.jetbrains.compose.swing.fixtures.components.selection.TableModelFixture
 import org.jetbrains.compose.swing.fixtures.components.selection.TableModelStateFixture
 import org.jetbrains.compose.swing.fixtures.components.selection.TableStateFixture
-import org.jetbrains.compose.swing.fixtures.components.selection.TreeFixture
-import org.jetbrains.compose.swing.fixtures.components.selection.TreeModelFixture
 import org.jetbrains.compose.swing.fixtures.components.selection.TreeModelStateFixture
 import org.jetbrains.compose.swing.fixtures.components.selection.TreeStateFixture
 import org.jetbrains.compose.swing.fixtures.components.text.EditorPaneFixture
@@ -205,16 +200,11 @@ public val swingUiFixtures: List<ComposableFixture<*, *>> =
         MenuSeparatorFixture,
         PopupMenuFixture,
         RadioButtonMenuItemFixture,
-        ListBoxFixture,
         ListBoxModelFixture,
         ListBoxStateFixture,
         RadioGroupFixture,
-        TableFixture,
-        TableModelFixture,
         TableModelStateFixture,
         TableStateFixture,
-        TreeFixture,
-        TreeModelFixture,
         TreeModelStateFixture,
         TreeStateFixture,
         EditorPaneFixture,

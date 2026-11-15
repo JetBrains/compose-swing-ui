@@ -4,7 +4,6 @@ package org.jetbrains.compose.swing.samples.widgets.components
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
@@ -50,7 +49,7 @@ private val listBoxOrientations =
 internal fun ColumnScope.ListBoxCard() {
     ExampleCard("ListBox in a ScrollPane") {
         val rows = (1..30).map { "Row $it" }
-        var selection by remember { mutableStateOf(setOf(0)) }
+        val state = rememberListState(initialSelectedIndices = setOf(0))
         var selectionModeIndex by remember { mutableIntStateOf(2) }
         var orientationIndex by remember { mutableIntStateOf(0) }
         var visibleRows by remember { mutableIntStateOf(8) }
@@ -68,8 +67,7 @@ internal fun ColumnScope.ListBoxCard() {
             Viewport {
                 ListBox(
                     items = rows,
-                    selectedIndices = selection,
-                    onSelectionChange = { selection = it },
+                    state = state,
                     selectionMode = listBoxSelectionModes[selectionModeIndex].second,
                     visibleRowCount = visibleRows,
                     layoutOrientation = listBoxOrientations[orientationIndex].second,
@@ -84,7 +82,7 @@ internal fun ColumnScope.ListBoxCard() {
                 }
             }
         }
-        Label("Selected indices: $selection")
+        Label("Selected indices: ${state.selectedIndices}")
     }
 }
 

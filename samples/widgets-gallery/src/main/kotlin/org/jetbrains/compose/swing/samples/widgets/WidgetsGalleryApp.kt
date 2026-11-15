@@ -3,6 +3,7 @@ package org.jetbrains.compose.swing.samples.widgets
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
@@ -10,6 +11,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberDecoratedNavEntries
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
@@ -27,6 +29,7 @@ import org.jetbrains.compose.swing.components.menu.MenuItem
 import org.jetbrains.compose.swing.components.menu.MenuSeparator
 import org.jetbrains.compose.swing.components.menu.RadioButtonMenuGroup
 import org.jetbrains.compose.swing.components.selection.ListBox
+import org.jetbrains.compose.swing.components.selection.rememberListState
 import org.jetbrains.compose.swing.foundation.layout.fillMaxHeight
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.actionListener
@@ -135,6 +138,18 @@ internal fun ShowcaseShell(alignmentGuidesShown: Boolean = true) {
                 },
         )
     val current = backStack.last().title
+    val sectionsState = rememberListState(setOf(showcaseSections.indexOfFirst { it.title == current }))
+    // Driving the selection from the back stack does not push, so a pop moves the highlight without pushing the
+    // row it lands on: a selection naming the section already on top is not a new destination.
+    LaunchedEffect(current) {
+        sectionsState.selectedIndices = setOf(showcaseSections.indexOfFirst { it.title == current })
+    }
+    LaunchedEffect(sectionsState) {
+        snapshotFlow { sectionsState.selectedIndices }.collect { indices ->
+            val title = indices.firstOrNull()?.let { showcaseSections[it].title }
+            if (title != null && title != backStack.last().title) backStack += SectionKey(title)
+        }
+    }
     Panel(PanelLayout.Border(), style = { emptyBorder(12) }) {
         AnimatedVisibility(
             visible = sidebarShown,
@@ -147,12 +162,7 @@ internal fun ShowcaseShell(alignmentGuidesShown: Boolean = true) {
                 Viewport {
                     ListBox(
                         items = showcaseSections.map { it.title },
-                        selectedIndices = setOf(showcaseSections.indexOfFirst { it.title == current }),
-                        // Driving the selection from the back stack does not re-enter this callback, so a pop
-                        // moves the highlight without pushing the row it lands on.
-                        onSelectionChange = { indices ->
-                            indices.firstOrNull()?.let { backStack += SectionKey(showcaseSections[it].title) }
-                        },
+                        state = sectionsState,
                         selectionMode = ListSelectionModel.SINGLE_SELECTION,
                         visibleRowCount = showcaseSections.size,
                         style = { accessibleName("Sections") },

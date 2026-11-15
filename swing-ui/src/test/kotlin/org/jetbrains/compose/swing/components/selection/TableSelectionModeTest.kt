@@ -57,38 +57,33 @@ class TableSelectionModeTest {
 
     @ParameterizedTest(name = "{0}")
     @MethodSource("tableDeclarations")
-    fun aWiderSelectionModeKeepsTheSelectionTheUserMade(
-        declare: @Composable TableSelectionModeTest.(Int, (Set<Int>) -> Unit) -> Unit,
-    ) = runComposeSwingTest {
-        var mode by mutableStateOf(ListSelectionModel.SINGLE_SELECTION)
-        val received = mutableListOf<Set<Int>>()
-        setContent {
-            declare(this@TableSelectionModeTest, mode) { received += it }
+    fun aWiderSelectionModeKeepsTheSelectionTheUserMade(declare: @Composable TableSelectionModeTest.(Int) -> Unit) =
+        runComposeSwingTest {
+            var mode by mutableStateOf(ListSelectionModel.SINGLE_SELECTION)
+            setContent {
+                declare(this@TableSelectionModeTest, mode)
+            }
+
+            onNodeOfType<JTable>().fetch().selectionModel.setSelectionInterval(1, 1)
+
+            mode = ListSelectionModel.MULTIPLE_INTERVAL_SELECTION
+            awaitIdle()
+
+            onNodeOfType<JTable>().assertProperty(
+                listOf(1),
+                "a wider mode takes no row out of the selection",
+            ) { selectedRows.toList() }
         }
-
-        onNodeOfType<JTable>().fetch().selectionModel.setSelectionInterval(1, 1)
-        received.clear()
-
-        mode = ListSelectionModel.MULTIPLE_INTERVAL_SELECTION
-        awaitIdle()
-
-        onNodeOfType<JTable>().assertProperty(
-            listOf(1),
-            "a wider mode takes no row out of the selection",
-        ) { selectedRows.toList() }
-        assertEquals(emptyList(), received, "a mode change that costs the user nothing has nothing to report")
-    }
 
     @Test
     fun aWiderSelectionModeKeepsADeclaredSelection() = runComposeSwingTest {
         var mode by mutableStateOf(ListSelectionModel.SINGLE_SELECTION)
-        val received = mutableListOf<Set<Int>>()
+        val state = TableState(initialSelectedRowIndices = setOf(1))
         setContent {
             Table(
                 rows = people,
                 columns = { column("Name") { it.name } },
-                selectedRowIndices = setOf(1),
-                onSelectionChange = { received += it },
+                state = state,
                 selectionMode = mode,
             )
         }
@@ -96,37 +91,31 @@ class TableSelectionModeTest {
         val table = onNodeOfType<JTable>()
         table.assertProperty(listOf(1), "the declared row reaches the table") { selectedRows.toList() }
         val held = table.fetch()
-        received.clear()
 
         mode = ListSelectionModel.MULTIPLE_INTERVAL_SELECTION
         awaitIdle()
 
         assertSame(held, table.fetch(), "a wider mode updates the table in place")
         table.assertProperty(listOf(1), "a wider mode leaves the declared row selected") { selectedRows.toList() }
-        assertEquals(emptyList(), received, "re-applying a declaration is the library's own write, not news")
+        assertEquals(setOf(1), state.selectedRowIndices, "re-applying a declaration leaves the state on what it held")
     }
 
     @Test
     fun aTableAndAListNarrowTheUsersSelectionAlike() = runComposeSwingTest {
         var mode by mutableStateOf(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION)
-        val fromTable = mutableListOf<Set<Int>>()
-        val fromList = mutableListOf<Set<Int>>()
         setContent {
             Table(
                 rows = people,
                 columns = { column("Name") { it.name } },
-                onSelectionChange = { fromTable += it },
                 selectionMode = mode,
             )
-            ListBox(items = colors, onSelectionChange = { fromList += it }, selectionMode = mode)
+            ListBox(items = colors, selectionMode = mode)
         }
 
         val table = onNodeOfType<JTable>().fetch()
         val list = onNodeOfType<JList<*>>().fetch()
         table.selectionModel.setSelectionInterval(0, 2)
         list.selectionModel.setSelectionInterval(0, 2)
-        fromTable.clear()
-        fromList.clear()
 
         mode = ListSelectionModel.SINGLE_SELECTION
         awaitIdle()
@@ -139,22 +128,20 @@ class TableSelectionModeTest {
             listOf(0),
             "the first selected row is the one a single mode holds",
         ) { selectedRows.toList() }
-        assertEquals(fromList, fromTable, "a table should report what a list reports")
     }
 
     companion object {
         @JvmStatic
-        fun tableDeclarations(): List<Named<@Composable TableSelectionModeTest.(Int, (Set<Int>) -> Unit) -> Unit>> {
-            val rows: @Composable TableSelectionModeTest.(Int, (Set<Int>) -> Unit) -> Unit = { mode, callback ->
+        fun tableDeclarations(): List<Named<@Composable TableSelectionModeTest.(Int) -> Unit>> {
+            val rows: @Composable TableSelectionModeTest.(Int) -> Unit = { mode ->
                 Table(
                     rows = people,
                     columns = { column("Name") { it.name } },
-                    onSelectionChange = callback,
                     selectionMode = mode,
                 )
             }
-            val model: @Composable TableSelectionModeTest.(Int, (Set<Int>) -> Unit) -> Unit = { mode, callback ->
-                Table(model = remember { tableModel() }, onSelectionChange = callback, selectionMode = mode)
+            val model: @Composable TableSelectionModeTest.(Int) -> Unit = { mode ->
+                Table(model = remember { tableModel() }, selectionMode = mode)
             }
             return listOf(Named.of("declared rows", rows), Named.of("caller's model", model))
         }

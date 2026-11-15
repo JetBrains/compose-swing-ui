@@ -4,6 +4,9 @@ package org.jetbrains.compose.swing.components.selection
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.listener.listSelectionListener
+import org.jetbrains.compose.swing.modifier.listener.treeSelectionListener
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -21,18 +24,12 @@ import kotlin.test.assertEquals
 /**
  * A property the caller declares can leave a widget unable to hold the whole selection: a narrower
  * selection mode drops what no longer fits, and a hidden root takes the root itself out of the selection.
- * Who owns the selection decides what the wrapper does about it, so both sides of that split are pinned
- * here.
+ * The selection a state holds is the composition's own, re-asserted on every pass: the widget's own
+ * narrowing leaves the state as it declared it, and as much of the declaration as the widget can hold is
+ * left standing.
  *
- * Where the caller declared no selection it is the user's: what the widget destroys the wrapper reports,
- * so the caller learns of the loss exactly as it learns of the loss new content causes. Where the caller
- * declared one it is the composition's state, re-asserted on every pass: the widget's own narrowing is not
- * reported - a report would feed the caller's state holder a selection the user never chose, and the next
- * pass would apply it - and as much of the declaration as the widget can hold is left standing.
- *
- * Both sides are pinned on every variant of a component, the data-driven ones and the ones a caller-owned
- * model drives, and through the raw listener as well as the callback: each variant applies the property
- * itself, and the widget's own event reaches a raw listener directly.
+ * This is pinned on every variant of a component, the data-driven ones and the ones a caller-owned model
+ * drives: each variant applies the property itself.
  */
 class SelectionLossFeedbackTest {
     private data class Entry(
@@ -56,18 +53,18 @@ class SelectionLossFeedbackTest {
     @Test
     fun aNarrowerListSelectionModeReportsWhatTheUserKeeps() = runComposeSwingTest {
         var mode by mutableStateOf(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION)
-        val received = mutableListOf<Set<Int>>()
+        var events = 0
         setContent {
             ListBox(
                 items = listOf("red", "green", "blue"),
-                onSelectionChange = { received += it },
+                modifier = SwingModifier.listSelectionListener { if (!it.valueIsAdjusting) events++ },
                 selectionMode = mode,
             )
         }
 
         val list = onNodeOfType<JList<*>>().fetch()
         list.selectionModel.setSelectionInterval(0, 2)
-        received.clear()
+        events = 0
 
         mode = ListSelectionModel.SINGLE_SELECTION
         awaitIdle()
@@ -76,48 +73,19 @@ class SelectionLossFeedbackTest {
             listOf(0),
             "the row the narrower mode still holds stays selected",
         ) { selectedIndices.toList() }
-        assertEquals(listOf(setOf(0)), received, "the rows the user loses are reported once, as the new selection")
-    }
-
-    @Test
-    fun aNarrowerTableSelectionModeReportsWhatTheUserKeeps() = runComposeSwingTest {
-        var mode by mutableStateOf(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION)
-        val received = mutableListOf<Set<Int>>()
-        setContent {
-            Table(
-                rows = people,
-                columns = { column("Name") { it.name } },
-                onSelectionChange = { received += it },
-                selectionMode = mode,
-            )
-        }
-
-        val table = onNodeOfType<JTable>().fetch()
-        table.selectionModel.setSelectionInterval(0, 2)
-        received.clear()
-
-        mode = ListSelectionModel.SINGLE_SELECTION
-        awaitIdle()
-
-        onNodeOfType<JTable>().assertProperty(
-            listOf(0),
-            "the row the narrower mode still holds stays selected",
-        ) { selectedRows.toList() }
-        assertEquals(listOf(setOf(0)), received, "the rows the user loses are reported once, as the new selection")
+        assertEquals(1, events, "the rows the user loses are reported as the new selection")
     }
 
     @Test
     fun aNarrowerModelTableSelectionModeReportsWhatTheUserKeeps() = runComposeSwingTest {
         var mode by mutableStateOf(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION)
-        val received = mutableListOf<Set<Int>>()
         val model = tableModel()
         setContent {
-            Table(model = model, onSelectionChange = { received += it }, selectionMode = mode)
+            Table(model = model, selectionMode = mode)
         }
 
         val table = onNodeOfType<JTable>().fetch()
         table.selectionModel.setSelectionInterval(0, 2)
-        received.clear()
 
         mode = ListSelectionModel.SINGLE_SELECTION
         awaitIdle()
@@ -126,21 +94,24 @@ class SelectionLossFeedbackTest {
             listOf(0),
             "the row the narrower mode still holds stays selected",
         ) { selectedRows.toList() }
-        assertEquals(listOf(setOf(0)), received, "the rows the user loses are reported once, as the new selection")
     }
 
     @Test
     fun aNarrowerTreeSelectionModeReportsWhatTheUserKeeps() = runComposeSwingTest {
         var mode by mutableStateOf(TreeSelectionModel.DISCONTIGUOUS_TREE_SELECTION)
-        val received = mutableListOf<Set<List<Int>>>()
+        var events = 0
         val model = treeModel()
         setContent {
-            Tree(model = model, onSelectionChange = { received += it }, selectionMode = mode)
+            Tree(
+                model = model,
+                modifier = SwingModifier.treeSelectionListener { events++ },
+                selectionMode = mode,
+            )
         }
 
         val tree = onNodeOfType<JTree>().fetch()
         tree.selectionPaths = arrayOf(tree.pathTo(0), tree.pathTo(1))
-        received.clear()
+        events = 0
 
         mode = TreeSelectionModel.SINGLE_TREE_SELECTION
         awaitIdle()
@@ -149,26 +120,26 @@ class SelectionLossFeedbackTest {
             1,
             "the node the narrower mode still holds stays selected",
         ) { selectionCount }
-        assertEquals(listOf(setOf(listOf(0))), received, "the node the user loses is reported once")
+        assertEquals(1, events, "the node the user loses is reported")
     }
 
     @Test
     fun aNarrowerValueTreeSelectionModeReportsWhatTheUserKeeps() = runComposeSwingTest {
         var mode by mutableStateOf(TreeSelectionModel.DISCONTIGUOUS_TREE_SELECTION)
-        val received = mutableListOf<Set<List<Int>>>()
+        var events = 0
         setContent {
             Tree(
                 root = sample,
                 children = { it.children },
                 label = { it.name },
-                onSelectionChange = { received += it },
+                modifier = SwingModifier.treeSelectionListener { events++ },
                 selectionMode = mode,
             )
         }
 
         val tree = onNodeOfType<JTree>().fetch()
         tree.selectionPaths = arrayOf(tree.pathTo(0), tree.pathTo(1))
-        received.clear()
+        events = 0
 
         mode = TreeSelectionModel.SINGLE_TREE_SELECTION
         awaitIdle()
@@ -177,166 +148,135 @@ class SelectionLossFeedbackTest {
             1,
             "the node the narrower mode still holds stays selected",
         ) { selectionCount }
-        assertEquals(listOf(setOf(listOf(0))), received, "the node the user loses is reported once")
+        assertEquals(1, events, "the node the user loses is reported")
     }
 
     @Test
     fun hidingTheRootReportsTheSelectionItTakesAway() = runComposeSwingTest {
         var rootVisible by mutableStateOf(true)
-        val received = mutableListOf<Set<List<Int>>>()
+        var events = 0
         val model = treeModel()
         setContent {
-            Tree(model = model, onSelectionChange = { received += it }, rootVisible = rootVisible)
+            Tree(
+                model = model,
+                modifier = SwingModifier.treeSelectionListener { events++ },
+                rootVisible = rootVisible,
+            )
         }
 
         val tree = onNodeOfType<JTree>().fetch()
         tree.selectionPaths = arrayOf(tree.pathTo())
-        received.clear()
+        events = 0
 
         rootVisible = false
         awaitIdle()
 
         onNodeOfType<JTree>().assertProperty(0, "a hidden root cannot stay selected") { selectionCount }
-        assertEquals(listOf(emptySet()), received, "losing the whole selection is reported once")
+        assertEquals(1, events, "losing the whole selection is reported")
     }
 
     @Test
     fun hidingTheRootOfAValueTreeReportsTheSelectionItTakesAway() = runComposeSwingTest {
         var rootVisible by mutableStateOf(true)
-        val received = mutableListOf<Set<List<Int>>>()
+        var events = 0
         setContent {
             Tree(
                 root = sample,
                 children = { it.children },
                 label = { it.name },
-                onSelectionChange = { received += it },
+                modifier = SwingModifier.treeSelectionListener { events++ },
                 rootVisible = rootVisible,
             )
         }
 
         val tree = onNodeOfType<JTree>().fetch()
         tree.selectionPaths = arrayOf(tree.pathTo())
-        received.clear()
+        events = 0
 
         rootVisible = false
         awaitIdle()
 
         onNodeOfType<JTree>().assertProperty(0, "a hidden root cannot stay selected") { selectionCount }
-        assertEquals(listOf(emptySet()), received, "losing the whole selection is reported once")
+        assertEquals(1, events, "losing the whole selection is reported")
     }
 
     @Test
     fun hidingTheRootDoesNotDestroyADeclaredSelection() = runComposeSwingTest {
         var rootVisible by mutableStateOf(true)
-        var selection by mutableStateOf(setOf(emptyList<Int>()))
-        val received = mutableListOf<Set<List<Int>>>()
+        val state = TreeState(initialSelectedPaths = setOf(emptyList()))
         val model = treeModel()
         setContent {
-            Tree(
-                model = model,
-                selectedPaths = selection,
-                onSelectionChange = {
-                    received += it
-                    selection = it
-                },
-                rootVisible = rootVisible,
-            )
+            Tree(model = model, state = state, rootVisible = rootVisible)
         }
 
         val tree = onNodeOfType<JTree>()
         tree.assertProperty(1, "the declared root reaches the tree") { selectionCount }
-        received.clear()
 
         rootVisible = false
         awaitIdle()
 
         tree.assertProperty(1, "the declared selection should still stand") { selectionCount }
-        assertEquals(setOf(emptyList()), selection, "the caller's state is left as it declared it")
-        assertEquals(emptyList(), received, "hiding the root reported the wrapper's own write")
+        assertEquals(setOf(emptyList()), state.selectedPaths, "the caller's state is left as it declared it")
     }
 
     @Test
     fun hidingTheRootOfAValueTreeDoesNotDestroyADeclaredSelection() = runComposeSwingTest {
         var rootVisible by mutableStateOf(true)
-        var selection by mutableStateOf(setOf(emptyList<Int>()))
-        val received = mutableListOf<Set<List<Int>>>()
+        val state = TreeState(initialSelectedPaths = setOf(emptyList()))
         setContent {
             Tree(
                 root = sample,
                 children = { it.children },
+                state = state,
                 label = { it.name },
-                selectedPaths = selection,
-                onSelectionChange = {
-                    received += it
-                    selection = it
-                },
                 rootVisible = rootVisible,
             )
         }
 
         val tree = onNodeOfType<JTree>()
         tree.assertProperty(1, "the declared root reaches the tree") { selectionCount }
-        received.clear()
 
         rootVisible = false
         awaitIdle()
 
         tree.assertProperty(1, "the declared selection should still stand") { selectionCount }
-        assertEquals(setOf(emptyList()), selection, "the caller's state is left as it declared it")
-        assertEquals(emptyList(), received, "hiding the root reported the wrapper's own write")
+        assertEquals(setOf(emptyList()), state.selectedPaths, "the caller's state is left as it declared it")
     }
 
     @Test
     fun narrowingTheTableModeDoesNotEmptyADeclaredSelection() = runComposeSwingTest {
         var mode by mutableStateOf(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION)
-        var selection by mutableStateOf(setOf(0, 1, 2))
-        val received = mutableListOf<Set<Int>>()
+        val state = TableState(initialSelectedRowIndices = setOf(0, 1, 2))
         setContent {
             Table(
                 rows = people,
                 columns = { column("Name") { it.name } },
-                selectedRowIndices = selection,
-                onSelectionChange = {
-                    received += it
-                    selection = it
-                },
+                state = state,
                 selectionMode = mode,
             )
         }
 
         val table = onNodeOfType<JTable>()
         table.assertProperty(listOf(0, 1, 2), "the declared rows reach the table") { selectedRows.toList() }
-        received.clear()
 
         mode = ListSelectionModel.SINGLE_SELECTION
         awaitIdle()
 
         table.assertProperty(listOf(2), "the declared row a single-selection table can hold") { selectedRows.toList() }
-        assertEquals(setOf(0, 1, 2), selection, "the caller's state is left as it declared it")
-        assertEquals(emptyList(), received, "a narrower mode reported the wrapper's own write")
+        assertEquals(setOf(0, 1, 2), state.selectedRowIndices, "the caller's state is left as it declared it")
     }
 
     @Test
     fun narrowingTheModelTableModeDoesNotEmptyADeclaredSelection() = runComposeSwingTest {
         var mode by mutableStateOf(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION)
-        var selection by mutableStateOf(setOf(0, 1, 2))
-        val received = mutableListOf<Set<Int>>()
+        val state = TableState(initialSelectedRowIndices = setOf(0, 1, 2))
         val model = tableModel()
         setContent {
-            Table(
-                model = model,
-                selectedRowIndices = selection,
-                onSelectionChange = {
-                    received += it
-                    selection = it
-                },
-                selectionMode = mode,
-            )
+            Table(model = model, state = state, selectionMode = mode)
         }
 
         val table = onNodeOfType<JTable>()
         table.assertProperty(listOf(0, 1, 2), "the declared rows reach the table") { selectedRows.toList() }
-        received.clear()
 
         mode = ListSelectionModel.SINGLE_SELECTION
         awaitIdle()
@@ -345,82 +285,79 @@ class SelectionLossFeedbackTest {
             1,
             "a single-selection model-driven table still holds one declared row",
         ) { selectedRows.size }
-        assertEquals(setOf(0, 1, 2), selection, "the caller's state is left as it declared it")
-        assertEquals(emptyList(), received, "a narrower mode reported the wrapper's own write")
+        assertEquals(setOf(0, 1, 2), state.selectedRowIndices, "the caller's state is left as it declared it")
     }
 
     @Test
     fun aNarrowerListSelectionModeLeavesADeclaredSelectionUnreported() = runComposeSwingTest {
         var mode by mutableStateOf(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION)
-        val received = mutableListOf<Set<Int>>()
+        val state = ListState(initialSelectedIndices = setOf(0, 1, 2))
         setContent {
             ListBox(
                 items = listOf("red", "green", "blue"),
-                selectedIndices = setOf(0, 1, 2),
-                onSelectionChange = { received += it },
+                state = state,
                 selectionMode = mode,
             )
         }
 
         val list = onNodeOfType<JList<*>>()
         list.assertProperty(listOf(0, 1, 2), "the declared rows reach the list") { selectedIndices.toList() }
-        received.clear()
 
         mode = ListSelectionModel.SINGLE_SELECTION
         awaitIdle()
 
         list.assertProperty(listOf(2), "the declared row a single-selection list can hold") { selectedIndices.toList() }
-        assertEquals(emptyList(), received, "a narrower mode reported the wrapper's own write")
+        assertEquals(setOf(0, 1, 2), state.selectedIndices, "a narrower mode leaves the state as declared")
     }
 
     @Test
     fun aNarrowerTreeSelectionModeLeavesADeclaredSelectionUnreported() = runComposeSwingTest {
         var mode by mutableStateOf(TreeSelectionModel.DISCONTIGUOUS_TREE_SELECTION)
-        val received = mutableListOf<Set<List<Int>>>()
+        val state = TreeState(initialSelectedPaths = setOf(listOf(0), listOf(1)))
         val model = treeModel()
         setContent {
-            Tree(
-                model = model,
-                selectedPaths = setOf(listOf(0), listOf(1)),
-                onSelectionChange = { received += it },
-                selectionMode = mode,
-            )
+            Tree(model = model, state = state, selectionMode = mode)
         }
 
         val tree = onNodeOfType<JTree>()
         tree.assertProperty(2, "both declared nodes reach the tree") { selectionCount }
-        received.clear()
 
         mode = TreeSelectionModel.SINGLE_TREE_SELECTION
         awaitIdle()
 
         tree.assertProperty(1, "the declared node a single-selection tree can hold") { selectionCount }
-        assertEquals(emptyList(), received, "a narrower mode reported the wrapper's own write")
+        assertEquals(
+            setOf(listOf(0), listOf(1)),
+            state.selectedPaths,
+            "a narrower mode leaves the state as declared",
+        )
     }
 
     @Test
     fun aNarrowerValueTreeSelectionModeLeavesADeclaredSelectionUnreported() = runComposeSwingTest {
         var mode by mutableStateOf(TreeSelectionModel.DISCONTIGUOUS_TREE_SELECTION)
-        val received = mutableListOf<Set<List<Int>>>()
+        val state = TreeState(initialSelectedPaths = setOf(listOf(0), listOf(1)))
         setContent {
             Tree(
                 root = sample,
                 children = { it.children },
+                state = state,
                 label = { it.name },
-                selectedPaths = setOf(listOf(0), listOf(1)),
-                onSelectionChange = { received += it },
                 selectionMode = mode,
             )
         }
 
         val tree = onNodeOfType<JTree>()
         tree.assertProperty(2, "both declared nodes reach the tree") { selectionCount }
-        received.clear()
 
         mode = TreeSelectionModel.SINGLE_TREE_SELECTION
         awaitIdle()
 
         tree.assertProperty(1, "the declared node a single-selection tree can hold") { selectionCount }
-        assertEquals(emptyList(), received, "a narrower mode reported the wrapper's own write")
+        assertEquals(
+            setOf(listOf(0), listOf(1)),
+            state.selectedPaths,
+            "a narrower mode leaves the state as declared",
+        )
     }
 }
