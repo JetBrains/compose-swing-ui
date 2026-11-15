@@ -33,7 +33,6 @@ import java.util.concurrent.atomic.AtomicInteger
 import javax.swing.JLabel
 import javax.swing.JTextField
 import javax.swing.SwingConstants
-import javax.swing.text.DefaultHighlighter.DefaultHighlightPainter
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -304,46 +303,10 @@ class AppearanceInvalidationTest {
         )
     }
 
-    // Tests the deprecated forwarding builders and their declared chain.
-    @Suppress("DEPRECATION")
     @Test
     fun everyAppearanceBuilderAppendsToTheChainWithoutRepeatingIt() {
-        assertDeclaredChainCarriedOnce { horizontalAlignment(SwingConstants.LEFT) }
-        assertDeclaredChainCarriedOnce { verticalAlignment(SwingConstants.TOP) }
-        assertDeclaredChainCarriedOnce { background(null) }
-        assertDeclaredChainCarriedOnce { border(null) }
-        assertDeclaredChainCarriedOnce { lineBorder(Color.RED) }
-        assertDeclaredChainCarriedOnce { emptyBorder(1) }
-        assertDeclaredChainCarriedOnce { emptyBorder(1, 1, 1, 1) }
-        assertDeclaredChainCarriedOnce { emptyBorder(Insets(1, 1, 1, 1)) }
-        assertDeclaredChainCarriedOnce { borderPainted(true) }
-        assertDeclaredChainCarriedOnce { contentAreaFilled(true) }
-        assertDeclaredChainCarriedOnce { rolloverEnabled(true) }
-        assertDeclaredChainCarriedOnce { focusPainted(true) }
-        assertDeclaredChainCarriedOnce { cursor(null) }
-        assertDeclaredChainCarriedOnce { font(null) }
-        assertDeclaredChainCarriedOnce { foreground(null) }
-        assertDeclaredChainCarriedOnce { icon(null) }
-        assertDeclaredChainCarriedOnce { pressedIcon(null) }
-        assertDeclaredChainCarriedOnce { selectedIcon(null) }
-        assertDeclaredChainCarriedOnce { disabledIcon(null) }
-        assertDeclaredChainCarriedOnce { disabledSelectedIcon(null) }
-        assertDeclaredChainCarriedOnce { rolloverIcon(null) }
-        assertDeclaredChainCarriedOnce { rolloverSelectedIcon(null) }
-        assertDeclaredChainCarriedOnce { margin(Insets(1, 1, 1, 1)) }
         assertDeclaredChainCarriedOnce { name(null) }
         assertDeclaredChainCarriedOnce { testTag("tag") }
         assertDeclaredChainCarriedOnce { clientProperty("key", null) }
-        assertDeclaredChainCarriedOnce { opaque(true) }
-        assertDeclaredChainCarriedOnce { caretColor(Color.RED) }
-        assertDeclaredChainCarriedOnce { selectionColor(Color.RED) }
-        assertDeclaredChainCarriedOnce { selectedTextColor(Color.RED) }
-        assertDeclaredChainCarriedOnce { disabledTextColor(Color.RED) }
-        assertDeclaredChainCarriedOnce { highlights(emptyList(), DefaultHighlightPainter(Color.RED)) }
-        assertDeclaredChainCarriedOnce { horizontalTextPosition(SwingConstants.LEFT) }
-        assertDeclaredChainCarriedOnce { verticalTextPosition(SwingConstants.TOP) }
-        assertDeclaredChainCarriedOnce { iconTextGap(4) }
-        assertDeclaredChainCarriedOnce { toolTip("tip") }
-        assertDeclaredChainCarriedOnce { toolTip { null } }
     }
 }

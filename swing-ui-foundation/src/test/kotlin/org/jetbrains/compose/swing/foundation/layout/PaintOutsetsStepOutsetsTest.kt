@@ -15,6 +15,7 @@ import org.jetbrains.compose.swing.foundation.graphics.shadow
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.AllComponents
 import org.jetbrains.compose.swing.style.emptyBorder
 import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.style.styleable
@@ -61,21 +62,28 @@ class PaintOutsetsStepOutsetsTest {
             assertFirstAt(Rectangle(8, 8, 40, 40), Insets(8, 8, 8, 8), next = 56)
         }
 
-    // Tests the deprecated paintOutsets forwarding and declaration order.
-    @Suppress("DEPRECATION")
+    /**
+     * A style cannot place the value before or after a step in the modifier chain, so the two orders the modifier
+     * covered are one test.
+     */
     @Test
-    fun noneDeclaredBeforeAStepBoxedToAPaddingReservesThePaddingOnce() =
+    fun noneFromAStyleOnAStepBoxedToAPaddingReservesThePaddingOnce() =
         runComposeSwingTest {
             setContent {
-                Column {
+                Column(
+                    modifier =
+                        SwingModifier.styleable {
+                            provideNestedStyle(AllComponents) { paintOutsets(PaintOutsets.None) }
+                        },
+                ) {
                     Box(
                         modifier =
                             SwingModifier
                                 .testTag(FIRST)
-                                .paintOutsets(PaintOutsets.None)
                                 .background(Red)
                                 .padding(8)
-                                .size(40, 40),
+                                .size(40, 40)
+                                .styleable { applyNestedStyle(AllComponents) },
                     )
                     Box(modifier = SwingModifier.testTag(NEXT).size(10, 10))
                 }
@@ -83,26 +91,31 @@ class PaintOutsetsStepOutsetsTest {
             assertFirstAt(Rectangle(8, 8, 40, 40), Insets(8, 8, 8, 8), next = 56)
         }
 
-    // Tests the deprecated paintOutsets forwarding and declaration order.
-    @Suppress("DEPRECATION")
     @Test
-    fun noneDeclaredAfterAStepBoxedToAPaddingSettlesOnTheSameLayout() =
+    fun underNoneARotatingLayerTakesNoSpace() =
         runComposeSwingTest {
             setContent {
-                Column {
+                Column(
+                    modifier =
+                        SwingModifier.styleable {
+                            provideNestedStyle(AllComponents) { paintOutsets(PaintOutsets.None) }
+                        },
+                ) {
                     Box(
                         modifier =
                             SwingModifier
                                 .testTag(FIRST)
-                                .background(Red)
-                                .padding(8)
-                                .paintOutsets(PaintOutsets.None)
-                                .size(40, 40),
+                                .size(60, 40)
+                                .placementLayer { rotationZ = 30f }
+                                .styleable { applyNestedStyle(AllComponents) },
                     )
                     Box(modifier = SwingModifier.testTag(NEXT).size(10, 10))
                 }
             }
-            assertFirstAt(Rectangle(8, 8, 40, 40), Insets(8, 8, 8, 8), next = 56)
+            val first = onNodeWithTag(FIRST).fetch<JComponent>()
+            assertNotEquals(Insets(0, 0, 0, 0), first.paintOutsets, "the rotated box reaches past its layout bounds")
+            assertEquals(Rectangle(0, 0, 60, 40), first.layoutBounds)
+            onNodeWithTag(NEXT).assertProperty(40) { layoutBounds.y }
         }
 
     @Test
@@ -123,101 +136,6 @@ class PaintOutsetsStepOutsetsTest {
                 }
             }
             assertFirstAt(Rectangle(10, 10, 40, 40), Insets(10, 10, 0, 0), next = 40)
-        }
-
-    // Tests the deprecated paintOutsets forwarding and declaration order.
-    @Suppress("DEPRECATION")
-    @Test
-    fun underNoneAShadowTakesItsReachOnceWhereverAPaddingIsDeclared() =
-        runComposeSwingTest {
-            setContent {
-                Column {
-                    Box(
-                        modifier =
-                            SwingModifier
-                                .testTag("none, shadow, padding")
-                                .paintOutsets(PaintOutsets.None)
-                                .shadow(8, Color.BLACK)
-                                .padding(8)
-                                .size(40, 40),
-                    )
-                    Box(
-                        modifier =
-                            SwingModifier
-                                .testTag("shadow, padding, none")
-                                .shadow(8, Color.BLACK)
-                                .padding(8)
-                                .paintOutsets(PaintOutsets.None)
-                                .size(40, 40),
-                    )
-                    Box(
-                        modifier =
-                            SwingModifier
-                                .testTag("padding, none, shadow")
-                                .padding(8)
-                                .paintOutsets(PaintOutsets.None)
-                                .shadow(8, Color.BLACK)
-                                .size(40, 40),
-                    )
-                    Box(
-                        modifier =
-                            SwingModifier
-                                .testTag("undeclared")
-                                .shadow(8, Color.BLACK)
-                                .padding(8)
-                                .size(40, 40),
-                    )
-                }
-            }
-            val undeclared = onNodeWithTag("undeclared").fetch<JComponent>()
-            val reach = undeclared.paintOutsets.top
-            val box = 56 + 2 * reach
-            assertNotEquals(0, reach, "the shadow reaches past the box")
-            val orders = listOf("none, shadow, padding", "shadow, padding, none", "padding, none, shadow")
-            for ((index, order) in orders.withIndex()) {
-                onNodeWithTag(order).assertProperty(
-                    Rectangle(reach + 8, index * box + reach + 8, 40, 40),
-                    "$order: the shadow's reach and the padding, each once",
-                ) { layoutBounds }
-            }
-            assertEquals(Rectangle(8, 3 * box + 8, 40, 40), undeclared.layoutBounds, "the last box ends at 3 * $box")
-        }
-
-    // Tests the deprecated paintOutsets forwarding and declaration order.
-    @Suppress("DEPRECATION")
-    @Test
-    fun underNoneARotatingLayerTakesNoSpaceWhereverItIsDeclared() =
-        runComposeSwingTest {
-            setContent {
-                Column {
-                    Box(
-                        modifier =
-                            SwingModifier
-                                .testTag(FIRST)
-                                .paintOutsets(PaintOutsets.None)
-                                .size(60, 40)
-                                .placementLayer { rotationZ = 30f },
-                    )
-                    Box(
-                        modifier =
-                            SwingModifier
-                                .testTag("second")
-                                .size(60, 40)
-                                .placementLayer { rotationZ = 30f }
-                                .paintOutsets(PaintOutsets.None),
-                    )
-                    Box(modifier = SwingModifier.testTag(NEXT).size(10, 10))
-                }
-            }
-            val first = onNodeWithTag(FIRST).fetch<JComponent>()
-            assertNotEquals(Insets(0, 0, 0, 0), first.paintOutsets, "the rotated box reaches past its layout bounds")
-            onNodeWithTag("second").assertIsOfType<JComponent>().assertProperty(first.paintOutsets) { paintOutsets }
-            assertEquals(Rectangle(0, 0, 60, 40), first.layoutBounds, "declared before the layer")
-            onNodeWithTag("second").assertProperty(
-                Rectangle(0, 40, 60, 40),
-                "declared after the layer",
-            ) { layoutBounds }
-            onNodeWithTag(NEXT).assertProperty(80) { layoutBounds.y }
         }
 
     @Test

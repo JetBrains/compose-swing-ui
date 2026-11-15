@@ -31,22 +31,16 @@ import org.jetbrains.compose.swing.composeMenu
 import org.jetbrains.compose.swing.core.SwingCompositionDiagnostics
 import org.jetbrains.compose.swing.core.SwingRecomposer
 import org.jetbrains.compose.swing.core.awaitUntil
-import org.jetbrains.compose.swing.defaults.DefaultBackground
-import org.jetbrains.compose.swing.defaults.ProvideComponentDefaults
-import org.jetbrains.compose.swing.defaults.provides
 import org.jetbrains.compose.swing.modifier.ModifierInfo
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.clientProperty
-import org.jetbrains.compose.swing.modifier.appearance.highlights
 import org.jetbrains.compose.swing.modifier.appearance.name
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.appearance.toolTip
 import org.jetbrains.compose.swing.modifier.composed
 import org.jetbrains.compose.swing.modifier.datatransfer.clipboard
 import org.jetbrains.compose.swing.modifier.datatransfer.draggable
 import org.jetbrains.compose.swing.modifier.datatransfer.dropTarget
 import org.jetbrains.compose.swing.modifier.datatransfer.onExportDone
-import org.jetbrains.compose.swing.modifier.interaction.caret
 import org.jetbrains.compose.swing.modifier.interaction.defaultButton
 import org.jetbrains.compose.swing.modifier.interaction.documentFilter
 import org.jetbrains.compose.swing.modifier.interaction.initialFocus
@@ -65,7 +59,6 @@ import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
-import org.jetbrains.compose.swing.text.TextRange
 import java.awt.BorderLayout
 import java.awt.Color
 import java.awt.Component
@@ -80,8 +73,6 @@ import javax.swing.TransferHandler
 import javax.swing.border.LineBorder
 import javax.swing.event.ChangeListener
 import javax.swing.event.DocumentListener
-import javax.swing.text.DefaultCaret
-import javax.swing.text.DefaultHighlighter
 import javax.swing.text.DocumentFilter
 import kotlin.test.AfterTest
 import kotlin.test.Test
@@ -339,41 +330,9 @@ class ModifierInspectionTest {
         )
     }
 
-    // Tests the deprecated modifier forwarding and its declared elements.
-    @Suppress("DEPRECATION")
-    @Test
-    fun anAppearanceElementNamesThePropertyItWritesAndDeclaresItsArgument() = runComposeSwingTest {
-        isDebugInspectorInfoEnabled = true
-        val painter = DefaultHighlighter.DefaultHighlightPainter(Color.YELLOW)
-        val ranges = listOf(TextRange(0, 2))
-        setContent {
-            Panel {
-                Label("hello", modifier = SwingModifier.testTag("hinted").toolTip("What this does"))
-                TextArea(
-                    state = rememberDocumentState("hello"),
-                    modifier = SwingModifier.testTag("marked").highlights(ranges, painter),
-                )
-            }
-        }
-
-        assertEquals(
-            mapOf("text" to "What this does"),
-            declaredBy("hinted", "toolTip"),
-            "a tooltip declares the text it was given",
-        )
-        assertEquals(
-            mapOf("ranges" to ranges, "painter" to painter),
-            declaredBy("marked", "highlights"),
-            "a highlight declares both the spans it marks and the painter that draws them",
-        )
-    }
-
-    // Tests the deprecated modifier forwarding and its declared elements.
-    @Suppress("DEPRECATION")
     @Test
     fun aTextEditingElementNamesWhatItInstallsOnTheField() = runComposeSwingTest {
         isDebugInspectorInfoEnabled = true
-        val caret = DefaultCaret()
         val filter = DocumentFilter()
         setContent {
             TextField(
@@ -382,17 +341,11 @@ class ModifierInspectionTest {
                 modifier =
                     SwingModifier
                         .testTag("field")
-                        .caret(caret)
                         .documentFilter(filter)
                         .inputVerifier { true },
             )
         }
 
-        assertEquals(
-            mapOf("caret" to caret),
-            declaredBy("field", "caret"),
-            "a caret declares the caret instance it installs",
-        )
         assertEquals(
             mapOf("documentFilter" to filter),
             declaredBy("field", "documentFilter"),
@@ -590,30 +543,6 @@ class ModifierInspectionTest {
                 acc + (inspectable.name to inspectable.declaredValues)
             },
             "the chain should hold the factory's entries in place of the composed one",
-        )
-    }
-
-    // Tests the deprecated defaults forwarding and its effective elements.
-    @Suppress("DEPRECATION")
-    @Test
-    fun inheritedDefaultsAreExposedAsEffectivePropertyElementsWithoutSyntheticKeys() = runComposeSwingTest {
-        isDebugInspectorInfoEnabled = true
-        setContent {
-            ProvideComponentDefaults(DefaultBackground provides Color.RED) {
-                Label("hello", modifier = SwingModifier.testTag(CHAIN_LABEL_TAG).toolTip("tip"))
-            }
-        }
-
-        val chain = onNodeWithTag(CHAIN_LABEL_TAG).fetch().declaredChain()
-        assertEquals(
-            listOf("background", "testTag", "toolTip"),
-            chain.map { it.first },
-            "inherited defaults should precede explicit modifiers, without synthetic key elements",
-        )
-        assertEquals(
-            mapOf("background" to Color.RED),
-            chain.first { it.first == "background" }.second,
-            "inherited element should report its declared value",
         )
     }
 

@@ -5,7 +5,6 @@
 package org.jetbrains.compose.swing.modifier.interaction
 
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.inheritableProperty
 import org.jetbrains.compose.swing.modifier.listener.CallbackBundle
 import org.jetbrains.compose.swing.modifier.listener.UNDECLARED
 import org.jetbrains.compose.swing.modifier.listener.UNDECLARED_ACTION
@@ -15,34 +14,7 @@ import org.jetbrains.compose.swing.modifier.listener.focusListener
 import org.jetbrains.compose.swing.modifier.listener.mouseListener
 import org.jetbrains.compose.swing.modifier.listener.requireAnyDeclared
 import org.jetbrains.compose.swing.modifier.listener.sameCallback
-import org.jetbrains.compose.swing.modifier.property
-import org.jetbrains.compose.swing.style.EnabledDescriptor
-import org.jetbrains.compose.swing.style.FocusableDescriptor
 import java.awt.event.MouseEvent
-
-/**
- * Sets `isFocusable`, declaring whether this component can receive keyboard focus.
- *
- * @param focusable `false` takes the component out of the Tab cycle as well as refusing it a click's focus.
- * @return this chain with the focusability declared on it.
- * @see java.awt.Component.setFocusable
- */
-@Deprecated("Set it in the component's style: style = { focusable(focusable) }")
-public fun SwingModifier.focusable(focusable: Boolean): SwingModifier = property(FocusableDescriptor, focusable)
-
-/**
- * Sets `isEnabled` on **this component only** - whether it responds to user input and paints in its
- * enabled state. Disabling a container does not disable the components inside it, so disable each child
- * you want disabled.
- *
- * @param enabled `false` keeps the component out of the Tab cycle and stops its key bindings firing. A
- *   lightweight component still receives mouse events while disabled, so the listeners declared on it go
- *   on reporting; it is the widget's own listeners that read the enabled state before acting on one.
- * @return this chain with the enabled state declared on it.
- * @see java.awt.Component.setEnabled
- */
-@Deprecated("Set it in the component's style: style = { enabled(enabled) }")
-public fun SwingModifier.enabled(enabled: Boolean): SwingModifier = inheritableProperty(EnabledDescriptor, enabled)
 
 /**
  * Installs mouse enter/exit handlers.

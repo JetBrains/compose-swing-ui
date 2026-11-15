@@ -294,21 +294,6 @@ class PaintOutsetsAlignmentTest {
             assertEquals(label.height, tight.layoutBounds.y, "a negative top inset names none")
         }
 
-    // Tests the deprecated paintOutsets forwarding and declaration order.
-    @Suppress("DEPRECATION")
-    @Test
-    fun aSizeActsBeforeOrAfterTheDeclarationByOrder() =
-        runComposeSwingTest {
-            setContent {
-                Column {
-                    LinedField("outer", SwingModifier.width(100).paintOutsets(PaintOutsets.FullInsets))
-                    LinedField("inner", SwingModifier.paintOutsets(PaintOutsets.FullInsets).width(100))
-                }
-            }
-            onNodeWithTag("outer").assertProperty(100 + 2 * LINE, "a 100 px box, the border past it") { width }
-            onNodeWithTag("inner").assertProperty(100, "a 100 px field") { width }
-        }
-
     @Test
     fun anEqualValueMeasuresNothingAndALargerOneTakesLessSpace() =
         runComposeSwingTest {

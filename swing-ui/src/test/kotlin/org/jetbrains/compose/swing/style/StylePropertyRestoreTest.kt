@@ -8,6 +8,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.style.CaretElement
 import org.jetbrains.compose.swing.components.style.TextStyleScope
 import org.jetbrains.compose.swing.components.style.caret
 import org.jetbrains.compose.swing.components.style.caretBlinkRate
@@ -40,6 +41,7 @@ import javax.swing.JTextField
 import javax.swing.ToolTipManager
 import javax.swing.border.Border
 import javax.swing.border.EmptyBorder
+import javax.swing.text.Caret
 import javax.swing.text.DefaultCaret
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -956,6 +958,16 @@ enum class OverlapProperty(
                 PerLocationToolTipModifierBeneathPerLocationStyle,
             )
     }
+}
+
+private fun caretOverlapProperty(): CustomOverlapProperty {
+    val values = List<Caret>(3) { DefaultCaret() }
+    return CustomOverlapProperty(
+        read = { it.caret },
+        value = { values[it] },
+        modifier = { SwingModifier then CaretElement(values[it]) },
+        declare = { caret(values[it]) },
+    )
 }
 
 private fun <V> customOverlapProperty(

@@ -8,18 +8,13 @@ import org.jetbrains.compose.swing.countTests
 import org.jetbrains.compose.swing.fixtures.modifier.accessibility.LabelForFixture
 import org.jetbrains.compose.swing.fixtures.modifier.accessibility.LabelTargetFixture
 import org.jetbrains.compose.swing.modifier.accessibility.LabelTarget
-import org.jetbrains.compose.swing.modifier.accessibility.accessibleDescription
-import org.jetbrains.compose.swing.modifier.accessibility.accessibleName
-import org.jetbrains.compose.swing.modifier.accessibility.displayedMnemonicIndex
 import org.jetbrains.compose.swing.modifier.accessibility.labelFor
 import org.jetbrains.compose.swing.modifier.accessibility.labelTarget
-import org.jetbrains.compose.swing.modifier.accessibility.mnemonic
 import org.jetbrains.compose.swing.modifier.accessibility.rememberLabelTarget
 import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.TestFactory
-import java.awt.event.KeyEvent
 import javax.swing.JLabel
 import javax.swing.JTextField
 import kotlin.test.Test
@@ -86,17 +81,11 @@ class AccessibilityModifierTest {
         )
     }
 
-    // Tests the deprecated forwarding builders and their declared chain.
-    @Suppress("DEPRECATION")
+    // Tests the label builders and their declared chain.
     @Test
     fun everyAccessibilityBuilderAppendsToTheChainWithoutRepeatingIt() {
-        assertDeclaredChainCarriedOnce { accessibleName(null) }
-        assertDeclaredChainCarriedOnce { accessibleDescription(null) }
         assertDeclaredChainCarriedOnce { labelTarget(LabelTarget()) }
         assertDeclaredChainCarriedOnce { labelFor(LabelTarget()) }
-        assertDeclaredChainCarriedOnce { mnemonic(KeyEvent.VK_A) }
-        assertDeclaredChainCarriedOnce { mnemonic('a') }
-        assertDeclaredChainCarriedOnce { displayedMnemonicIndex(0) }
     }
 
     @TestFactory

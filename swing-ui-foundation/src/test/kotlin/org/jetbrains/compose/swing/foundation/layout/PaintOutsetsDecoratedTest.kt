@@ -534,52 +534,6 @@ class PaintOutsetsDecoratedTest {
             }
         }
 
-    // Tests the deprecated paintOutsets forwarding and declaration order.
-    @Suppress("DEPRECATION")
-    @Test
-    fun theDecorationPaintsTheSameWhereverTheValueIsDeclared() =
-        runComposeSwingTest {
-            val values = listOf(PaintOutsets.None, PaintOutsets.FullInsets, TwoPixels)
-            setContent {
-                Column {
-                    for (value in values) {
-                        SwingNode(
-                            factory = { Card() },
-                            modifier =
-                                SwingModifier
-                                    .testTag("$value before")
-                                    .shadow(8, Color.BLACK)
-                                    .paintOutsets(value)
-                                    .styleable {
-                                        background(Color.BLUE)
-                                        opaque(true)
-                                        emptyBorder(3)
-                                    },
-                        )
-                        SwingNode(
-                            factory = { Card() },
-                            modifier =
-                                SwingModifier
-                                    .testTag("$value after")
-                                    .paintOutsets(value)
-                                    .shadow(8, Color.BLACK)
-                                    .styleable {
-                                        background(Color.BLUE)
-                                        opaque(true)
-                                        emptyBorder(3)
-                                    },
-                        )
-                    }
-                }
-            }
-            for (value in values) {
-                val before = onNodeWithTag("$value before").captureToImage()
-                val shadow = (before.height - 86) / 2
-                assertNotEquals(0, before.getRGB(before.width / 2, shadow - 2), "$value: the shadow paints")
-                assertImagesPixelPerfect(before, onNodeWithTag("$value after").captureToImage())
-            }
-        }
-
     @Test
     fun theDecorationPaintsTheSameWhetherTheValueIsTheComponentsOwnOrProvided() =
         runComposeSwingTest {

@@ -13,7 +13,6 @@ import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.button.CheckBox
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.accessibility.displayedMnemonicIndex
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.style.foreground
 import org.jetbrains.compose.swing.test.ComposeSwingTest
@@ -21,9 +20,7 @@ import org.jetbrains.compose.swing.test.interaction.assertIsOfType
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
-import org.junit.jupiter.api.Named
 import org.junit.jupiter.params.ParameterizedTest
-import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.CsvSource
 import org.junit.jupiter.params.provider.MethodSource
 import org.junit.jupiter.params.provider.ValueSource
@@ -38,21 +35,6 @@ import kotlin.test.assertFailsWith
 
 /** The mnemonic style setters: the key a component answers to and which occurrence of its letter is underlined. */
 class MnemonicStyleTest {
-    @ParameterizedTest(name = "{0}")
-    @MethodSource("displayedIndexComponents")
-    fun styleIndexOverridesModifierAfterTextChanges(
-        content: @Composable (String) -> Unit,
-        assertIndex: ComposeSwingTest.() -> Unit,
-    ) = runComposeSwingTest {
-        var text by mutableStateOf("Save As")
-        setContent { content(text) }
-        assertIndex()
-
-        text = "Save Any"
-        awaitIdle()
-        assertIndex()
-    }
-
     @Test
     fun aKeyCodeMnemonicNamesAKeyNoCharacterTypes() = runComposeSwingTest {
         setContent {
@@ -379,37 +361,6 @@ class MnemonicStyleTest {
         private fun ButtonStyleScope.saveAsSecondA() {
             mnemonic('A')
             displayedMnemonicIndex(5)
-        }
-
-        @JvmStatic
-        // Covers the deprecated modifier beside the style while both are supported.
-        @Suppress("DEPRECATION")
-        fun displayedIndexComponents(): List<Arguments> {
-            val label: @Composable (String) -> Unit = { text ->
-                Label(
-                    text,
-                    modifier = SwingModifier.displayedMnemonicIndex(0),
-                    style = { displayedMnemonicIndex(1) },
-                )
-            }
-            val button: @Composable (String) -> Unit = { text ->
-                Button(
-                    text,
-                    onClick = {},
-                    modifier = SwingModifier.displayedMnemonicIndex(0),
-                    style = { displayedMnemonicIndex(1) },
-                )
-            }
-            val assertLabel: ComposeSwingTest.() -> Unit = {
-                onNodeOfType<JLabel>().assertProperty(1) { displayedMnemonicIndex }
-            }
-            val assertButton: ComposeSwingTest.() -> Unit = {
-                onNodeOfType<JButton>().assertProperty(1) { displayedMnemonicIndex }
-            }
-            return listOf(
-                Arguments.of(Named.of("label", label), assertLabel),
-                Arguments.of(Named.of("button", button), assertButton),
-            )
         }
     }
 }

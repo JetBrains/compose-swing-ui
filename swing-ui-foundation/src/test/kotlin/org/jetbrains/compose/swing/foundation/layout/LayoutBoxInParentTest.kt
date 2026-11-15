@@ -503,8 +503,6 @@ internal data class BoxCase(
     val readerAfterOutsets: Boolean = false,
 )
 
-// Tests deprecated paintOutsets forwarding before and after the layout-box reader.
-@Suppress("DEPRECATION")
 context(_: ConstrainedScope)
 private fun SwingModifier.child(
     case: BoxCase,
@@ -519,7 +517,6 @@ private fun SwingModifier.child(
         .then(if (case.offsetX != 0) SwingModifier.offset(case.offsetX, 0) else SwingModifier)
         .then(beforeShadow)
         .then(if (case.shadow > 0) SwingModifier.shadow(case.shadow, Color.BLACK) else SwingModifier)
-        .then(case.outsets?.let { SwingModifier.paintOutsets(it) } ?: SwingModifier)
         .then(if (style === SwingStyle) SwingModifier else SwingModifier.styleable(style))
         .then(afterOutsets)
 }
@@ -528,6 +525,7 @@ private fun BoxCase.childStyle() =
     SwingStyle<SwingComponentStyleScope> {
         size?.let { preferredSize(it.width, it.height) }
         if (border > 0) emptyBorder(border)
+        outsets?.let { paintOutsets(it) }
     }
 
 private fun RecordedRepaints.repaintsWhole(child: JComponent): Boolean =

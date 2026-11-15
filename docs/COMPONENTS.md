@@ -133,7 +133,7 @@ compare equal are one and the same selection.
 
 | Component            | What it is                                                                                                      |
 |----------------------|-----------------------------------------------------------------------------------------------------------------|
-| `Label`              | A text label over `JLabel`. Alignment, icon and text position come from the modifier.                           |
+| `Label`              | A text label over `JLabel`. Alignment, icon and text position come from its style.                              |
 | `TextField`          | One line of editable text over `JTextField`.                                                                    |
 | `PasswordField`      | A field over `JPasswordField` whose value is a `CharArray` rather than a `String`.                              |
 | `FormattedTextField` | A field over `JFormattedTextField` that parses and formats a typed value through an `AbstractFormatterFactory`. |

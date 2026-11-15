@@ -5,9 +5,7 @@
 package org.jetbrains.compose.swing.modifier.interaction
 
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.property
 import org.jetbrains.compose.swing.node.runReportingUncaught
-import org.jetbrains.compose.swing.style.VerifyInputWhenFocusTargetDescriptor
 import javax.swing.InputVerifier
 import javax.swing.JComponent
 
@@ -37,20 +35,6 @@ import javax.swing.JComponent
  * @see javax.swing.JComponent.setInputVerifier
  */
 public fun SwingModifier.inputVerifier(verify: () -> Boolean): SwingModifier = this then InputVerifierElement(verify)
-
-/**
- * Whether the [inputVerifier] of the component that currently holds the keyboard is consulted before
- * focus moves to *this* component. Swing's own value is `true`; declare `false` on a control that must
- * act regardless of what the focused field holds, such as a Cancel button or a scrollbar.
- *
- * @param verify `false` skips the focused component's verifier for every focus transfer into this component;
- *   the verifier stays where it was declared and goes on gating transfers to other targets.
- * @return this chain with the focus-target verification declared on it.
- * @see javax.swing.JComponent.setVerifyInputWhenFocusTarget
- */
-@Deprecated("Set it in the component's style: style = { verifyInputWhenFocusTarget(verify) }")
-public fun SwingModifier.verifyInputWhenFocusTarget(verify: Boolean): SwingModifier =
-    property(VerifyInputWhenFocusTargetDescriptor, verify)
 
 /**
  * Installs one [InputVerifier] per node whose answer comes from the node's live predicate, so a fresh
