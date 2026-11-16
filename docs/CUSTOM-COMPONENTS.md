@@ -78,7 +78,7 @@ Use a data parameter when the widget renders that data itself. `Button` takes te
 
 Pass a component's own inputs as parameters, not through a `CompositionLocal`. Use [nested styles](STYLES.md#nested-styles) when an appearance setting should apply to a subtree.
 
-Put required inputs and callbacks first, optional configuration next, and the main content slot last. For a component the caller places, make a single `modifier: SwingModifier = SwingModifier` the first optional parameter. Pass it to the root so the caller can place and decorate the component. Append any modifiers the component needs after the caller's chain. Declare placements for its own children where it emits them. Use the trailing lambda for content, such as children or drawing commands. [Taking a value in and reporting a change out](COMPONENT-STATE.md#taking-a-value-in-and-reporting-a-change-out) gives the order for state and its callbacks.
+Put required inputs and callbacks first, optional configuration next, and the main content slot last. For a component the caller places, make a single `modifier: SwingModifier = SwingModifier` the first optional parameter. Pass it to the root so the caller can place and decorate the component. Append any modifiers the component needs after the caller's chain. Declare placements for its own children where it emits them. Use the trailing lambda for content, such as children or drawing commands. [Taking a value in and reporting a change out](COMPONENT-STATE.md#taking-a-value-in-and-reporting-a-change-out) gives the order for state and its callbacks, and [Static analysis](STATIC-ANALYSIS.md) describes the checks.
 
 ## Keeping the widget's behavior and defaults
 

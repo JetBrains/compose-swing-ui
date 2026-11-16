@@ -38,6 +38,16 @@ kotlin {
     abiValidation {}
 }
 
+tasks.test {
+    val guide = rootProject.file("docs/STATIC-ANALYSIS.md")
+    inputs
+        .file(guide)
+        .withPropertyName("staticAnalysisGuide")
+        .withPathSensitivity(PathSensitivity.RELATIVE)
+    // The test JVM runs in the project directory. A relative path keeps the checkout out of the cache key.
+    systemProperty("staticAnalysisGuide", guide.relativeTo(projectDir).invariantSeparatorsPath)
+}
+
 dependencies {
     // detekt supplies its API to the rules it loads; carrying it at runtime would load a second copy.
     compileOnly(libs.detekt.api)

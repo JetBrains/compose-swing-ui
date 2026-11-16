@@ -95,7 +95,7 @@ The API is pre-1.0, and minor releases may contain breaking changes. Using the l
 - Find widgets in the [components guide](docs/COMPONENTS.md). The [API reference](https://jetbrains.github.io/compose-swing-ui/) documents the public API on `master`.
 - Configure widgets with [styles](docs/STYLES.md) and [modifiers](docs/MODIFIERS.md).
 - See [Writing components](docs/CUSTOM-COMPONENTS.md) to design and build reusable components.
-- Verify UI behavior with the [testing guide](docs/TESTING-COMPONENTS.md).
+- Verify UI behavior with the [testing guide](docs/TESTING-COMPONENTS.md) and check usage patterns with [static analysis](docs/STATIC-ANALYSIS.md).
 - See the [contributing guide](CONTRIBUTING.md) for building and checking the project.
 
 ## License
