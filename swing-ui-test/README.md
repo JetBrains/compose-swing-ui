@@ -1,9 +1,6 @@
 # Module swing-ui-test
 
-The test harness for Compose Swing UI. It runs compositions off-screen and deterministically — the
-harness root is never shown, and nothing sleeps — so component behavior can be asserted in plain
-`@Test` methods. Content that composes `Window { }` / `Dialog { }` realizes real top-level peers, and
-the harness finds and asserts on those too.
+The test harness for Compose Swing UI. It runs compositions off-screen and deterministically — the harness root is never shown, and nothing sleeps — so component behavior can be asserted in plain `@Test` methods. Content that composes `Window { }` / `Dialog { }` realizes real top-level peers, and the harness finds and asserts on those too.
 
 ## Usage
 

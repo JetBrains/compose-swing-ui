@@ -1,17 +1,10 @@
 # Compose Swing UI
 
-[![Team](https://jb.gg/badges/team-plastic.svg)](https://github.com/JetBrains#jetbrains-on-github)
-[![Version](https://img.shields.io/github/v/release/JetBrains/compose-swing-ui?sort=semver)](https://github.com/JetBrains/compose-swing-ui/releases/latest)
-[![Snapshot](https://github.com/JetBrains/compose-swing-ui/actions/workflows/snapshot.yml/badge.svg)](https://github.com/JetBrains/compose-swing-ui/actions/workflows/snapshot.yml)
-[![API reference](https://img.shields.io/badge/API-reference-blue)](https://jetbrains.github.io/compose-swing-ui/)
+[![Team](https://jb.gg/badges/team-plastic.svg)](https://github.com/JetBrains#jetbrains-on-github) [![Version](https://img.shields.io/github/v/release/JetBrains/compose-swing-ui?sort=semver)](https://github.com/JetBrains/compose-swing-ui/releases/latest) [![Snapshot](https://github.com/JetBrains/compose-swing-ui/actions/workflows/snapshot.yml/badge.svg)](https://github.com/JetBrains/compose-swing-ui/actions/workflows/snapshot.yml) [![API reference](https://img.shields.io/badge/API-reference-blue)](https://jetbrains.github.io/compose-swing-ui/)
 
-A declarative, reactive way to build **Swing** UIs using Jetpack Compose's composition model -
-built on **Compose Runtime only**. No skiko, no Compose Multiplatform UI, no Skia renderer. Your
-components are real `JButton`/`JLabel`/`JPanel` widgets, laid out by Swing's own `LayoutManager`s
-and painted by the platform look-and-feel; Compose drives state and composition.
+A declarative, reactive way to build **Swing** UIs using Jetpack Compose's composition model - built on **Compose Runtime only**. No skiko, no Compose Multiplatform UI, no Skia renderer. Your components are real `JButton`/`JLabel`/`JPanel` widgets, laid out by Swing's own `LayoutManager`s and painted by the platform look-and-feel; Compose drives state and composition.
 
-Inspired by [Compose HTML](https://github.com/JetBrains/compose-multiplatform) (DOM target) and
-[Mosaic](https://github.com/JakeWharton/mosaic) (terminal target).
+Inspired by [Compose HTML](https://github.com/JetBrains/compose-multiplatform) (DOM target) and [Mosaic](https://github.com/JakeWharton/mosaic) (terminal target).
 
 <!--- INCLUDE .*readme.*
 import androidx.compose.runtime.*
@@ -36,8 +29,7 @@ import javax.swing.SwingUtilities
 
 ## Quick start
 
-A minimal app using the `application` entry point, a `Window`, a couple of components, and the
-`BorderLayout` regions a `Panel` under `PanelLayout.Border` offers:
+A minimal app using the `application` entry point, a `Window`, a couple of components, and the `BorderLayout` regions a `Panel` under `PanelLayout.Border` offers:
 
 ```kotlin
 fun main() = application {
@@ -67,21 +59,13 @@ fun main() = application {
 
 <!--- KNIT example-readme-01.kt -->
 
-A child of a `PanelLayout.Border` panel names its `BorderLayout` region on its own modifier:
-`north()`, `south()`, `center()`, and the rest of `BorderLayout`'s. A child that names no region
-occupies the center, so the panel's main content is written plainly.
+A child of a `PanelLayout.Border` panel names its `BorderLayout` region on its own modifier: `north()`, `south()`, `center()`, and the rest of `BorderLayout`'s. A child that names no region occupies the center, so the panel's main content is written plainly.
 
-Every component family the library ships - text inputs, buttons, selection, layout containers,
-windows, dialogs and menus - is cataloged with the parameters that decide how it behaves in
-[`docs/COMPONENTS.md`](docs/COMPONENTS.md). Every public declaration is documented in the
-[API reference](https://jetbrains.github.io/compose-swing-ui/), which tracks `master`.
+Every component family the library ships - text inputs, buttons, selection, layout containers, windows, dialogs and menus - is cataloged with the parameters that decide how it behaves in [`docs/COMPONENTS.md`](docs/COMPONENTS.md). Every public declaration is documented in the [API reference](https://jetbrains.github.io/compose-swing-ui/), which tracks `master`.
 
 ## Mounting into existing Swing (`setContent`)
 
-You can also drive composition into any container without the `application`/`Window` entry points.
-`setContent` is an extension on `javax.swing.JComponent`, with `java.awt.Window.setContent` (covering
-`JFrame`, `JDialog`, and `JWindow`), `JMenuBar.setContent` and `JPopupMenu.setContent` provided too. A single
-`import org.jetbrains.compose.swing.setContent` resolves all of them:
+You can also drive composition into any container without the `application`/`Window` entry points. `setContent` is an extension on `javax.swing.JComponent`, with `java.awt.Window.setContent` (covering `JFrame`, `JDialog`, and `JWindow`), `JMenuBar.setContent` and `JPopupMenu.setContent` provided too. A single `import org.jetbrains.compose.swing.setContent` resolves all of them:
 
 ```kotlin
 fun main() {
@@ -105,15 +89,11 @@ fun main() {
 
 <!--- KNIT example-readme-02.kt -->
 
-`setContent` is called on the Event Dispatch Thread and returns a `DisposableHandle`; dispose it to
-tear the composition down. Nesting works: a `setContent` whose ancestor already hosts a composition
-joins that composition and shares its recomposition scope.
+`setContent` is called on the Event Dispatch Thread and returns a `DisposableHandle`; dispose it to tear the composition down. Nesting works: a `setContent` whose ancestor already hosts a composition joins that composition and shares its recomposition scope.
 
 ## Menus
 
-`MenuBar` declares the menu bar of the window whose content it is composed in, driven by the state its
-content reads. It is declared on the window scope a `Window` and a `Dialog` give their content, so a
-menu bar with no window to carry it does not compile:
+`MenuBar` declares the menu bar of the window whose content it is composed in, driven by the state its content reads. It is declared on the window scope a `Window` and a `Dialog` give their content, so a menu bar with no window to carry it does not compile:
 
 ```kotlin
 fun main() = application {
@@ -134,16 +114,11 @@ fun main() = application {
 
 <!--- KNIT example-readme-03.kt -->
 
-The same tree fills a context menu through `ContextMenu(anchor) { ... }` and a tray icon's menu
-through `Tray(menu = { ... })`. On a `JMenuBar` the application builds itself, `JMenuBar.setContent { ... }`
-takes it too.
+The same tree fills a context menu through `ContextMenu(anchor) { ... }` and a tray icon's menu through `Tray(menu = { ... })`. On a `JMenuBar` the application builds itself, `JMenuBar.setContent { ... }` takes it too.
 
 ## Styling with `SwingStyle`, interaction with `SwingModifier`
 
-Components take optional style and modifier parameters. A `style: SwingStyle<S>` sets the properties of the component -
-colors, fonts, sizes, borders, tooltips, whether it is enabled. A `modifier: SwingModifier` keeps everything
-else: hover and other listeners, parent data and decoration. Write the style as a lambda and chain the
-modifier with the extension builders:
+Components take optional style and modifier parameters. A `style: SwingStyle<S>` sets the properties of the component - colors, fonts, sizes, borders, tooltips, whether it is enabled. A `modifier: SwingModifier` keeps everything else: hover and other listeners, parent data and decoration. Write the style as a lambda and chain the modifier with the extension builders:
 
 ```kotlin
 @Composable
@@ -163,52 +138,33 @@ fun SaveButton(onSave: () -> Unit) {
 
 <!--- KNIT example-readme-04.kt -->
 
-`lineBorder` and `emptyBorder` declare a border by its values; a border whose values are unchanged is not applied again.
-Hoist the other value objects a style or modifier carries - a `Font` or an `Icon` - into `remember`.
+`lineBorder` and `emptyBorder` declare a border by its values; a border whose values are unchanged is not applied again. Hoist the other value objects a style or modifier carries - a `Font` or an `Icon` - into `remember`.
 
-Domain callbacks like `onClick` and `onValueChange` stay ordinary parameters; only cross-cutting
-interaction flows through `modifier`. Builders cover layout, interaction, listeners, keyboard, and data transfer. A component's properties are set through its style. See
-[`docs/MODIFIERS.md`](docs/MODIFIERS.md#equality-and-skipping) for why a modifier built in place needs no
-`remember`, and [`docs/STYLES.md`](docs/STYLES.md) for what a style is.
+Domain callbacks like `onClick` and `onValueChange` stay ordinary parameters; only cross-cutting interaction flows through `modifier`. Builders cover layout, interaction, listeners, keyboard, and data transfer. A component's properties are set through its style. See [`docs/MODIFIERS.md`](docs/MODIFIERS.md#equality-and-skipping) for why a modifier built in place needs no `remember`, and [`docs/STYLES.md`](docs/STYLES.md) for what a style is.
 
 ## Bring your own Swing component
 
-Any Swing `Component` can be hosted directly with `SwingNode` - a first-class, supported way to bring
-custom Swing components into a composition. Every built-in wrapper is built on `SwingNode` the same
-way. See [Writing components](docs/CUSTOM-COMPONENTS.md) for a step-by-step guide, and
-[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for how the composition drives the Swing tree.
+Any Swing `Component` can be hosted directly with `SwingNode` - a first-class, supported way to bring custom Swing components into a composition. Every built-in wrapper is built on `SwingNode` the same way. See [Writing components](docs/CUSTOM-COMPONENTS.md) for a step-by-step guide, and [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for how the composition drives the Swing tree.
 
 Further guides carry the rest:
 
-- [`docs/COMPONENT-STATE.md`](docs/COMPONENT-STATE.md) - a property the user can change as well as
-  the composition, and the state holders that carry what a declared value cannot.
-- [`docs/MODIFIERS.md`](docs/MODIFIERS.md) - how a modifier is ordered, matched and attached across
-  passes, the `modifier` parameter, and attaching listeners.
-- [`docs/STYLES.md`](docs/STYLES.md) - what a style is, when it runs, how it restores and nests, and writing a
-  property or styled component of your own.
+- [`docs/COMPONENT-STATE.md`](docs/COMPONENT-STATE.md) - a property the user can change as well as the composition, and the state holders that carry what a declared value cannot.
+- [`docs/MODIFIERS.md`](docs/MODIFIERS.md) - how a modifier is ordered, matched and attached across passes, the `modifier` parameter, and attaching listeners.
+- [`docs/STYLES.md`](docs/STYLES.md) - what a style is, when it runs, how it restores and nests, and writing a property or styled component of your own.
 - [`docs/FOUNDATION.md`](docs/FOUNDATION.md) - constraint-based layout, drawing and decorations.
-- [`docs/CUSTOM-CONTAINERS.md`](docs/CUSTOM-CONTAINERS.md) - containers, the placements they offer
-  their children, and rendering items with a composable cell.
+- [`docs/CUSTOM-CONTAINERS.md`](docs/CUSTOM-CONTAINERS.md) - containers, the placements they offer their children, and rendering items with a composable cell.
 
-To ask a mounted composition what it holds for a component and where that component was declared,
-see [`docs/INSPECTING-COMPOSITIONS.md`](docs/INSPECTING-COMPOSITIONS.md).
+To ask a mounted composition what it holds for a component and where that component was declared, see [`docs/INSPECTING-COMPOSITIONS.md`](docs/INSPECTING-COMPOSITIONS.md).
 
 ## Animation
 
-`swing-ui-animation` provides androidx Compose's animation-core APIs - `animate*AsState`, `Animatable`,
-`updateTransition`, easing curves, and the `spring` / `tween` / `keyframes` specs - for `Float`,
-`Int`, `java.awt.Color`, and any type you supply a `TwoWayConverter` for. It also provides
-`AnimatedVisibility`, `AnimatedContent` and `Crossfade`, which animate content as it appears, disappears
-or is replaced, and `animateContentSize`, which animates a layout's size as its content changes. See
-[`swing-ui-animation/README.md`](swing-ui-animation/README.md).
+`swing-ui-animation` provides androidx Compose's animation-core APIs - `animate*AsState`, `Animatable`, `updateTransition`, easing curves, and the `spring` / `tween` / `keyframes` specs - for `Float`, `Int`, `java.awt.Color`, and any type you supply a `TwoWayConverter` for. It also provides `AnimatedVisibility`, `AnimatedContent` and `Crossfade`, which animate content as it appears, disappears or is replaced, and `animateContentSize`, which animates a layout's size as its content changes. See [`swing-ui-animation/README.md`](swing-ui-animation/README.md).
 
 ## Testing
 
-Add `:swing-ui-test` and write plain `@Test` methods whose body is a `runComposeSwingTest { ... }`
-block - the harness is synchronous and deterministic (off-screen, never sleeps).
+Add `:swing-ui-test` and write plain `@Test` methods whose body is a `runComposeSwingTest { ... }` block - the harness is synchronous and deterministic (off-screen, never sleeps).
 
-See [`docs/TESTING-COMPONENTS.md`](docs/TESTING-COMPONENTS.md) for the finders, assertions, actions,
-and screenshot comparison the harness offers.
+See [`docs/TESTING-COMPONENTS.md`](docs/TESTING-COMPONENTS.md) for the finders, assertions, actions, and screenshot comparison the harness offers.
 
 ## Build, run, test
 
@@ -228,28 +184,16 @@ Full quality-gate command (what CI runs):
 
 [`CONTRIBUTING.md`](CONTRIBUTING.md) walks through what each gate covers.
 
-The project is split into focused artifacts: [`swing-ui`](swing-ui/README.md) supplies the runtime,
-Swing wrappers, and Swing layout-manager containers; [`swing-ui-foundation`](swing-ui-foundation/README.md)
-supplies drawing and constraint-based layout; [`swing-ui-animation`](swing-ui-animation/README.md)
-supplies animation; [`swing-ui-test`](swing-ui-test/README.md) supplies the deterministic test harness;
-and [`swing-ui-detekt`](swing-ui-detekt/README.md) supplies the project's detekt rules. The runnable
-samples and documentation snippets are kept in `samples/`.
+The project is split into focused artifacts: [`swing-ui`](swing-ui/README.md) supplies the runtime, Swing wrappers, and Swing layout-manager containers; [`swing-ui-foundation`](swing-ui-foundation/README.md) supplies drawing and constraint-based layout; [`swing-ui-animation`](swing-ui-animation/README.md) supplies animation; [`swing-ui-test`](swing-ui-test/README.md) supplies the deterministic test harness; and [`swing-ui-detekt`](swing-ui-detekt/README.md) supplies the project's detekt rules. The runnable samples and documentation snippets are kept in `samples/`.
 
-`swing-ui` and `swing-ui-foundation` split along what Swing itself can already do: `swing-ui` wraps a
-Swing/AWT capability that already exists (a component, a listener, a `LayoutManager`) in a declarative
-API; `swing-ui-foundation` mimics the part of Compose UI/Foundation's own API surface that Swing has no
-equivalent for at all (weighted two-pass measurement, `Row`/`Column`/`Box`, draw scopes, brushes and
-shapes), and had to be built from scratch to do it.
+`swing-ui` and `swing-ui-foundation` split along what Swing itself can already do: `swing-ui` wraps a Swing/AWT capability that already exists (a component, a listener, a `LayoutManager`) in a declarative API; `swing-ui-foundation` mimics the part of Compose UI/Foundation's own API surface that Swing has no equivalent for at all (weighted two-pass measurement, `Row`/`Column`/`Box`, draw scopes, brushes and shapes), and had to be built from scratch to do it.
 
 ## Stability
 
-Pre-1.0: breaking API changes may land in any minor release. Kotlin 2.2 or newer is required to
-consume the libraries. Below Kotlin 2.4, calling the Foundation layout modifiers also needs
-the `-Xcontext-parameters` compiler option; see [Scoped modifiers](docs/FOUNDATION.md#scoped-modifiers).
+Pre-1.0: breaking API changes may land in any minor release. Kotlin 2.2 or newer is required to consume the libraries. Below Kotlin 2.4, calling the Foundation layout modifiers also needs the `-Xcontext-parameters` compiler option; see [Scoped modifiers](docs/FOUNDATION.md#scoped-modifiers).
 
 ## License
 
 Licensed under the Apache License, Version 2.0 - see [LICENSE](LICENSE).
 
-The modules redistribute source code from AndroidX and other projects under the same license.
-See each module's `META-INF/NOTICE` and the per-file headers for attribution.
+The modules redistribute source code from AndroidX and other projects under the same license. See each module's `META-INF/NOTICE` and the per-file headers for attribution.

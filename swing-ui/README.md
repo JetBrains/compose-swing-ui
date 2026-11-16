@@ -1,13 +1,10 @@
 # Module swing-ui
 
-The core library: Jetpack Compose's composition runtime wired to Swing, plus composable wrappers
-over Swing components and layouts. Your UI is real `JButton`/`JLabel`/`JPanel` widgets, laid out by
-Swing's own `LayoutManager`s; Compose drives state and composition.
+The core library: Jetpack Compose's composition runtime wired to Swing, plus composable wrappers over Swing components and layouts. Your UI is real `JButton`/`JLabel`/`JPanel` widgets, laid out by Swing's own `LayoutManager`s; Compose drives state and composition.
 
 ## Usage
 
-Drive composition into any Swing container with `setContent`, or use the `application` / `Window`
-entry points:
+Drive composition into any Swing container with `setContent`, or use the `application` / `Window` entry points:
 
 ```kotlin
 import org.jetbrains.compose.swing.components.button.Button
@@ -35,10 +32,7 @@ fun main() = SwingUtilities.invokeLater {
 }
 ```
 
-Set a component's properties with its `style: SwingStyle<S> = SwingStyle` parameter. Add listeners, parent
-data and decoration with its `modifier: SwingModifier = SwingModifier` parameter. Domain callbacks like
-`onClick` stay ordinary parameters. See [`docs/STYLES.md`](../docs/STYLES.md). To wrap your own Swing component, use the public
-`SwingNode` API — see [Writing components](../docs/CUSTOM-COMPONENTS.md).
+Set a component's properties with its `style: SwingStyle<S> = SwingStyle` parameter. Add listeners, parent data and decoration with its `modifier: SwingModifier = SwingModifier` parameter. Domain callbacks like `onClick` stay ordinary parameters. See [`docs/STYLES.md`](../docs/STYLES.md). To wrap your own Swing component, use the public `SwingNode` API — see [Writing components](../docs/CUSTOM-COMPONENTS.md).
 
 The complete component, layout, style, modifier, window, dialog, and menu API is documented in KDoc.
 

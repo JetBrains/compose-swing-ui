@@ -1,7 +1,6 @@
 # widgets-gallery sample
 
-A runnable showcase of Compose Swing UI components, layouts, menus, and dialogs. It also demonstrates
-a composable menu bar via `JMenuBar.setContent` and a custom Swing component hosted with `SwingNode`.
+A runnable showcase of Compose Swing UI components, layouts, menus, and dialogs. It also demonstrates a composable menu bar via `JMenuBar.setContent` and a custom Swing component hosted with `SwingNode`.
 
 ## Run
 

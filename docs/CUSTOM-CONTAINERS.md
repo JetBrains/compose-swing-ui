@@ -1,29 +1,17 @@
 # Containers and item cells
 
-A container declares its children rather than adding them, and offers the placements it understands as
-a scope. This document is writing such a container, the shared hierarchies assembled from them, hosting
-a nested composition, and rendering a component's items with a composable cell. See [Writing components](CUSTOM-COMPONENTS.md) for building a leaf component. How the layout system works is
-[`FOUNDATION.md`](FOUNDATION.md).
+A container declares its children rather than adding them, and offers the placements it understands as a scope. This document is writing such a container, the shared hierarchies assembled from them, hosting a nested composition, and rendering a component's items with a composable cell. See [Writing components](CUSTOM-COMPONENTS.md) for building a leaf component. How the layout system works is [`FOUNDATION.md`](FOUNDATION.md).
 
-Custom constraint-based containers use Foundation Layout in `swing-ui-foundation`; the Swing runtime
-and `SwingNode` remain in `swing-ui`. `SwingNode` requires opt-in to
-`SwingComponentLibraryApi`.
+Custom constraint-based containers use Foundation Layout in `swing-ui-foundation`; the Swing runtime and `SwingNode` remain in `swing-ui`. `SwingNode` requires opt-in to `SwingComponentLibraryApi`.
 
 Where a container of your own starts depends on where its placement rules live:
 
-- **They are yours to write.** Hand a `MeasurePolicy` of your own to `Layout`. `Row`, `Column` and
-  `Box` are each such a policy, and a policy you write is asked the same questions theirs are.
-- **They belong to a `LayoutManager` you did not write** - one of Swing's that `PanelLayout` does not
-  name, or a third party's. Subclass `PanelLayout` to lay a `Panel` out under that manager, or build a
-  container of your own around it in a `SwingNode` factory.
+- **They are yours to write.** Hand a `MeasurePolicy` of your own to `Layout`. `Row`, `Column` and `Box` are each such a policy, and a policy you write is asked the same questions theirs are.
+- **They belong to a `LayoutManager` you did not write** - one of Swing's that `PanelLayout` does not name, or a third party's. Subclass `PanelLayout` to lay a `Panel` out under that manager, or build a container of your own around it in a `SwingNode` factory.
 
 ## Measuring and placing children: `Layout`
 
-`Layout` composes its content under a `MeasurePolicy`. The policy is handed one `Measurable` per child
-and the `Constraints` the container was offered, measures each child under constraints it works out for
-it, and answers with `layout(width, height) { ... }` - a member of the `MeasureScope` it runs in: the
-extent the container occupies, and a block placing what it measured. Both are relative to the
-container's inner rectangle, inside its insets, so a policy places in the coordinates it measured in.
+`Layout` composes its content under a `MeasurePolicy`. The policy is handed one `Measurable` per child and the `Constraints` the container was offered, measures each child under constraints it works out for it, and answers with `layout(width, height) { ... }` - a member of the `MeasureScope` it runs in: the extent the container occupies, and a block placing what it measured. Both are relative to the container's inner rectangle, inside its insets, so a policy places in the coordinates it measured in.
 
 <!--- INCLUDE .*custom-container-01.*
 import androidx.compose.runtime.Composable
@@ -84,105 +72,42 @@ fun Stack(
 
 <!--- KNIT example-custom-container-01.kt -->
 
-A child is measured under constraints the policy works out for it, not under the ones the policy was
-handed. A container being laid out is offered a fixed extent - `minWidth` equal to `maxWidth`, the same
-for the height - and a policy handing that down forces every child to the container's whole extent. A
-policy that stacks or divides offers each child a ceiling and no floor. The stack above offers the
-container's width ceiling and the height left after earlier children, so a finite parent cannot have a
-later child placed beyond its bottom edge; with an unbounded height, the children can take what they
-prefer. A child that measures outside its offer, such as one with `aspectRatio` under an impossible
-offer, still reports a `width` and `height` inside that offer, so the stack's arithmetic stays within
-it; the child's own extent is centered on the slot it is placed at.
+A child is measured under constraints the policy works out for it, not under the ones the policy was handed. A container being laid out is offered a fixed extent - `minWidth` equal to `maxWidth`, the same for the height - and a policy handing that down forces every child to the container's whole extent. A policy that stacks or divides offers each child a ceiling and no floor. The stack above offers the container's width ceiling and the height left after earlier children, so a finite parent cannot have a later child placed beyond its bottom edge; with an unbounded height, the children can take what they prefer. A child that measures outside its offer, such as one with `aspectRatio` under an impossible offer, still reports a `width` and `height` inside that offer, so the stack's arithmetic stays within it; the child's own extent is centered on the slot it is placed at.
 
 Each child is measured at most once per pass, as [Measure once](FOUNDATION.md#measure-once) describes.
 
-The measurables arrive in declaration order, hidden children included; see
-[Visibility](FOUNDATION.md#visibility).
+The measurables arrive in declaration order, hidden children included; see [Visibility](FOUNDATION.md#visibility).
 
-The content receiver is `ConstrainedScope`, so a child of a `Layout` declares its own layout modifiers -
-`padding`, `offset`, `aspectRatio`, `defaultMinSize`, and one of your own through the scope's `layout` member,
-as [Scoped modifiers](FOUNDATION.md#scoped-modifiers) shows. Each narrows what reaches the child, states the
-child plus the space it reserved as what the policy measured, and puts the child inside that; the policy
-measures and places one rectangle per child either way.
+The content receiver is `ConstrainedScope`, so a child of a `Layout` declares its own layout modifiers - `padding`, `offset`, `aspectRatio`, `defaultMinSize`, and one of your own through the scope's `layout` member, as [Scoped modifiers](FOUNDATION.md#scoped-modifiers) shows. Each narrows what reaches the child, states the child plus the space it reserved as what the policy measured, and puts the child inside that; the policy measures and places one rectangle per child either way.
 
-Placements of your own go in a scope of your own extending `ConstrainedScope`, as `StackScope` does
-above. Its builders append the value with `layoutConstraint`, and the policy reads that value back
-through `Measurable.parentData`. Only a policy measures a child through its layout modifiers, so
-a scope over a layout manager must not extend `ConstrainedScope`: a layout modifier under a container
-that cannot measure one is refused when it is applied. Decorations need no scope of their own: they are plain
-`SwingModifier` extensions, so a `Layout`'s children can declare them whether or not the content offers anything
-beyond `ConstrainedScope`.
+Placements of your own go in a scope of your own extending `ConstrainedScope`, as `StackScope` does above. Its builders append the value with `layoutConstraint`, and the policy reads that value back through `Measurable.parentData`. Only a policy measures a child through its layout modifiers, so a scope over a layout manager must not extend `ConstrainedScope`: a layout modifier under a container that cannot measure one is refused when it is applied. Decorations need no scope of their own: they are plain `SwingModifier` extensions, so a `Layout`'s children can declare them whether or not the content offers anything beyond `ConstrainedScope`.
 
-Swing's preferred and minimum size queries offer no extent; [Intrinsic size](FOUNDATION.md#intrinsic-size)
-describes how a policy answers them, and when it overrides its intrinsic functions.
+Swing's preferred and minimum size queries offer no extent; [Intrinsic size](FOUNDATION.md#intrinsic-size) describes how a policy answers them, and when it overrides its intrinsic functions.
 
 ### Parent data and layout modifiers
 
-A custom policy reads a child's parent data from `Measurable.parentData`. What a parent declaration is,
-seen from the caller's side, is [Parent declarations](MODIFIERS.md#parent-declarations).
+A custom policy reads a child's parent data from `Measurable.parentData`. What a parent declaration is, seen from the caller's side, is [Parent declarations](MODIFIERS.md#parent-declarations).
 
 Every declaration is a `ParentElement`:
 
-- `ParentDataModifier` - data the parent registers the component under. The ones a modifier retains
-  fold, in declaration order, through `modifyParentData` into one value: the constraint a
-  `LayoutManager2` registers the component under, or `Measurable.parentData` for a measure policy.
-  `layoutConstraint` declares one untyped. Parent data must be immutable, since the parent may keep it.
+- `ParentDataModifier` - data the parent registers the component under. The ones a modifier retains fold, in declaration order, through `modifyParentData` into one value: the constraint a `LayoutManager2` registers the component under, or `Measurable.parentData` for a measure policy. `layoutConstraint` declares one untyped. Parent data must be immutable, since the parent may keep it.
 - `ParentLayoutElement` - any other declaration a measuring parent interprets.
-- `ParentLayoutNodeElement` - a `ParentLayoutElement` backed by a stateful `ParentLayoutNode`, such as the
-  `LayoutModifierNodeElement` of `swing-ui-foundation`.
-- a host slot, declared with `slot(parentProtocol, name, attachment)` - see
-  [Writing a `SlotAttachment`](CUSTOM-COMPONENTS.md#writing-a-slotattachment).
+- `ParentLayoutNodeElement` - a `ParentLayoutElement` backed by a stateful `ParentLayoutNode`, such as the `LayoutModifierNodeElement` of `swing-ui-foundation`.
+- a host slot, declared with `slot(parentProtocol, name, attachment)` - see [Writing a `SlotAttachment`](CUSTOM-COMPONENTS.md#writing-a-slotattachment).
 
-**Every declaration names a `ParentProtocol`**, the identity of the family of parents that interprets
-it. Protocols compare by `===`, so keep one instance per family and use it in every declaration of that
-family. `parentProtocolOf(description) { parent -> ... }` creates one from a test of the parent, and
-`MeasurementLayoutManager.parentProtocol(description)` creates one that accepts a parent whose layout
-manager is a `MeasurementLayoutManager`. The protocol is checked against the actual parent before the
-parent is changed: a declaration under a parent its protocol does not accept is refused with an error
-naming the protocol's `description`. The parent data a modifier retains must all name the same protocol
-instance.
+**Every declaration names a `ParentProtocol`**, the identity of the family of parents that interprets it. Protocols compare by `===`, so keep one instance per family and use it in every declaration of that family. `parentProtocolOf(description) { parent -> ... }` creates one from a test of the parent, and `MeasurementLayoutManager.parentProtocol(description)` creates one that accepts a parent whose layout manager is a `MeasurementLayoutManager`. The protocol is checked against the actual parent before the parent is changed: a declaration under a parent its protocol does not accept is refused with an error naming the protocol's `description`. The parent data a modifier retains must all name the same protocol instance.
 
-**Keys.** A declaration has a `key`, its class by default; an `additive` declaration stands beside every
-other, in declaration order. A modifier declares either a host slot or other parent declarations, and
-one declaring both is refused, unless each of the other declarations is inheritable and folds no parent
-data.
+**Keys.** A declaration has a `key`, its class by default; an `additive` declaration stands beside every other, in declaration order. A modifier declares either a host slot or other parent declarations, and one declaring both is refused, unless each of the other declarations is inheritable and folds no parent data.
 
-**Inheritable declarations.** A `ParentLayoutElement` whose `inheritable` is `true` can be set by a
-[style property](STYLES.md#a-property-written-by-an-element); the style's declaration counts as the last one in
-the modifier. Under a parent its protocol refuses, it is also
-left out of the declaration instead of refused, whether a style writes it or the component declares
-it directly: that parent never receives it, and a conventional manager is never registered again because
-of it. A left-out declaration taking another value does not have a measuring parent declared to again,
-in a pass that changes nothing else in the modifier and in one that does. An inheritable declaration is
-not additive: one that is both is refused.
-`inheritable` has no effect on parent data: whether or not it is inheritable, a `ParentDataModifier`
-cannot be set by a style, folds, and fails under a parent its protocol refuses. The `parentProtocol` and
-`inheritable` of a `ParentLayoutNodeElement` apply to the `ParentLayoutNode` it creates.
+**Inheritable declarations.** A `ParentLayoutElement` whose `inheritable` is `true` can be set by a [style property](STYLES.md#a-property-written-by-an-element); the style's declaration counts as the last one in the modifier. Under a parent its protocol refuses, it is also left out of the declaration instead of refused, whether a style writes it or the component declares it directly: that parent never receives it, and a conventional manager is never registered again because of it. A left-out declaration taking another value does not have a measuring parent declared to again, in a pass that changes nothing else in the modifier and in one that does. An inheritable declaration is not additive: one that is both is refused. `inheritable` has no effect on parent data: whether or not it is inheritable, a `ParentDataModifier` cannot be set by a style, folds, and fails under a parent its protocol refuses. The `parentProtocol` and `inheritable` of a `ParentLayoutNodeElement` apply to the `ParentLayoutNode` it creates.
 
-**What the parent receives.** A declaration reaches the component's immediate parent and travels no
-further. A parent whose layout manager is a `MeasurementLayoutManager` is handed the folded parent data
-and the other parent-layout elements, in declaration order and without each inheritable one its protocol
-refuses, through `declareComponentLayout(component, parentData, elements)` once the component is added,
-and again whenever what it is handed changes, without the component being removed and added again. Any
-other `LayoutManager2` is handed the parent data through `addLayoutComponent`, and is handed it again,
-after a `removeLayoutComponent`, when it changes. Give a parent-layout element a protocol that accepts
-only parents able to interpret it, as `MeasurementLayoutManager.parentProtocol` does.
+**What the parent receives.** A declaration reaches the component's immediate parent and travels no further. A parent whose layout manager is a `MeasurementLayoutManager` is handed the folded parent data and the other parent-layout elements, in declaration order and without each inheritable one its protocol refuses, through `declareComponentLayout(component, parentData, elements)` once the component is added, and again whenever what it is handed changes, without the component being removed and added again. Any other `LayoutManager2` is handed the parent data through `addLayoutComponent`, and is handed it again, after a `removeLayoutComponent`, when it changes. Give a parent-layout element a protocol that accepts only parents able to interpret it, as `MeasurementLayoutManager.parentProtocol` does.
 
-**Stateful declarations.** A `ParentLayoutNodeElement` creates its `ParentLayoutNode` once per slot and
-runs `update(node)` when a later declaration is unequal to it, as a `NodeElement` does; the parent finds
-the node in the element's place in `elements`. Every node among `elements` is attached: the parent is
-handed the elements again as a node detaches, before another node of the modifier runs. Stateful
-declarations are paired by position among themselves, as
-[additive elements](MODIFIERS.md#keyed-and-additive-slots) are, so an element of another kind entering
-or leaving shifts none of them. A layout node has the
-[lifecycle](MODIFIERS.md#node-lifecycle) and the [capabilities](MODIFIERS.md#node-capabilities)
-of any other node, and it stays attached through a `key` change. It reads the component whose modifier
-declares it through `component`, which fails while the node is not attached.
+**Stateful declarations.** A `ParentLayoutNodeElement` creates its `ParentLayoutNode` once per slot and runs `update(node)` when a later declaration is unequal to it, as a `NodeElement` does; the parent finds the node in the element's place in `elements`. Every node among `elements` is attached: the parent is handed the elements again as a node detaches, before another node of the modifier runs. Stateful declarations are paired by position among themselves, as [additive elements](MODIFIERS.md#keyed-and-additive-slots) are, so an element of another kind entering or leaving shifts none of them. A layout node has the [lifecycle](MODIFIERS.md#node-lifecycle) and the [capabilities](MODIFIERS.md#node-capabilities) of any other node, and it stays attached through a `key` change. It reads the component whose modifier declares it through `component`, which fails while the node is not attached.
 
 ## A layout of your own
 
-To lay a `Panel` out under a manager `PanelLayout` does not name, subclass it. The library's own layouts
-are subclasses, and a manager they do not name is declared the same way:
+To lay a `Panel` out under a manager `PanelLayout` does not name, subclass it. The library's own layouts are subclasses, and a manager they do not name is declared the same way:
 
 <!--- INCLUDE .*custom-container-02.*
 import androidx.compose.runtime.Composable
@@ -213,20 +138,11 @@ fun Badge() {
 
 <!--- KNIT example-custom-container-02.kt -->
 
-A layout whose children carry constraints hands a scope that extends `PanelScope`, whose placement calls
-append the constraint with `layoutConstraint` - see
-[Placing children under constraints](#placing-children-under-constraints). Any node's container is laid
-out the same way, including a container an `ExistingSwingNode` claims; the KDoc on `PanelLayout` gives
-the steps.
+A layout whose children carry constraints hands a scope that extends `PanelScope`, whose placement calls append the constraint with `layoutConstraint` - see [Placing children under constraints](#placing-children-under-constraints). Any node's container is laid out the same way, including a container an `ExistingSwingNode` claims; the KDoc on `PanelLayout` gives the steps.
 
 ## A container of your own
 
-A container that needs a component class of its own is a `SwingNode` of your own: use the `content`
-overload and create the `Container` in the factory; the children `content` emits are added to it. A
-custom manager that interprets parent-layout declarations implements `MeasurementLayoutManager`;
-[Parent data and layout modifiers](#parent-data-and-layout-modifiers) describes what it and a regular
-`LayoutManager2` receive. A container takes a `modifier` because it is also a child: that modifier places
-it in a `PanelLayout.Border` region or a `PanelLayout.GridBag` cell of its parent.
+A container that needs a component class of its own is a `SwingNode` of your own: use the `content` overload and create the `Container` in the factory; the children `content` emits are added to it. A custom manager that interprets parent-layout declarations implements `MeasurementLayoutManager`; [Parent data and layout modifiers](#parent-data-and-layout-modifiers) describes what it and a regular `LayoutManager2` receive. A container takes a `modifier` because it is also a child: that modifier places it in a `PanelLayout.Border` region or a `PanelLayout.GridBag` cell of its parent.
 
 Give content a receiver when it needs placements, data, or operations from the container. `SplitPane` offers placements for its two sides, and a list item scope supplies data such as whether the item is selected. Use a declaration scope for entries that the container builds itself, such as the columns of a `Table`. A slot lets callers use their own composables and apply modifiers where the child is written.
 
@@ -236,11 +152,7 @@ Mark a content receiver with `@LayoutScopeMarker`, including a scope that suppli
 
 ## Placing children under constraints
 
-A child declares where it sits inside its parent on its own `SwingModifier`, with `layoutConstraint`.
-The value is whatever the enclosing container understands - a `BorderLayout` region, a
-`GridBagConstraints`, a cell in a manager of your own, the value a policy of your own reads back - and
-it is handed over the way `Container.add(Component, Object)` hands it over, so a `LayoutManager2`
-receives it as-is and a manager that takes no constraints places the child by index.
+A child declares where it sits inside its parent on its own `SwingModifier`, with `layoutConstraint`. The value is whatever the enclosing container understands - a `BorderLayout` region, a `GridBagConstraints`, a cell in a manager of your own, the value a policy of your own reads back - and it is handed over the way `Container.add(Component, Object)` hands it over, so a `LayoutManager2` receives it as-is and a manager that takes no constraints places the child by index.
 
 The container supplies the placement policy and a scope with modifier builders for the placements it understands. Declare the builders as extensions on `SwingModifier` inside the scope. Callers can use them inside the container's content, where the marker hides the surrounding container scopes. As with `RowScope.weight`, each builder appends the value the policy understands with `layoutConstraint`:
 
@@ -285,168 +197,52 @@ MosaicPanel {
 }
 ```
 
-Changed is decided by `equals`. A chain is rebuilt on every pass, so the placement in it is compared
-against the one the child already sits under, and only a difference re-registers the child: the
-framework takes it out of the layout manager and adds it back under the new value, then revalidates
-the parent. A value that compares by value therefore costs nothing to rebuild, while one that compares
-by identity - a bare `GridBagConstraints`, a class of your own that never overrode `equals` - is a new
-instance on every pass and puts every child through that removal and re-add on every composition. What
-that costs is the manager's, not the framework's: a `LayoutManager2` that keeps anything derived from
-the placements it has been handed - a grid, a set of measured column widths, a row cache - discards and
-rebuilds it each time, because a re-registration reaches it as the same
-`removeLayoutComponent`/`addLayoutComponent` pair a real structural change does. Give a placement of
-your own a value `equals`, as `GridBagPanelScope.item` does for the constraints it declares.
+Changed is decided by `equals`. A chain is rebuilt on every pass, so the placement in it is compared against the one the child already sits under, and only a difference re-registers the child: the framework takes it out of the layout manager and adds it back under the new value, then revalidates the parent. A value that compares by value therefore costs nothing to rebuild, while one that compares by identity - a bare `GridBagConstraints`, a class of your own that never overrode `equals` - is a new instance on every pass and puts every child through that removal and re-add on every composition. What that costs is the manager's, not the framework's: a `LayoutManager2` that keeps anything derived from the placements it has been handed - a grid, a set of measured column widths, a row cache - discards and rebuilds it each time, because a re-registration reaches it as the same `removeLayoutComponent`/`addLayoutComponent` pair a real structural change does. Give a placement of your own a value `equals`, as `GridBagPanelScope.item` does for the constraints it declares.
 
-Derive that value from the declaration rather than from a running count of the children before it,
-too: a placement computed from how many siblings came first changes for every later child the moment
-one is inserted, and every one of them is then re-registered. This is advice about the placement value.
-The `key` a child is declared under is a separate question, answered in *What the composition owns*
-in [Writing components](CUSTOM-COMPONENTS.md).
+Derive that value from the declaration rather than from a running count of the children before it, too: a placement computed from how many siblings came first changes for every later child the moment one is inserted, and every one of them is then re-registered. This is advice about the placement value. The `key` a child is declared under is a separate question, answered in *What the composition owns* in [Writing components](CUSTOM-COMPONENTS.md).
 
-A scope like this keeps the constraint's type inside your container - `MosaicScope` is the whole
-placement API your callers see, and `BorderPanelScope`'s regions and `GridBagPanelScope`'s items are
-the same shape over a fixed, nameable set of placements.
+A scope like this keeps the constraint's type inside your container - `MosaicScope` is the whole placement API your callers see, and `BorderPanelScope`'s regions and `GridBagPanelScope`'s items are the same shape over a fixed, nameable set of placements.
 
-Fill is not a custom-manager placement. `fillMaxWidth(fraction)`, `fillMaxHeight(fraction)`, and
-`fillMaxSize(fraction)` are the `ConstrainedScope` layout modifiers for policy layouts, including a
-custom scope that extends `ConstrainedScope`. They fill the requested fraction of a bounded offered
-axis, within the offered bounds, and leave an unbounded one unchanged; `fillMaxSize` applies the
-fraction to both axes. Their place in the modifier chain matters because they transform the constraints
-seen by later modifiers and the component. A container backed by a Swing layout manager must not expose
-them in its content scope, because it does not measure children through layout modifiers.
+Fill is not a custom-manager placement. `fillMaxWidth(fraction)`, `fillMaxHeight(fraction)`, and `fillMaxSize(fraction)` are the `ConstrainedScope` layout modifiers for policy layouts, including a custom scope that extends `ConstrainedScope`. They fill the requested fraction of a bounded offered axis, within the offered bounds, and leave an unbounded one unchanged; `fillMaxSize` applies the fraction to both axes. Their place in the modifier chain matters because they transform the constraints seen by later modifiers and the component. A container backed by a Swing layout manager must not expose them in its content scope, because it does not measure children through layout modifiers.
 
-A scope is worth writing only where the placements are worth naming. Where a layout manager answers
-for a child that declares nothing - `BorderLayout` places one at `CENTER`, `JLayeredPane` on
-`DEFAULT_LAYER`, `CardLayout` under the empty name - a container over it takes a plain
-`@Composable () -> Unit` content and lets the manager do the placing, and a container over a policy
-that reads no constraint takes `@Composable ConstrainedScope.() -> Unit`. That is the usual case: no
-scope, no constraint. `layoutConstraint` stays available to a caller who does need to name a
-placement.
+A scope is worth writing only where the placements are worth naming. Where a layout manager answers for a child that declares nothing - `BorderLayout` places one at `CENTER`, `JLayeredPane` on `DEFAULT_LAYER`, `CardLayout` under the empty name - a container over it takes a plain `@Composable () -> Unit` content and lets the manager do the placing, and a container over a policy that reads no constraint takes `@Composable ConstrainedScope.() -> Unit`. That is the usual case: no scope, no constraint. `layoutConstraint` stays available to a caller who does need to name a placement.
 
-Three rules shape a container of this kind, and every container that places children this library ships
-follows all three:
+Three rules shape a container of this kind, and every container that places children this library ships follows all three:
 
-- **The content block is `@Composable`, and the children written in it compose where the container's
-  own children belong.** Declare it `content: @Composable XScope.() -> Unit` and hand it to `Layout` or
-  `SwingNode` as `content = { XScopeImpl.content() }`. Beyond making every child a node the applier
-  places, this is what gives each child the identity described in *What the composition owns* in
-  [Writing components](CUSTOM-COMPONENTS.md): a child composed where the caller wrote it is told
-  from its siblings by that place. An ordinary block that records composable lambdas for the container
-  to invoke afterwards hands every one of them to the single place the container invokes them from, so
-  they share it and are left to be told apart by order. Composed directly,
-  `if (showEmail) EmailField()` followed by `PhoneField()` leaves the phone field's component and
-  everything it holds alone when the email field appears, with no `key` from anyone.
-- **There is no collection phase.** A scope's builders return a chain and the children compose as they
-  are written, so there is no list of pending declarations, no `ScopeImpl().apply(block)`, and no
-  `forEach` over what a block gathered. That also settles whether to `remember` the scope: one holding
-  nothing is an object shared by every instance of the container, as `MosaicScopeImpl` above and
-  `BorderPanelScope`'s implementation are, and one holding something the container owns - a layout's
-  placement table, a mirror the container settles a value through - is remembered alongside the
-  container, as `RowScope`'s and `ScrollPaneScope`'s implementations are.
-- **A container that has to validate its children runs each check where its answer is whole.** A rule
-  about one child on its own is answered as that node arrives, the first moment the container knows the
-  child is really there: a `tab` declared by a component that some other container holds is refused as
-  that component is attached. A rule over the whole set of children - one child per side, one per card -
-  is answered once the pass has settled, because a pass may hold two children in one place while it
-  runs: a replacement need not wait for the child it replaces to go, and only what remains at the end is
-  what the composition declares. A container reaching its children through regions leaves that to the
-  framework, which holds a `ChildPlacement.Slots` host to one child per region once the pass settles, as
-  `SplitPane` does for its two sides; one placing them under constraints runs its own check on the
-  event-dispatch turn after the change pass, once a parked node's deactivation has run too, as
-  a `PanelLayout.Card` panel does over the cards its deck holds. Either way the set a check runs
-  against is what the container actually holds - its own children, its layout's own records - rather
-  than a list a block gathered.
+- **The content block is `@Composable`, and the children written in it compose where the container's own children belong.** Declare it `content: @Composable XScope.() -> Unit` and hand it to `Layout` or `SwingNode` as `content = { XScopeImpl.content() }`. Beyond making every child a node the applier places, this is what gives each child the identity described in *What the composition owns* in [Writing components](CUSTOM-COMPONENTS.md): a child composed where the caller wrote it is told from its siblings by that place. An ordinary block that records composable lambdas for the container to invoke afterwards hands every one of them to the single place the container invokes them from, so they share it and are left to be told apart by order. Composed directly, `if (showEmail) EmailField()` followed by `PhoneField()` leaves the phone field's component and everything it holds alone when the email field appears, with no `key` from anyone.
+- **There is no collection phase.** A scope's builders return a chain and the children compose as they are written, so there is no list of pending declarations, no `ScopeImpl().apply(block)`, and no `forEach` over what a block gathered. That also settles whether to `remember` the scope: one holding nothing is an object shared by every instance of the container, as `MosaicScopeImpl` above and `BorderPanelScope`'s implementation are, and one holding something the container owns - a layout's placement table, a mirror the container settles a value through - is remembered alongside the container, as `RowScope`'s and `ScrollPaneScope`'s implementations are.
+- **A container that has to validate its children runs each check where its answer is whole.** A rule about one child on its own is answered as that node arrives, the first moment the container knows the child is really there: a `tab` declared by a component that some other container holds is refused as that component is attached. A rule over the whole set of children - one child per side, one per card - is answered once the pass has settled, because a pass may hold two children in one place while it runs: a replacement need not wait for the child it replaces to go, and only what remains at the end is what the composition declares. A container reaching its children through regions leaves that to the framework, which holds a `ChildPlacement.Slots` host to one child per region once the pass settles, as `SplitPane` does for its two sides; one placing them under constraints runs its own check on the event-dispatch turn after the change pass, once a parked node's deactivation has run too, as a `PanelLayout.Card` panel does over the cards its deck holds. Either way the set a check runs against is what the container actually holds - its own children, its layout's own records - rather than a list a block gathered.
 
-A scope's members are `SwingModifier` builders wherever the child is the caller's own component. Where
-the container is what realizes the child instead - `DesktopPane`, whose every child is a
-`JInternalFrame` built around the content the declaration carries - the scope's member is a
-`@Composable` function taking that content, since there is no component of the caller's to hang a
-modifier on.
+A scope's members are `SwingModifier` builders wherever the child is the caller's own component. Where the container is what realizes the child instead - `DesktopPane`, whose every child is a `JInternalFrame` built around the content the declaration carries - the scope's member is a `@Composable` function taking that content, since there is no component of the caller's to hang a modifier on.
 
-Two things such a container should not do. It should not spend a component on a child: wrapping every
-child in a panel of your own to carry something - a border, an alignment - puts a real container with a
-real layout between the caller's component and yours, and a `modifier` meant for the child is then
-applied to that wrapper instead of to the component the caller wrote. It also changes what the layout
-above sees: a parent measures and inspects the children it holds, so a gap policy that treats a nested
-panel differently from a control, or an alignment that lines a label up against the field beside it,
-reads the wrapper you inserted instead of the component, and the same components laid out through your
-container stop matching the ones laid out without it. And it should not accept a declaration it does
-not apply: a parameter a scope takes and never writes onto anything is silence - either it reaches the
-component or it leaves the signature.
+Two things such a container should not do. It should not spend a component on a child: wrapping every child in a panel of your own to carry something - a border, an alignment - puts a real container with a real layout between the caller's component and yours, and a `modifier` meant for the child is then applied to that wrapper instead of to the component the caller wrote. It also changes what the layout above sees: a parent measures and inspects the children it holds, so a gap policy that treats a nested panel differently from a control, or an alignment that lines a label up against the field beside it, reads the wrapper you inserted instead of the component, and the same components laid out through your container stop matching the ones laid out without it. And it should not accept a declaration it does not apply: a parameter a scope takes and never writes onto anything is silence - either it reaches the component or it leaves the signature.
 
-A placement travels no further than the node whose chain declares it, which is what lets a scope's
-builders name placements only their own container understands.
+A placement travels no further than the node whose chain declares it, which is what lets a scope's builders name placements only their own container understands.
 
 ## When the placement is not something the caller states
 
 This is a question for a layout manager only; a `MeasurePolicy` is handed every child at once.
 
-The placements above are values the caller writes: a region name, a cell, a pair of grid coordinates.
-A manager of your own may instead derive a child's placement from the children around it - a form whose
-column count is its widest row's, a group whose leading gap depends on whether another group precedes
-it, a band that divides its width among whatever ended up in it. Nothing changes about how the
-placement travels. What changes is that the answer cannot be computed as each child arrives, because
-it needs every declaration, and that your manager cannot hold on to what it derived, because the next
-composition may change it.
+The placements above are values the caller writes: a region name, a cell, a pair of grid coordinates. A manager of your own may instead derive a child's placement from the children around it - a form whose column count is its widest row's, a group whose leading gap depends on whether another group precedes it, a band that divides its width among whatever ended up in it. Nothing changes about how the placement travels. What changes is that the answer cannot be computed as each child arrives, because it needs every declaration, and that your manager cannot hold on to what it derived, because the next composition may change it.
 
-Two things carry a manager like that. The first is that the component array *is* the declared
-structure. Every child is added at its composition index - a constrained child through the
-three-argument `Container.add(Component, Object, int)`, precisely so that applying a placement does not
-cost the array its order - and later removals and moves address that same array. A manager is therefore
-free to read `parent.components`, and the constraints it registered for them, as the whole structure
-the caller declared, in the order they declared it, and to derive from all of it when it is asked to
-measure or to lay out. Deriving at `addLayoutComponent` time is the part that does not work: the child
-arriving knows nothing about the ones still to come.
+Two things carry a manager like that. The first is that the component array *is* the declared structure. Every child is added at its composition index - a constrained child through the three-argument `Container.add(Component, Object, int)`, precisely so that applying a placement does not cost the array its order - and later removals and moves address that same array. A manager is therefore free to read `parent.components`, and the constraints it registered for them, as the whole structure the caller declared, in the order they declared it, and to derive from all of it when it is asked to measure or to lay out. Deriving at `addLayoutComponent` time is the part that does not work: the child arriving knows nothing about the ones still to come.
 
-The second is that what the placement carries is the child's part in that structure - which row this
-control belongs to, how deep its group is - rather than the coordinates the manager will work out from
-it. That keeps the placement something a single declaration can produce on its own, so it compares
-equal to the last composition's whenever the declaration did not change and only the children whose
-part really moved are re-registered. A placement carrying the derived coordinate would change for every
-child the moment any one of them changed, and put the whole container through a remove-and-re-add on
-every pass.
+The second is that what the placement carries is the child's part in that structure - which row this control belongs to, how deep its group is - rather than the coordinates the manager will work out from it. That keeps the placement something a single declaration can produce on its own, so it compares equal to the last composition's whenever the declaration did not change and only the children whose part really moved are re-registered. A placement carrying the derived coordinate would change for every child the moment any one of them changed, and put the whole container through a remove-and-re-add on every pass.
 
 ## Grouping children without a component
 
-`VirtualSwingNode` lays out its content as if it were written in the container its position belongs to. It
-has no component of its own. Its `modifier` declares to that container once for each component the content
-places there, so several children can share one parent-layout declaration. A wrapping panel is not needed for
-that, and would put a real container between the children and the layout.
+`VirtualSwingNode` lays out its content as if it were written in the container its position belongs to. It has no component of its own. Its `modifier` declares to that container once for each component the content places there, so several children can share one parent-layout declaration. A wrapping panel is not needed for that, and would put a real container between the children and the layout.
 
-The children are added to the nearest ancestor that has a component, in flattened composition order among that
-ancestor's other children. A group in the middle of a container's children places its components between the
-ones before and after it.
+The children are added to the nearest ancestor that has a component, in flattened composition order among that ancestor's other children. A group in the middle of a container's children places its components between the ones before and after it.
 
-- **Modifier.** The modifier takes parent-layout declarations only: a `ParentLayoutElement` that is not a
-  `ParentLayoutNodeElement`, such as `layoutConstraint`. A property, a listener, a slot, a `NodeElement` or a
-  `ParentLayoutNodeElement` is refused when the composable is composed, with an error that names the element.
-- **Order.** A child under nested groups receives the outermost group's declarations first, then the inner
-  group's, then its own. A later non-additive declaration replaces an earlier declaration of the same key.
-  Additive declarations accumulate. Parent data must use the same protocol.
-- **Reach.** A group declares only to the components it places, directly or through nested groups. A component's
-  own children never receive the group's declarations.
-- **Container.** A group works under a container that places each child by its position among the container's
-  children, such as a `Panel`. A container that places each child in a named region, such as a `ScrollPane`,
-  refuses a group, and so does a composition root with a single-content slot. An ordinary `setContent` root accepts
-  groups among its indexed children. An `ExistingSwingNode` directly inside a group is refused, and so is a group
-  inside a menu composition.
-- **Protocol.** The container checks the declarations it receives from the groups, the child itself and its styles.
-  A declaration that a later declaration of the same key replaces is not checked. A declaration the container refuses
-  fails the pass. An inheritable declaration it refuses is left out, as it is for a
-  child. A group that declares parent data is refused under a container with no layout manager, such as
-  `JLayeredPane`, which reads parent data only when it adds a child. Each child can still declare its own parent data
-  there.
-- **Change.** Changing the group's modifier declares again to each child it places, in composition order, once the
-  pass's other changes have been applied. A child added under the group in that pass is added to the container then,
-  with its final declaration. A child the container refuses fails the pass; the children declared before it keep the
-  new declaration. The children stay in the container, so they keep focus and selection. A `MeasurementLayoutManager`
-  receives the new declarations through `declareComponentLayout`. Any other `LayoutManager2` receives the new
-  constraint again, after a `removeLayoutComponent` and an `addLayoutComponent`, as [Parent data and layout
-  modifiers](#parent-data-and-layout-modifiers) describes.
+- **Modifier.** The modifier takes parent-layout declarations only: a `ParentLayoutElement` that is not a `ParentLayoutNodeElement`, such as `layoutConstraint`. A property, a listener, a slot, a `NodeElement` or a `ParentLayoutNodeElement` is refused when the composable is composed, with an error that names the element.
+- **Order.** A child under nested groups receives the outermost group's declarations first, then the inner group's, then its own. A later non-additive declaration replaces an earlier declaration of the same key. Additive declarations accumulate. Parent data must use the same protocol.
+- **Reach.** A group declares only to the components it places, directly or through nested groups. A component's own children never receive the group's declarations.
+- **Container.** A group works under a container that places each child by its position among the container's children, such as a `Panel`. A container that places each child in a named region, such as a `ScrollPane`, refuses a group, and so does a composition root with a single-content slot. An ordinary `setContent` root accepts groups among its indexed children. An `ExistingSwingNode` directly inside a group is refused, and so is a group inside a menu composition.
+- **Protocol.** The container checks the declarations it receives from the groups, the child itself and its styles. A declaration that a later declaration of the same key replaces is not checked. A declaration the container refuses fails the pass. An inheritable declaration it refuses is left out, as it is for a child. A group that declares parent data is refused under a container with no layout manager, such as `JLayeredPane`, which reads parent data only when it adds a child. Each child can still declare its own parent data there.
+- **Change.** Changing the group's modifier declares again to each child it places, in composition order, once the pass's other changes have been applied. A child added under the group in that pass is added to the container then, with its final declaration. A child the container refuses fails the pass; the children declared before it keep the new declaration. The children stay in the container, so they keep focus and selection. A `MeasurementLayoutManager` receives the new declarations through `declareComponentLayout`. Any other `LayoutManager2` receives the new constraint again, after a `removeLayoutComponent` and an `addLayoutComponent`, as [Parent data and layout modifiers](#parent-data-and-layout-modifiers) describes.
 
-A named wrapper says what a group means. `GridRow` puts every component it places on one row of a raw
-`GridBagLayout`: each child takes the row as `gridy`, and the default `gridx`, `RELATIVE`, places it after the
-last component of that row:
+A named wrapper says what a group means. `GridRow` puts every component it places on one row of a raw `GridBagLayout`: each child takes the row as `gridy`, and the default `gridx`, `RELATIVE`, places it after the last component of that row:
 
 <!--- CLEAR -->
 <!--- INCLUDE .*custom-container-03.*
@@ -519,14 +315,9 @@ fun Form() {
 
 ## Building a custom shared hierarchy
 
-A composite several screens reuse - a titled card, a labeled form, a frame with a fixed header and
-footer - is a composable that emits the containers it needs and offers its placements as a scope
-receiver. Everything the pattern needs is public: the built-in containers, `Layout` for placement rules
-of your own, the container `SwingNode` overload for a Swing container of your own, and
-`layoutConstraint` for the placements a scope names.
+A composite several screens reuse - a titled card, a labeled form, a frame with a fixed header and footer - is a composable that emits the containers it needs and offers its placements as a scope receiver. Everything the pattern needs is public: the built-in containers, `Layout` for placement rules of your own, the container `SwingNode` overload for a Swing container of your own, and `layoutConstraint` for the placements a scope names.
 
-The scope interface is the whole API callers see. Each of its builders names one region of the
-composite, over the constraint the container underneath understands:
+The scope interface is the whole API callers see. Each of its builders names one region of the composite, over the constraint the container underneath understands:
 
 ```kotlin
 @LayoutScopeMarker
@@ -576,44 +367,23 @@ Framed(title = "Payment") {
 }
 ```
 
-The composite owns no node of its own, and it does not have to. A placement rides the child's chain
-until the container actually holding that child reads it, so the `BorderLayout` constraint
-`FramedScopeImpl` builds is honored by the `Panel` inside `Framed` although the caller never sees that
-panel. That is what makes a composite of built-in containers a plain composable function rather than a
-wrapper that has to forward anything.
+The composite owns no node of its own, and it does not have to. A placement rides the child's chain until the container actually holding that child reads it, so the `BorderLayout` constraint `FramedScopeImpl` builds is honored by the `Panel` inside `Framed` although the caller never sees that panel. That is what makes a composite of built-in containers a plain composable function rather than a wrapper that has to forward anything.
 
 Four things make a composite of this shape behave:
 
-- **Hold the scope to its three rules** - a `@Composable` content block, children composed directly,
-  and each check run where its answer is whole (see *Placing children under constraints*). A
-  composite's regions are placements like any other, so nothing about them is special.
-- **Keep the composite composable-shaped** - state in, callbacks out, and `modifier` and `style`
-  parameters passed to the outermost container it emits, with the composite's own properties set first so the
-  caller's style wins, so a caller styles the composite the way they style any component.
-- **`remember` the value objects whose type compares by identity** - `remember(title) { TitledBorder(title) }`,
-  as above. A `Border` or `Icon` built in the composable body is a different instance on every
-  recomposition, and neither overrides `equals`, so every
-  pass counts as a changed value and the write is applied again: `JComponent.setBorder` repaints for any instance that is not the one it already
-  holds, and relayouts when the insets differ. Handing the same instance back makes the re-applied write
-  a no-op. A value with structural equality - a `Font`, `Color`, `Insets` - needs no `remember`: an
-  equal instance already compares equal to the chain element applied last time and the write is skipped.
-- **Let each container place its own children.** Nothing carries a placement past the node that
-  declared it, so a composite nests inside another - a `PanelLayout.GridBag` panel in the `body`
-  region above - with neither knowing about the other.
+- **Hold the scope to its three rules** - a `@Composable` content block, children composed directly, and each check run where its answer is whole (see *Placing children under constraints*). A composite's regions are placements like any other, so nothing about them is special.
+- **Keep the composite composable-shaped** - state in, callbacks out, and `modifier` and `style` parameters passed to the outermost container it emits, with the composite's own properties set first so the caller's style wins, so a caller styles the composite the way they style any component.
+- **`remember` the value objects whose type compares by identity** - `remember(title) { TitledBorder(title) }`, as above. A `Border` or `Icon` built in the composable body is a different instance on every recomposition, and neither overrides `equals`, so every pass counts as a changed value and the write is applied again: `JComponent.setBorder` repaints for any instance that is not the one it already holds, and relayouts when the insets differ. Handing the same instance back makes the re-applied write a no-op. A value with structural equality - a `Font`, `Color`, `Insets` - needs no `remember`: an equal instance already compares equal to the chain element applied last time and the write is skipped.
+- **Let each container place its own children.** Nothing carries a placement past the node that declared it, so a composite nests inside another - a `PanelLayout.GridBag` panel in the `body` region above - with neither knowing about the other.
 
-Reach for `SwingNode` here only when the Swing container itself is yours; a composite assembled from
-built-in containers is an ordinary composable function.
+Reach for `SwingNode` here only when the Swing container itself is yours; a composite assembled from built-in containers is an ordinary composable function.
 
 
 ## Hosting nested compositions
 
-A custom Swing component sometimes owns another component whose content is composed separately: a tab
-page, popup, overlay, or a component used only long enough to render a value. Nested content names its
-parent explicitly, or uses the on-demand API when the host needs a component synchronously.
+A custom Swing component sometimes owns another component whose content is composed separately: a tab page, popup, overlay, or a component used only long enough to render a value. Nested content names its parent explicitly, or uses the on-demand API when the host needs a component synchronously.
 
-For a child `JComponent` with content of its own, pass the context captured where the child is declared to
-`setContent(parent = ...)`. Keep the returned `DisposableHandle` for the lifetime of the child and dispose
-it on the Event Dispatch Thread:
+For a child `JComponent` with content of its own, pass the context captured where the child is declared to `setContent(parent = ...)`. Keep the returned `DisposableHandle` for the lifetime of the child and dispose it on the Event Dispatch Thread:
 
 ```kotlin
 val parentContext = rememberCompositionContext()
@@ -627,22 +397,11 @@ val contentHandle = child.setContent(parent = parentContext) {
 contentHandle.dispose()
 ```
 
-An explicit parent makes the child compose immediately, even when it is detached, and makes its content
-share the parent's snapshot state, recomposer, and `CompositionLocal`s. Descendant `setContent` calls
-without their own parent also resolve to that named parent. A child whose parent is omitted uses the
-ordinary Swing-tree/window lookup described in [`ARCHITECTURE.md`](ARCHITECTURE.md).
+An explicit parent makes the child compose immediately, even when it is detached, and makes its content share the parent's snapshot state, recomposer, and `CompositionLocal`s. Descendant `setContent` calls without their own parent also resolve to that named parent. A child whose parent is omitted uses the ordinary Swing-tree/window lookup described in [`ARCHITECTURE.md`](ARCHITECTURE.md).
 
-`JMenuBar.setContent { }` resolves its parent from the enclosing composition, then the owning window.
-`JPopupMenu.setContent(parent) { }` always names its parent, because a popup is not a descendant of its
-invoker. The content composes on the call. A popup has one content composition until its handle is
-disposed on the Event Dispatch Thread; a `setContent` from either overload throws in the meantime. Content
-whose parent states no window reads the window of the popup's invoker. To host components inside a popup,
-add a panel and call `JComponent.setContent { }` on that panel without naming a parent: until the popup's
-handle is disposed, the panel joins the popup's parent and shares its snapshot state, recomposer, and
-`CompositionLocal`s.
+`JMenuBar.setContent { }` resolves its parent from the enclosing composition, then the owning window. `JPopupMenu.setContent(parent) { }` always names its parent, because a popup is not a descendant of its invoker. The content composes on the call. A popup has one content composition until its handle is disposed on the Event Dispatch Thread; a `setContent` from either overload throws in the meantime. Content whose parent states no window reads the window of the popup's invoker. To host components inside a popup, add a panel and call `JComponent.setContent { }` on that panel without naming a parent: until the popup's handle is disposed, the panel joins the popup's parent and shares its snapshot state, recomposer, and `CompositionLocal`s.
 
-When the host needs one component back synchronously rather than a composition mounted into a
-`JComponent`, use `OnDemandComposition`:
+When the host needs one component back synchronously rather than a composition mounted into a `JComponent`, use `OnDemandComposition`:
 
 <!--- CLEAR -->
 <!--- INCLUDE .*custom-container-05.*
@@ -668,25 +427,11 @@ private class LabelRenderer(parent: CompositionContext) {
 
 <!--- KNIT example-custom-container-05.kt -->
 
-`OnDemandComposition` joins the supplied `CompositionContext`, so it shares the parent's state and
-`CompositionLocal`s. Its constructor composes the content once. The content recomposes when snapshot state it
-reads changes, and `recompose` runs its update and applies the result before returning. Inputs the content
-reads must be snapshot state such as `mutableStateOf`.
+`OnDemandComposition` joins the supplied `CompositionContext`, so it shares the parent's state and `CompositionLocal`s. Its constructor composes the content once. The content recomposes when snapshot state it reads changes, and `recompose` runs its update and applies the result before returning. Inputs the content reads must be snapshot state such as `mutableStateOf`.
 
-Created this way, the composition places nothing: `recompose` returns the top-level component, and `null`
-means that the content currently composes none. A component that leaves the composition is removed from
-whatever container it is in. Content composes at most one top-level component, and that component names no
-region and carries no parent data. A pass that breaks one of these rules is refused and
-disposes the composition first, so the caller has nothing to dispose.
+Created this way, the composition places nothing: `recompose` returns the top-level component, and `null` means that the content currently composes none. A component that leaves the composition is removed from whatever container it is in. Content composes at most one top-level component, and that component names no region and carries no parent data. A pass that breaks one of these rules is refused and disposes the composition first, so the caller has nothing to dispose.
 
-To have the composition place the component itself, pass a container and a `SlotAttachment`:
-`OnDemandComposition(parent, host, placement) { ... }`. The composition calls `placement` for each new
-top-level component, runs the action it returns when that component leaves and when the composition is
-disposed, and sends its layout and repaint requests to `host`. The placement and its action must not call
-`recompose` or `dispose` on the composition. A failure the placement throws also disposes the composition
-before it reaches the caller. A top-level component that names a region of another kind of parent than the
-composition's root is the one refusal that leaves the composition undisposed: the caller disposes it, and that
-disposal can throw too. See [Writing a `SlotAttachment`](CUSTOM-COMPONENTS.md#writing-a-slotattachment).
+To have the composition place the component itself, pass a container and a `SlotAttachment`: `OnDemandComposition(parent, host, placement) { ... }`. The composition calls `placement` for each new top-level component, runs the action it returns when that component leaves and when the composition is disposed, and sends its layout and repaint requests to `host`. The placement and its action must not call `recompose` or `dispose` on the composition. A failure the placement throws also disposes the composition before it reaches the caller. A top-level component that names a region of another kind of parent than the composition's root is the one refusal that leaves the composition undisposed: the caller disposes it, and that disposal can throw too. See [Writing a `SlotAttachment`](CUSTOM-COMPONENTS.md#writing-a-slotattachment).
 
 Construct, recompose, and dispose an `OnDemandComposition` on the Event Dispatch Thread.
 
@@ -694,10 +439,7 @@ Construct, recompose, and dispose an `OnDemandComposition` on the Event Dispatch
 
 ## Rendering items with a composable cell
 
-A component that shows a list of items asks a `ListCellRenderer` for one row at a time.
-`rememberListItemRenderer` builds a renderer that renders a composable there and
-`SwingModifier.listItemRenderer` installs it: one reused composition renders every row, and the
-component it composes is painted and measured as the row.
+A component that shows a list of items asks a `ListCellRenderer` for one row at a time. `rememberListItemRenderer` builds a renderer that renders a composable there and `SwingModifier.listItemRenderer` installs it: one reused composition renders every row, and the component it composes is painted and measured as the row.
 
 <!--- CLEAR -->
 <!--- INCLUDE .*custom-container-06.*
@@ -739,29 +481,16 @@ fun <T : Any> CustomComboBox(
 
 <!--- KNIT example-custom-container-06.kt -->
 
-The component is the caller's own, so a subclass with rendering or sizing behavior the built-in
-`ComboBox` does not have is a wrapper of your own rather than a parameter on the library's.
+The component is the caller's own, so a subclass with rendering or sizing behavior the built-in `ComboBox` does not have is a wrapper of your own rather than a parameter on the library's.
 
-The item type is a parameter because this wrapper is generic. Written directly -
-`rememberListItemRenderer<Person> { }` - the call site supplies that type on its own; inside a generic
-function it is erased by then, which is what the overload taking it is for.
+The item type is a parameter because this wrapper is generic. Written directly - `rememberListItemRenderer<Person> { }` - the call site supplies that type on its own; inside a generic function it is erased by then, which is what the overload taking it is for.
 
-The items are copied in the composable body rather than handed to `set` as they are. `set` compares
-what it is given against what the last pass gave it, and a list the caller mutates in place compares
-equal to itself, so such a mutation would re-apply nothing. The copy gives each pass its own value to
-compare against, and reading the items while composing is what makes this composition one of their
-readers - so an in-place mutation of a snapshot list invalidates it.
+The items are copied in the composable body rather than handed to `set` as they are. `set` compares what it is given against what the last pass gave it, and a list the caller mutates in place compares equal to itself, so such a mutation would re-apply nothing. The copy gives each pass its own value to compare against, and reading the items while composing is what makes this composition one of their readers - so an in-place mutation of a snapshot list invalidates it.
 
-A selection this component reports and accepts is the two-way property of
-[`COMPONENT-STATE.md`](COMPONENT-STATE.md), declared with `rememberMirrorState` and `declare` exactly
-as it is there.
+A selection this component reports and accepts is the two-way property of [`COMPONENT-STATE.md`](COMPONENT-STATE.md), declared with `rememberMirrorState` and `declare` exactly as it is there.
 
-The scope a cell composes against - `ListItemScope` - names the row: `index`, `isSelected` and
-`cellHasFocus`, the three values a `ListCellRenderer` is handed.
+The scope a cell composes against - `ListItemScope` - names the row: `index`, `isSelected` and `cellHasFocus`, the three values a `ListCellRenderer` is handed.
 
-A cell is display-only. One composition serves every row, so state remembered inside it belongs to no
-particular row, and a cell that composes more than one component is refused - put them in a panel and
-compose that.
+A cell is display-only. One composition serves every row, so state remembered inside it belongs to no particular row, and a cell that composes more than one component is refused - put them in a panel and compose that.
 
-`listItemRenderer` also takes a renderer written against the Swing interface:
-`modifier.listItemRenderer(MyExistingRenderer())`.
+`listItemRenderer` also takes a renderer written against the Swing interface: `modifier.listItemRenderer(MyExistingRenderer())`.

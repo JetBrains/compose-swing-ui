@@ -62,9 +62,7 @@ Run the following rules with the type-resolving Detekt tasks `detektMain`, `dete
 
 The `compose-runtime` rule set also uses type resolution.
 
-`SwingComponentInComposableSignature` exempts a declaration marked `SwingComponentLibraryApi` and the members of a
-class marked with it. Every active rule in the bundled config except `ModifierNodeInspectableProperties`, `ArgumentOutsideDeclaredRange` and
-`VisibleForTests` runs on test sources.
+`SwingComponentInComposableSignature` exempts a declaration marked `SwingComponentLibraryApi` and the members of a class marked with it. Every active rule in the bundled config except `ModifierNodeInspectableProperties`, `ArgumentOutsideDeclaredRange` and `VisibleForTests` runs on test sources.
 
 See [`META-INF/NOTICE`](src/main/resources/META-INF/NOTICE) for source attribution.
 
