@@ -12,7 +12,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCompositionContext
 import org.jetbrains.compose.swing.annotations.SwingComponentLibraryApi
 import org.jetbrains.compose.swing.annotations.SwingMenuComposable
-import org.jetbrains.compose.swing.modifier.interaction.FirstShowing
 import org.jetbrains.compose.swing.node.runReportingUncaught
 import java.awt.Component
 import javax.swing.JPopupMenu
@@ -118,7 +117,9 @@ private class PopupMenuHost(
 
     private var component: Component? = null
     private var open: MenuPopup? = null
-    private val showing = FirstShowing()
+
+    // Whether the declaration is open and waiting for its component to be on screen.
+    private var awaitingShowing = false
 
     // The declaration this host has applied, so only a change of it opens or closes the menu: a menu the
     // user dismissed is not reopened by an unrelated recomposition. It outlives an unbind, so an anchor
@@ -143,11 +144,16 @@ private class PopupMenuHost(
         this.component = null
     }
 
+    override fun onShowingChanged(component: Component) {
+        if (awaitingShowing && this.component === component && component.isShowing) show()
+    }
+
     // A menu declared open before there is a component, or against one not showing yet, waits: a popup is
     // anchored to its invoker, and a component that is not showing has no place on screen to anchor to.
     private fun show() {
         val invoker = component ?: return
-        showing.await(invoker) { present(invoker) }
+        awaitingShowing = !invoker.isShowing
+        if (!awaitingShowing) present(invoker)
     }
 
     private fun present(invoker: Component) {
@@ -166,7 +172,7 @@ private class PopupMenuHost(
     }
 
     private fun close() {
-        showing.cancel()
+        awaitingShowing = false
         open?.close()
         open = null
     }

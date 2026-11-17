@@ -6,6 +6,8 @@ package org.jetbrains.compose.swing.modifier.interaction
 
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import java.awt.Component
+import java.awt.event.HierarchyEvent
+import java.awt.event.HierarchyListener
 
 /**
  * Declares that this component takes keyboard focus when its window first shows it - the field a form
@@ -36,20 +38,36 @@ private object InitialFocusElement : SwingModifier.NodeElement<Component, Initia
 
     override fun hashCode(): Int = System.identityHashCode(this)
 
-    class Node : SwingModifier.ComponentNode<Component>() {
-        private val showing = FirstShowing()
-
+    class Node :
+        SwingModifier.ComponentNode<Component>(),
+        HierarchyListener {
         // Set once focus is requested.
         private var requested = false
 
         override fun onAttach() {
             if (requested) return
-            showing.await(component) {
-                requested = true
-                component.requestFocusInWindow()
+            if (component.isShowing) {
+                takeFocus()
+            } else {
+                component.addHierarchyListener(this)
             }
         }
 
-        override fun onDetach(): Unit = showing.cancel()
+        override fun onDetach() {
+            component.removeHierarchyListener(this)
+        }
+
+        override fun hierarchyChanged(event: HierarchyEvent) {
+            // A showing change also reports a hide, so the component decides which report this was.
+            if (event.changeFlags and HierarchyEvent.SHOWING_CHANGED.toLong() != 0L && component.isShowing) {
+                component.removeHierarchyListener(this)
+                takeFocus()
+            }
+        }
+
+        private fun takeFocus() {
+            requested = true
+            component.requestFocusInWindow()
+        }
     }
 }

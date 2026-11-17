@@ -12,6 +12,8 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.binding
 import org.jetbrains.compose.swing.util.fastForEach
 import java.awt.Component
+import java.awt.event.HierarchyEvent
+import java.awt.event.HierarchyListener
 
 /**
  * A hoistable handle naming the component a menu opens against, bound to one with [popupAnchor].
@@ -48,14 +50,27 @@ public class PopupAnchor
             // so this is a transition to carry out rather than one to refuse.
             this.component?.let { unbind(it) }
             this.component = component
+            component.addHierarchyListener(showingListener)
             menus.fastForEach { it.onBound(component) }
         }
 
         internal fun unbind(component: Component) {
             if (this.component !== component) return
             this.component = null
+            component.removeHierarchyListener(showingListener)
             menus.fastForEach { it.onUnbound(component) }
         }
+
+        // Installed with the binding, so it lives and dies with the one node that holds the anchor. A plain
+        // listener rather than a callback modifier: a callback's failure is reported to the uncaught
+        // handler, while a menu body that throws as it opens must reach the event that showed the anchor.
+        private val showingListener =
+            HierarchyListener { event ->
+                val shown = event.component
+                if (event.changeFlags and HierarchyEvent.SHOWING_CHANGED.toLong() != 0L && component === shown) {
+                    menus.fastForEach { it.onShowingChanged(shown) }
+                }
+            }
 
         internal fun attach(menu: AnchorAttachment) {
             check(!menu.exclusive || menus.none { it.exclusive }) {
@@ -83,6 +98,9 @@ internal interface AnchorAttachment {
     fun onBound(component: Component)
 
     fun onUnbound(component: Component)
+
+    /** The bound [component] started or stopped being on screen. */
+    fun onShowingChanged(component: Component) {}
 }
 
 /** Creates and remembers a [PopupAnchor] for the composition it is called in. */

@@ -11,8 +11,10 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.interaction.performContextClick
+import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Component
+import java.awt.event.HierarchyEvent
 import javax.swing.JLabel
 import javax.swing.JPopupMenu
 import kotlin.test.Test
@@ -101,4 +103,38 @@ class PopupAnchorTest {
     fun aPopupAnchorAppendsToTheChainWithoutRepeatingIt() {
         assertDeclaredChainCarriedOnce { popupAnchor(PopupAnchor()) }
     }
+
+    @Test
+    fun equalAnchorDeclarationsInOneChainRegisterOneShowingListenerAndNotifyOnce() = runComposeSwingTest {
+        val anchor = PopupAnchor()
+        var notified = 0
+        anchor.attach(
+            object : AnchorAttachment {
+                override fun onBound(component: Component) = Unit
+
+                override fun onUnbound(component: Component) = Unit
+
+                override fun onShowingChanged(component: Component) {
+                    notified++
+                }
+            },
+        )
+        setContent {
+            Label("target", modifier = SwingModifier.popupAnchor(anchor).popupAnchor(anchor))
+        }
+        val label = onNodeOfType<JLabel>().fetch()
+        val listeners = label.libraryHierarchyListeners()
+        assertEquals(1, listeners.size, "one binding is one registration")
+
+        val before = notified
+        val showingChanged = HierarchyEvent.SHOWING_CHANGED.toLong()
+        val change = HierarchyEvent(label, HierarchyEvent.HIERARCHY_CHANGED, label, label.parent, showingChanged)
+        listeners.forEach { it.hierarchyChanged(change) }
+
+        assertEquals(before + 1, notified, "and a showing change is delivered once")
+    }
 }
+
+/** The hierarchy listeners the library installed on this component. */
+internal fun Component.libraryHierarchyListeners() =
+    hierarchyListeners.filter { it.javaClass.name.startsWith("org.jetbrains.compose.swing") }

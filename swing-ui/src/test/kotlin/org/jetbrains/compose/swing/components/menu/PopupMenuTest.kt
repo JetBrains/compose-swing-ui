@@ -17,8 +17,8 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.publishClose
 import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.style.background
+import org.jetbrains.compose.swing.style.visible
 import org.jetbrains.compose.swing.test.ComposeSwingTest
-import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.onWindowWithTitle
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -90,6 +90,56 @@ class PopupMenuTest {
             assertIs<JMenu>(popup.getComponent(3)).getItem(0).text,
             "a submenu must be composed into the menu as well",
         )
+    }
+
+    @Test
+    fun aMenuDeclaredOpenAgainstAnAnchorNotShowingOpensOnceItShows() = runComposeSwingTest {
+        var captured: JPopupMenu? = null
+        var shown by mutableStateOf(false)
+        setWindowContent(WINDOW_TITLE) {
+            val anchor = rememberPopupAnchor()
+            Label("target", modifier = SwingModifier.popupAnchor(anchor), style = { visible(shown) })
+            PopupMenu(
+                anchor,
+                expanded = true,
+                display = { popup, _, _, _ -> captured = popup },
+                onDismiss = {},
+            ) {
+                MenuItem("Cut", onClick = { })
+            }
+        }
+        assertNull(captured, "no menu opens against an anchor that is not on screen")
+
+        shown = true
+        awaitIdle()
+
+        assertTrue(captured != null, "the menu must open once its anchor is on screen")
+    }
+
+    @Test
+    fun aMenuClosedMeanwhileDoesNotOpenWhenTheAnchorShows() = runComposeSwingTest {
+        var captured: JPopupMenu? = null
+        var shown by mutableStateOf(false)
+        var expanded by mutableStateOf(true)
+        setWindowContent(WINDOW_TITLE) {
+            val anchor = rememberPopupAnchor()
+            Label("target", modifier = SwingModifier.popupAnchor(anchor), style = { visible(shown) })
+            PopupMenu(
+                anchor,
+                expanded = expanded,
+                display = { popup, _, _, _ -> captured = popup },
+                onDismiss = {},
+            ) {
+                MenuItem("Cut", onClick = { })
+            }
+        }
+        expanded = false
+        awaitIdle()
+
+        shown = true
+        awaitIdle()
+
+        assertNull(captured, "a declaration closed while waiting must not open when the anchor shows")
     }
 
     @Test
@@ -575,10 +625,33 @@ class PopupMenuTest {
         awaitIdle()
 
         assertNull(captured, "a declaration withdrawn before its window shows must not open a menu")
-        onWindowWithTitle("popup-menu-withdrawn-test").onNodeWithText("target").assertProperty(
-            true,
-            "and must leave nothing on the component still waiting to open one",
-        ) { hierarchyListeners.none { it.javaClass.name.startsWith("org.jetbrains.compose.swing") } }
+    }
+
+    @Test
+    fun theAnchorHoldsNoLibraryHierarchyListenerOnceItsBindingEnds() = runComposeSwingTest {
+        var bound by mutableStateOf(true)
+        var present by mutableStateOf(true)
+        setContent {
+            val anchor = rememberPopupAnchor()
+            if (present) {
+                Label("target", modifier = if (bound) SwingModifier.popupAnchor(anchor) else SwingModifier)
+            }
+            PopupMenu(anchor, expanded = false, onDismiss = {}) { MenuItem("Cut", onClick = { }) }
+        }
+        val label = onNodeOfType<JLabel>().fetch()
+        assertEquals(1, label.libraryHierarchyListeners().size, "the binding listens for the anchor's showing")
+
+        bound = false
+        awaitIdle()
+        assertEquals(0, label.libraryHierarchyListeners().size, "the modifier leaving the chain removes it")
+
+        bound = true
+        awaitIdle()
+        assertEquals(1, label.libraryHierarchyListeners().size, "and declaring it again installs one")
+
+        present = false
+        awaitIdle()
+        assertEquals(0, label.libraryHierarchyListeners().size, "the node leaving the composition removes it")
     }
 
     @Test
