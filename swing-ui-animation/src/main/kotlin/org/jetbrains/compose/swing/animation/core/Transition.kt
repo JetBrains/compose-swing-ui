@@ -960,35 +960,6 @@ public fun <T> rememberTransition(
 }
 
 /**
- * Creates a [Transition] and puts it in the [currentState][MutableTransitionState.currentState] of
- * the provided [transitionState]. Whenever the [targetState][MutableTransitionState.targetState] of
- * the [transitionState] changes, the [Transition] will animate to the new target state.
- *
- * __Remember__: The provided [transitionState] needs to be [remember]ed.
- *
- * Compared to the [rememberTransition] variant that takes a targetState, this function supports a
- * different initial state than the first targetState. Here is an example:
- *
- * In most cases, it is recommended to reuse the same [transitionState] that is [remember]ed, such
- * that [Transition] preserves continuity when [targetState][MutableTransitionState.targetState] is
- * changed. However, in some rare cases it is more critical to immediately *snap* to a state change
- * (e.g. in response to a user interaction). This can be achieved by creating a new
- * [transitionState]:
- */
-@Deprecated(
-    "Use rememberTransition() instead",
-    replaceWith = ReplaceWith("rememberTransition(transitionState, label)"),
-)
-@Composable
-public fun <T> updateTransition(
-    transitionState: MutableTransitionState<T>,
-    label: String? = null,
-): Transition<T> {
-    val state: TransitionState<T> = transitionState
-    return rememberTransition(state, label)
-}
-
-/**
  * [Transition] manages all the child animations on a state level. Child animations can be created
  * in a declarative way using [Transition.animateFloat], [Transition.animateValue],
  * [animateColor][androidx.compose.animation.animateColor] etc. When the [targetState] changes,

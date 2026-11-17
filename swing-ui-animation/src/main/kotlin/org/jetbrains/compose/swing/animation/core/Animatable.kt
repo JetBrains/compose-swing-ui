@@ -55,20 +55,6 @@ constructor(
     public val label: String = "Animatable",
 ) {
 
-    @Deprecated(
-        "Maintained for binary compatibility",
-        replaceWith =
-            ReplaceWith(
-                "Animatable(initialValue, typeConverter, visibilityThreshold, \"Animatable\")"
-            ),
-        DeprecationLevel.HIDDEN,
-    )
-    public constructor(
-        initialValue: T,
-        typeConverter: TwoWayConverter<T, V>,
-        visibilityThreshold: T? = null,
-    ) : this(initialValue, typeConverter, visibilityThreshold, "Animatable")
-
     internal val internalState =
         AnimationState(typeConverter = typeConverter, initialValue = initialValue)
 

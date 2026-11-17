@@ -242,8 +242,6 @@ public final class org/jetbrains/compose/swing/animation/VeilKt {
 
 public final class org/jetbrains/compose/swing/animation/core/Animatable {
 	public static final field $stable I
-	public synthetic fun <init> (Ljava/lang/Object;Lorg/jetbrains/compose/swing/animation/core/TwoWayConverter;Ljava/lang/Object;)V
-	public synthetic fun <init> (Ljava/lang/Object;Lorg/jetbrains/compose/swing/animation/core/TwoWayConverter;Ljava/lang/Object;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun <init> (Ljava/lang/Object;Lorg/jetbrains/compose/swing/animation/core/TwoWayConverter;Ljava/lang/Object;Ljava/lang/String;)V
 	public synthetic fun <init> (Ljava/lang/Object;Lorg/jetbrains/compose/swing/animation/core/TwoWayConverter;Ljava/lang/Object;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun animateDecay (Ljava/lang/Object;Lorg/jetbrains/compose/swing/animation/core/DecayAnimationSpec;Lkotlin/jvm/functions/Function1;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -273,11 +271,8 @@ public final class org/jetbrains/compose/swing/animation/core/AnimatableKt {
 
 public final class org/jetbrains/compose/swing/animation/core/AnimateAsStateKt {
 	public static final fun animateFloatAsState (FLorg/jetbrains/compose/swing/animation/core/AnimationSpec;FLjava/lang/String;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)Landroidx/compose/runtime/State;
-	public static final synthetic fun animateFloatAsState (FLorg/jetbrains/compose/swing/animation/core/AnimationSpec;FLkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)Landroidx/compose/runtime/State;
 	public static final fun animateIntAsState (ILorg/jetbrains/compose/swing/animation/core/AnimationSpec;Ljava/lang/String;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)Landroidx/compose/runtime/State;
-	public static final synthetic fun animateIntAsState (ILorg/jetbrains/compose/swing/animation/core/AnimationSpec;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)Landroidx/compose/runtime/State;
 	public static final fun animateValueAsState (Ljava/lang/Object;Lorg/jetbrains/compose/swing/animation/core/TwoWayConverter;Lorg/jetbrains/compose/swing/animation/core/AnimationSpec;Ljava/lang/Object;Ljava/lang/String;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)Landroidx/compose/runtime/State;
-	public static final synthetic fun animateValueAsState (Ljava/lang/Object;Lorg/jetbrains/compose/swing/animation/core/TwoWayConverter;Lorg/jetbrains/compose/swing/animation/core/AnimationSpec;Ljava/lang/Object;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)Landroidx/compose/runtime/State;
 }
 
 public abstract interface class org/jetbrains/compose/swing/animation/core/Animation {
@@ -345,15 +340,11 @@ public abstract interface class org/jetbrains/compose/swing/animation/core/Anima
 }
 
 public final class org/jetbrains/compose/swing/animation/core/AnimationSpecKt {
-	public static final synthetic fun infiniteRepeatable (Lorg/jetbrains/compose/swing/animation/core/DurationBasedAnimationSpec;Lorg/jetbrains/compose/swing/animation/core/RepeatMode;)Lorg/jetbrains/compose/swing/animation/core/InfiniteRepeatableSpec;
-	public static synthetic fun infiniteRepeatable$default (Lorg/jetbrains/compose/swing/animation/core/DurationBasedAnimationSpec;Lorg/jetbrains/compose/swing/animation/core/RepeatMode;ILjava/lang/Object;)Lorg/jetbrains/compose/swing/animation/core/InfiniteRepeatableSpec;
 	public static final fun infiniteRepeatable-za5WhO0 (Lorg/jetbrains/compose/swing/animation/core/DurationBasedAnimationSpec;Lorg/jetbrains/compose/swing/animation/core/RepeatMode;J)Lorg/jetbrains/compose/swing/animation/core/InfiniteRepeatableSpec;
 	public static synthetic fun infiniteRepeatable-za5WhO0$default (Lorg/jetbrains/compose/swing/animation/core/DurationBasedAnimationSpec;Lorg/jetbrains/compose/swing/animation/core/RepeatMode;JILjava/lang/Object;)Lorg/jetbrains/compose/swing/animation/core/InfiniteRepeatableSpec;
 	public static final fun keyframes (Lkotlin/jvm/functions/Function1;)Lorg/jetbrains/compose/swing/animation/core/KeyframesSpec;
 	public static final fun keyframesWithSpline (FLkotlin/jvm/functions/Function1;)Lorg/jetbrains/compose/swing/animation/core/KeyframesWithSplineSpec;
 	public static final fun keyframesWithSpline (Lkotlin/jvm/functions/Function1;)Lorg/jetbrains/compose/swing/animation/core/KeyframesWithSplineSpec;
-	public static final synthetic fun repeatable (ILorg/jetbrains/compose/swing/animation/core/DurationBasedAnimationSpec;Lorg/jetbrains/compose/swing/animation/core/RepeatMode;)Lorg/jetbrains/compose/swing/animation/core/RepeatableSpec;
-	public static synthetic fun repeatable$default (ILorg/jetbrains/compose/swing/animation/core/DurationBasedAnimationSpec;Lorg/jetbrains/compose/swing/animation/core/RepeatMode;ILjava/lang/Object;)Lorg/jetbrains/compose/swing/animation/core/RepeatableSpec;
 	public static final fun repeatable-FNGWGcA (ILorg/jetbrains/compose/swing/animation/core/DurationBasedAnimationSpec;Lorg/jetbrains/compose/swing/animation/core/RepeatMode;J)Lorg/jetbrains/compose/swing/animation/core/RepeatableSpec;
 	public static synthetic fun repeatable-FNGWGcA$default (ILorg/jetbrains/compose/swing/animation/core/DurationBasedAnimationSpec;Lorg/jetbrains/compose/swing/animation/core/RepeatMode;JILjava/lang/Object;)Lorg/jetbrains/compose/swing/animation/core/RepeatableSpec;
 	public static final fun snap (I)Lorg/jetbrains/compose/swing/animation/core/SnapSpec;
@@ -673,8 +664,6 @@ public final class org/jetbrains/compose/swing/animation/core/InfiniteAnimationP
 
 public final class org/jetbrains/compose/swing/animation/core/InfiniteRepeatableSpec : org/jetbrains/compose/swing/animation/core/AnimationSpec {
 	public static final field $stable I
-	public synthetic fun <init> (Lorg/jetbrains/compose/swing/animation/core/DurationBasedAnimationSpec;Lorg/jetbrains/compose/swing/animation/core/RepeatMode;)V
-	public synthetic fun <init> (Lorg/jetbrains/compose/swing/animation/core/DurationBasedAnimationSpec;Lorg/jetbrains/compose/swing/animation/core/RepeatMode;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public synthetic fun <init> (Lorg/jetbrains/compose/swing/animation/core/DurationBasedAnimationSpec;Lorg/jetbrains/compose/swing/animation/core/RepeatMode;JILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public synthetic fun <init> (Lorg/jetbrains/compose/swing/animation/core/DurationBasedAnimationSpec;Lorg/jetbrains/compose/swing/animation/core/RepeatMode;JLkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun equals (Ljava/lang/Object;)Z
@@ -700,11 +689,8 @@ public final class org/jetbrains/compose/swing/animation/core/InfiniteTransition
 }
 
 public final class org/jetbrains/compose/swing/animation/core/InfiniteTransitionKt {
-	public static final synthetic fun animateFloat (Lorg/jetbrains/compose/swing/animation/core/InfiniteTransition;FFLorg/jetbrains/compose/swing/animation/core/InfiniteRepeatableSpec;Landroidx/compose/runtime/Composer;I)Landroidx/compose/runtime/State;
 	public static final fun animateFloat (Lorg/jetbrains/compose/swing/animation/core/InfiniteTransition;FFLorg/jetbrains/compose/swing/animation/core/InfiniteRepeatableSpec;Ljava/lang/String;Landroidx/compose/runtime/Composer;II)Landroidx/compose/runtime/State;
-	public static final synthetic fun animateValue (Lorg/jetbrains/compose/swing/animation/core/InfiniteTransition;Ljava/lang/Object;Ljava/lang/Object;Lorg/jetbrains/compose/swing/animation/core/TwoWayConverter;Lorg/jetbrains/compose/swing/animation/core/InfiniteRepeatableSpec;Landroidx/compose/runtime/Composer;I)Landroidx/compose/runtime/State;
 	public static final fun animateValue (Lorg/jetbrains/compose/swing/animation/core/InfiniteTransition;Ljava/lang/Object;Ljava/lang/Object;Lorg/jetbrains/compose/swing/animation/core/TwoWayConverter;Lorg/jetbrains/compose/swing/animation/core/InfiniteRepeatableSpec;Ljava/lang/String;Landroidx/compose/runtime/Composer;II)Landroidx/compose/runtime/State;
-	public static final synthetic fun rememberInfiniteTransition (Landroidx/compose/runtime/Composer;I)Lorg/jetbrains/compose/swing/animation/core/InfiniteTransition;
 	public static final fun rememberInfiniteTransition (Ljava/lang/String;Landroidx/compose/runtime/Composer;II)Lorg/jetbrains/compose/swing/animation/core/InfiniteTransition;
 }
 
@@ -742,7 +728,6 @@ public final class org/jetbrains/compose/swing/animation/core/KeyframesSpec$Keyf
 	public fun atFraction (Ljava/lang/Object;F)Lorg/jetbrains/compose/swing/animation/core/KeyframesSpec$KeyframeEntity;
 	public synthetic fun createEntityFor$org_jetbrains_compose_swing_swing_ui_animation (Ljava/lang/Object;)Lorg/jetbrains/compose/swing/animation/core/KeyframeBaseEntity;
 	public final fun using-0JVMp9Q (Lorg/jetbrains/compose/swing/animation/core/KeyframesSpec$KeyframeEntity;I)Lorg/jetbrains/compose/swing/animation/core/KeyframesSpec$KeyframeEntity;
-	public final fun with (Lorg/jetbrains/compose/swing/animation/core/KeyframesSpec$KeyframeEntity;Lorg/jetbrains/compose/swing/animation/core/Easing;)V
 }
 
 public abstract class org/jetbrains/compose/swing/animation/core/KeyframesSpecBaseConfig {
@@ -792,8 +777,6 @@ public final class org/jetbrains/compose/swing/animation/core/RepeatMode : java/
 
 public final class org/jetbrains/compose/swing/animation/core/RepeatableSpec : org/jetbrains/compose/swing/animation/core/FiniteAnimationSpec {
 	public static final field $stable I
-	public synthetic fun <init> (ILorg/jetbrains/compose/swing/animation/core/DurationBasedAnimationSpec;Lorg/jetbrains/compose/swing/animation/core/RepeatMode;)V
-	public synthetic fun <init> (ILorg/jetbrains/compose/swing/animation/core/DurationBasedAnimationSpec;Lorg/jetbrains/compose/swing/animation/core/RepeatMode;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public synthetic fun <init> (ILorg/jetbrains/compose/swing/animation/core/DurationBasedAnimationSpec;Lorg/jetbrains/compose/swing/animation/core/RepeatMode;JILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public synthetic fun <init> (ILorg/jetbrains/compose/swing/animation/core/DurationBasedAnimationSpec;Lorg/jetbrains/compose/swing/animation/core/RepeatMode;JLkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun equals (Ljava/lang/Object;)Z
@@ -998,7 +981,6 @@ public final class org/jetbrains/compose/swing/animation/core/TransitionKt {
 	public static final fun rememberTransition (Lorg/jetbrains/compose/swing/animation/core/DeferredTransitionState;Ljava/lang/String;Landroidx/compose/runtime/Composer;II)Lorg/jetbrains/compose/swing/animation/core/DeferredTransition;
 	public static final fun rememberTransition (Lorg/jetbrains/compose/swing/animation/core/TransitionState;Ljava/lang/String;Landroidx/compose/runtime/Composer;II)Lorg/jetbrains/compose/swing/animation/core/Transition;
 	public static final fun updateTransition (Ljava/lang/Object;Ljava/lang/String;Landroidx/compose/runtime/Composer;II)Lorg/jetbrains/compose/swing/animation/core/Transition;
-	public static final fun updateTransition (Lorg/jetbrains/compose/swing/animation/core/MutableTransitionState;Ljava/lang/String;Landroidx/compose/runtime/Composer;II)Lorg/jetbrains/compose/swing/animation/core/Transition;
 }
 
 public abstract class org/jetbrains/compose/swing/animation/core/TransitionState {
@@ -1086,8 +1068,6 @@ public final class org/jetbrains/compose/swing/animation/core/VectorizedFloatAni
 
 public final class org/jetbrains/compose/swing/animation/core/VectorizedInfiniteRepeatableSpec : org/jetbrains/compose/swing/animation/core/VectorizedAnimationSpec {
 	public static final field $stable I
-	public synthetic fun <init> (Lorg/jetbrains/compose/swing/animation/core/VectorizedDurationBasedAnimationSpec;Lorg/jetbrains/compose/swing/animation/core/RepeatMode;)V
-	public synthetic fun <init> (Lorg/jetbrains/compose/swing/animation/core/VectorizedDurationBasedAnimationSpec;Lorg/jetbrains/compose/swing/animation/core/RepeatMode;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public synthetic fun <init> (Lorg/jetbrains/compose/swing/animation/core/VectorizedDurationBasedAnimationSpec;Lorg/jetbrains/compose/swing/animation/core/RepeatMode;JILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public synthetic fun <init> (Lorg/jetbrains/compose/swing/animation/core/VectorizedDurationBasedAnimationSpec;Lorg/jetbrains/compose/swing/animation/core/RepeatMode;JLkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun getDurationNanos (Lorg/jetbrains/compose/swing/animation/core/AnimationVector;Lorg/jetbrains/compose/swing/animation/core/AnimationVector;Lorg/jetbrains/compose/swing/animation/core/AnimationVector;)J
@@ -1108,8 +1088,6 @@ public final class org/jetbrains/compose/swing/animation/core/VectorizedKeyframe
 
 public final class org/jetbrains/compose/swing/animation/core/VectorizedRepeatableSpec : org/jetbrains/compose/swing/animation/core/VectorizedFiniteAnimationSpec {
 	public static final field $stable I
-	public synthetic fun <init> (ILorg/jetbrains/compose/swing/animation/core/VectorizedDurationBasedAnimationSpec;Lorg/jetbrains/compose/swing/animation/core/RepeatMode;)V
-	public synthetic fun <init> (ILorg/jetbrains/compose/swing/animation/core/VectorizedDurationBasedAnimationSpec;Lorg/jetbrains/compose/swing/animation/core/RepeatMode;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public synthetic fun <init> (ILorg/jetbrains/compose/swing/animation/core/VectorizedDurationBasedAnimationSpec;Lorg/jetbrains/compose/swing/animation/core/RepeatMode;JILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public synthetic fun <init> (ILorg/jetbrains/compose/swing/animation/core/VectorizedDurationBasedAnimationSpec;Lorg/jetbrains/compose/swing/animation/core/RepeatMode;JLkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun getDurationNanos (Lorg/jetbrains/compose/swing/animation/core/AnimationVector;Lorg/jetbrains/compose/swing/animation/core/AnimationVector;Lorg/jetbrains/compose/swing/animation/core/AnimationVector;)J

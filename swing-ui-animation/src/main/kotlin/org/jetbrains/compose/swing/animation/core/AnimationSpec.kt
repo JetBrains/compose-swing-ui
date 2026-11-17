@@ -323,13 +323,6 @@ public class RepeatableSpec<T>(
     public val initialStartOffset: StartOffset = StartOffset(0),
 ) : FiniteAnimationSpec<T> {
 
-    @Deprecated(level = DeprecationLevel.HIDDEN, message = "This constructor has been deprecated")
-    public constructor(
-        iterations: Int,
-        animation: DurationBasedAnimationSpec<T>,
-        repeatMode: RepeatMode = RepeatMode.Restart,
-    ) : this(iterations, animation, repeatMode, StartOffset(0))
-
     override fun <V : AnimationVector> vectorize(
         converter: TwoWayConverter<T, V>
     ): VectorizedFiniteAnimationSpec<V> {
@@ -382,12 +375,6 @@ public class InfiniteRepeatableSpec<T>(
     public val repeatMode: RepeatMode = RepeatMode.Restart,
     public val initialStartOffset: StartOffset = StartOffset(0),
 ) : AnimationSpec<T> {
-
-    @Deprecated(level = DeprecationLevel.HIDDEN, message = "This constructor has been deprecated")
-    public constructor(
-        animation: DurationBasedAnimationSpec<T>,
-        repeatMode: RepeatMode = RepeatMode.Restart,
-    ) : this(animation, repeatMode, StartOffset(0))
 
     init {
         // Checking if the animation has 0-duration. If so, it would result in an infinite
@@ -580,7 +567,7 @@ public class KeyframesSpec<T>(public val config: KeyframesSpecConfig<T>) :
          *
          * @param timeStamp The time in the during when animation should reach value: [this], with a
          *   minimum value of `0`.
-         * @return an [KeyframeEntity] so a custom [Easing] can be added by [with] method.
+         * @return an [KeyframeEntity] so a custom [Easing] can be added by [using] method.
          */
         // TODO: Need a IntRange equivalent annotation
         // overrides `at` for binary compatibility. It should explicitly return KeyframeEntity.
@@ -595,7 +582,7 @@ public class KeyframesSpec<T>(public val config: KeyframesSpecConfig<T>) :
          * duration set
          *
          * @param fraction The fraction when the animation should reach specified value.
-         * @return an [KeyframeEntity] so a custom [Easing] can be added by [with] method
+         * @return an [KeyframeEntity] so a custom [Easing] can be added by [using] method
          */
         // overrides `atFraction` for binary compatibility. It should explicitly return
         // KeyframeEntity.
@@ -603,25 +590,6 @@ public class KeyframesSpec<T>(public val config: KeyframesSpecConfig<T>) :
             @FloatRange(from = 0.0, to = 1.0) fraction: Float
         ): KeyframeEntity<T> {
             return at((durationMillis * fraction).fastRoundToInt())
-        }
-
-        /**
-         * Adds an [Easing] for the interval started with the just provided timestamp. For example:
-         * 0f at 50 with LinearEasing
-         *
-         * @sample org.jetbrains.compose.swing.animation.core.samples.KeyframesBuilderWithEasing
-         * @param easing [Easing] to be used for the next interval.
-         * @return the same [KeyframeEntity] instance so that other implementations can expand on
-         *   the builder pattern
-         */
-        @Deprecated(
-            message =
-                "Use version that returns an instance of the entity so it can be re-used" +
-                    " in other keyframe builders.",
-            replaceWith = ReplaceWith("this using easing"), // Expected usage pattern
-        )
-        public infix fun KeyframeEntity<T>.with(easing: Easing) {
-            this.easing = easing
         }
 
         /**
@@ -912,19 +880,6 @@ public fun <T> repeatable(
     initialStartOffset: StartOffset = StartOffset(0),
 ): RepeatableSpec<T> = RepeatableSpec(iterations, animation, repeatMode, initialStartOffset)
 
-@Stable
-@Deprecated(
-    level = DeprecationLevel.HIDDEN,
-    message =
-        "This method has been deprecated in favor of the repeatable function that accepts" +
-            " start offset.",
-)
-public fun <T> repeatable(
-    iterations: Int,
-    animation: DurationBasedAnimationSpec<T>,
-    repeatMode: RepeatMode = RepeatMode.Restart,
-): RepeatableSpec<T> = RepeatableSpec(iterations, animation, repeatMode, StartOffset(0))
-
 /**
  * Creates a [InfiniteRepeatableSpec] that plays a [DurationBasedAnimationSpec] (e.g. [TweenSpec],
  * [KeyframesSpec]) infinite amount of iterations.
@@ -946,18 +901,6 @@ public fun <T> infiniteRepeatable(
     repeatMode: RepeatMode = RepeatMode.Restart,
     initialStartOffset: StartOffset = StartOffset(0),
 ): InfiniteRepeatableSpec<T> = InfiniteRepeatableSpec(animation, repeatMode, initialStartOffset)
-
-@Stable
-@Deprecated(
-    level = DeprecationLevel.HIDDEN,
-    message =
-        "This method has been deprecated in favor of the infinite repeatable function that" +
-            " accepts start offset.",
-)
-public fun <T> infiniteRepeatable(
-    animation: DurationBasedAnimationSpec<T>,
-    repeatMode: RepeatMode = RepeatMode.Restart,
-): InfiniteRepeatableSpec<T> = InfiniteRepeatableSpec(animation, repeatMode, StartOffset(0))
 
 /**
  * Creates a Snap animation for immediately switching the animating value to the end value.

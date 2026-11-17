@@ -591,17 +591,6 @@ public class VectorizedInfiniteRepeatableSpec<V : AnimationVector>(
     private val repeatMode: RepeatMode = RepeatMode.Restart,
     initialStartOffset: StartOffset = StartOffset(0),
 ) : VectorizedAnimationSpec<V> {
-    @Deprecated(
-        level = DeprecationLevel.HIDDEN,
-        message =
-            "This method has been deprecated in favor of the constructor that" +
-                " accepts start offset.",
-    )
-    public constructor(
-        animation: VectorizedDurationBasedAnimationSpec<V>,
-        repeatMode: RepeatMode = RepeatMode.Restart,
-    ) : this(animation, repeatMode, StartOffset(0))
-
     override val isInfinite: Boolean
         get() = true
 
@@ -702,18 +691,6 @@ public class VectorizedRepeatableSpec<V : AnimationVector>(
     private val repeatMode: RepeatMode = RepeatMode.Restart,
     initialStartOffset: StartOffset = StartOffset(0),
 ) : VectorizedFiniteAnimationSpec<V> {
-    @Deprecated(
-        level = DeprecationLevel.HIDDEN,
-        message =
-            "This method has been deprecated in favor of the constructor that accepts" +
-                " start offset.",
-    )
-    public constructor(
-        iterations: Int,
-        animation: VectorizedDurationBasedAnimationSpec<V>,
-        repeatMode: RepeatMode = RepeatMode.Restart,
-    ) : this(iterations, animation, repeatMode, StartOffset(0))
-
     init {
         if (iterations < 1) {
             throw IllegalArgumentException("Iterations count can't be less than 1")
