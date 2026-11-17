@@ -16,7 +16,7 @@
 
 // Extracted subset of androidx.compose.ui.util.InlineClassHelper (the Float packing helpers and
 // fastRoundToInt) for compose-swing-ui's vendored animation-core. Sourced from AndroidX (Jetpack
-// Compose 1.12.0), with the expect/actual pair resolved to its JVM side and the declarations
+// Compose 1.13.0), with the expect/actual pair resolved to its JVM side and the declarations
 // narrowed to internal.
 
 @file:Suppress("NOTHING_TO_INLINE")

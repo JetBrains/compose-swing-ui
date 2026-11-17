@@ -10,9 +10,8 @@ import org.jetbrains.compose.swing.animation.DeferredAnimatedContent
 import org.jetbrains.compose.swing.animation.EnterExitState
 import org.jetbrains.compose.swing.animation.MutableContentTransform
 import org.jetbrains.compose.swing.animation.core.DeferredTransitionState
-import org.jetbrains.compose.swing.animation.core.ExperimentalDeferredTransitionApi
 import org.jetbrains.compose.swing.animation.core.animateInt
-import org.jetbrains.compose.swing.animation.core.rememberTransition
+import org.jetbrains.compose.swing.animation.core.rememberDeferredTransition
 import org.jetbrains.compose.swing.animation.core.tween
 import org.jetbrains.compose.swing.animation.fadeIn
 import org.jetbrains.compose.swing.animation.fadeOut
@@ -30,7 +29,6 @@ import javax.swing.OverlayLayout
 import javax.swing.border.EmptyBorder
 
 /** The parameters [DeferredAnimatedContentFixture] varies. */
-@OptIn(ExperimentalDeferredTransitionApi::class)
 public data class DeferredAnimatedContentParameters(
     val padding: Int,
     val durationMillis: Int,
@@ -44,7 +42,6 @@ public data class DeferredAnimatedContentParameters(
  * A deferred [DeferredAnimatedContent] over a settled state, showing a [Label] of its current content, against a raw
  * [JPanel] tree holding the same label at its end state.
  */
-@OptIn(ExperimentalDeferredTransitionApi::class)
 public object DeferredAnimatedContentFixture : ComposableFixture<DeferredAnimatedContentParameters, JPanel>(
     initial =
         DeferredAnimatedContentParameters(
@@ -95,7 +92,7 @@ public object DeferredAnimatedContentFixture : ComposableFixture<DeferredAnimate
         content: @Composable AnimatedContentScope.(Boolean) -> Unit,
     ) {
         val state = remember { DeferredTransitionState(false) }
-        val transition = rememberTransition(state)
+        val transition = rememberDeferredTransition(state)
         val spec: AnimatedContentTransitionScope<Boolean>.() -> ContentTransform = {
             (fadeIn(tween(durationMillis)) togetherWith fadeOut(tween(durationMillis))).using(null)
         }

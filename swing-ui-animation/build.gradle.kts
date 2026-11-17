@@ -72,7 +72,6 @@ dependencies {
 tasks.named<KotlinCompile>("compileTestKotlin") {
     compilerOptions.optIn.addAll(
         "org.jetbrains.compose.swing.animation.core.ExperimentalTransitionApi",
-        "org.jetbrains.compose.swing.animation.core.ExperimentalDeferredTransitionApi",
         "org.jetbrains.compose.swing.animation.core.ExperimentalAnimationSpecApi",
         "org.jetbrains.compose.swing.animation.core.InternalAnimationApi",
         "org.jetbrains.compose.swing.annotations.SwingComponentLibraryApi",

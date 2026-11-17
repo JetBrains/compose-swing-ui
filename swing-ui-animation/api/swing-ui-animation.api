@@ -86,6 +86,17 @@ public abstract interface class org/jetbrains/compose/swing/animation/AnimatedVi
 	public abstract fun getTransition ()Lorg/jetbrains/compose/swing/animation/core/Transition;
 }
 
+public final class org/jetbrains/compose/swing/animation/ChangeSizeConfig {
+	public static final field $stable I
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAlignment ()Lorg/jetbrains/compose/swing/foundation/layout/Alignment;
+	public final fun getAnimationSpec ()Lorg/jetbrains/compose/swing/animation/core/FiniteAnimationSpec;
+	public final fun getClip ()Z
+	public final fun getSize ()Lkotlin/jvm/functions/Function1;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
 public final class org/jetbrains/compose/swing/animation/ColorVectorConverterKt {
 	public static final fun getColorToVector ()Lorg/jetbrains/compose/swing/animation/core/TwoWayConverter;
 }
@@ -121,10 +132,23 @@ public final class org/jetbrains/compose/swing/animation/EnterExitState : java/l
 	public static fun values ()[Lorg/jetbrains/compose/swing/animation/EnterExitState;
 }
 
+public final class org/jetbrains/compose/swing/animation/EnterExitTransitionConfig {
+	public static final field $stable I
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getChangeSize ()Lorg/jetbrains/compose/swing/animation/ChangeSizeConfig;
+	public final fun getFade ()Lorg/jetbrains/compose/swing/animation/FadeConfig;
+	public final fun getScale ()Lorg/jetbrains/compose/swing/animation/ScaleConfig;
+	public final fun getSlide ()Lorg/jetbrains/compose/swing/animation/SlideConfig;
+	public final fun getVeil ()Lorg/jetbrains/compose/swing/animation/VeilConfig;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
 public abstract class org/jetbrains/compose/swing/animation/EnterTransition {
 	public static final field $stable I
 	public static final field Companion Lorg/jetbrains/compose/swing/animation/EnterTransition$Companion;
 	public fun equals (Ljava/lang/Object;)Z
+	public abstract fun getConfig ()Lorg/jetbrains/compose/swing/animation/EnterExitTransitionConfig;
 	public fun hashCode ()I
 	public final fun plus (Lorg/jetbrains/compose/swing/animation/EnterTransition;)Lorg/jetbrains/compose/swing/animation/EnterTransition;
 	public fun toString ()Ljava/lang/String;
@@ -138,6 +162,7 @@ public abstract class org/jetbrains/compose/swing/animation/ExitTransition {
 	public static final field $stable I
 	public static final field Companion Lorg/jetbrains/compose/swing/animation/ExitTransition$Companion;
 	public fun equals (Ljava/lang/Object;)Z
+	public abstract fun getConfig ()Lorg/jetbrains/compose/swing/animation/EnterExitTransitionConfig;
 	public fun hashCode ()I
 	public final fun plus (Lorg/jetbrains/compose/swing/animation/ExitTransition;)Lorg/jetbrains/compose/swing/animation/ExitTransition;
 	public fun toString ()Ljava/lang/String;
@@ -165,6 +190,15 @@ public final class org/jetbrains/compose/swing/animation/ExpandShrinkKt {
 public abstract interface annotation class org/jetbrains/compose/swing/animation/ExperimentalAnimationApi : java/lang/annotation/Annotation {
 }
 
+public final class org/jetbrains/compose/swing/animation/FadeConfig {
+	public static final field $stable I
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAlpha ()F
+	public final fun getAnimationSpec ()Lorg/jetbrains/compose/swing/animation/core/FiniteAnimationSpec;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
 public final class org/jetbrains/compose/swing/animation/FadeKt {
 	public static final fun fadeIn (Lorg/jetbrains/compose/swing/animation/core/FiniteAnimationSpec;F)Lorg/jetbrains/compose/swing/animation/EnterTransition;
 	public static synthetic fun fadeIn$default (Lorg/jetbrains/compose/swing/animation/core/FiniteAnimationSpec;FILjava/lang/Object;)Lorg/jetbrains/compose/swing/animation/EnterTransition;
@@ -186,6 +220,16 @@ public final class org/jetbrains/compose/swing/animation/MutableTransform {
 	public final fun update (Lkotlin/jvm/functions/Function2;)V
 }
 
+public final class org/jetbrains/compose/swing/animation/ScaleConfig {
+	public static final field $stable I
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAnimationSpec ()Lorg/jetbrains/compose/swing/animation/core/FiniteAnimationSpec;
+	public final fun getScale ()F
+	public final fun getTransformOrigin ()Lorg/jetbrains/compose/swing/foundation/graphics/TransformOrigin;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
 public final class org/jetbrains/compose/swing/animation/ScaleKt {
 	public static final fun scaleIn (Lorg/jetbrains/compose/swing/animation/core/FiniteAnimationSpec;FLorg/jetbrains/compose/swing/foundation/graphics/TransformOrigin;)Lorg/jetbrains/compose/swing/animation/EnterTransition;
 	public static synthetic fun scaleIn$default (Lorg/jetbrains/compose/swing/animation/core/FiniteAnimationSpec;FLorg/jetbrains/compose/swing/foundation/graphics/TransformOrigin;ILjava/lang/Object;)Lorg/jetbrains/compose/swing/animation/EnterTransition;
@@ -196,6 +240,15 @@ public final class org/jetbrains/compose/swing/animation/ScaleKt {
 public abstract interface class org/jetbrains/compose/swing/animation/SizeTransform {
 	public abstract fun createAnimationSpec (Ljava/awt/Dimension;Ljava/awt/Dimension;)Lorg/jetbrains/compose/swing/animation/core/FiniteAnimationSpec;
 	public abstract fun getClip ()Z
+}
+
+public final class org/jetbrains/compose/swing/animation/SlideConfig {
+	public static final field $stable I
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAnimationSpec ()Lorg/jetbrains/compose/swing/animation/core/FiniteAnimationSpec;
+	public final fun getSlideOffset ()Lkotlin/jvm/functions/Function1;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
 }
 
 public final class org/jetbrains/compose/swing/animation/SlideKt {
@@ -231,6 +284,17 @@ public final class org/jetbrains/compose/swing/animation/VectorConvertersKt {
 	public static final fun getDimensionToVector ()Lorg/jetbrains/compose/swing/animation/core/TwoWayConverter;
 	public static final fun getPointToVector ()Lorg/jetbrains/compose/swing/animation/core/TwoWayConverter;
 	public static final fun pointVisibilityThreshold ()Ljava/awt/Point;
+}
+
+public final class org/jetbrains/compose/swing/animation/VeilConfig {
+	public static final field $stable I
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAnimationSpec ()Lorg/jetbrains/compose/swing/animation/core/FiniteAnimationSpec;
+	public final fun getInitialColor ()Ljava/awt/Color;
+	public final fun getMatchParentSize ()Z
+	public final fun getTargetColor ()Ljava/awt/Color;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
 }
 
 public final class org/jetbrains/compose/swing/animation/VeilKt {
@@ -514,6 +578,7 @@ public final class org/jetbrains/compose/swing/animation/core/DeferredTargetAnim
 	public static final field $stable I
 	public fun <init> (Lorg/jetbrains/compose/swing/animation/core/TwoWayConverter;)V
 	public final fun getPendingTarget ()Ljava/lang/Object;
+	public final fun getValue ()Ljava/lang/Object;
 	public final fun isIdle ()Z
 	public final fun updateTarget (Ljava/lang/Object;Lkotlinx/coroutines/CoroutineScope;Lorg/jetbrains/compose/swing/animation/core/FiniteAnimationSpec;)Ljava/lang/Object;
 	public static synthetic fun updateTarget$default (Lorg/jetbrains/compose/swing/animation/core/DeferredTargetAnimation;Ljava/lang/Object;Lkotlinx/coroutines/CoroutineScope;Lorg/jetbrains/compose/swing/animation/core/FiniteAnimationSpec;ILjava/lang/Object;)Ljava/lang/Object;
@@ -586,9 +651,6 @@ public final class org/jetbrains/compose/swing/animation/core/EasingKt {
 }
 
 public abstract interface annotation class org/jetbrains/compose/swing/animation/core/ExperimentalAnimationSpecApi : java/lang/annotation/Annotation {
-}
-
-public abstract interface annotation class org/jetbrains/compose/swing/animation/core/ExperimentalDeferredTransitionApi : java/lang/annotation/Annotation {
 }
 
 public abstract interface annotation class org/jetbrains/compose/swing/animation/core/ExperimentalTransitionApi : java/lang/annotation/Annotation {
@@ -978,7 +1040,7 @@ public final class org/jetbrains/compose/swing/animation/core/TransitionKt {
 	public static final fun createChildTransitionInternal (Lorg/jetbrains/compose/swing/animation/core/Transition;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/String;Landroidx/compose/runtime/Composer;I)Lorg/jetbrains/compose/swing/animation/core/Transition;
 	public static final fun createDeferredAnimation (Lorg/jetbrains/compose/swing/animation/core/Transition;Lorg/jetbrains/compose/swing/animation/core/TwoWayConverter;Ljava/lang/String;Landroidx/compose/runtime/Composer;II)Lorg/jetbrains/compose/swing/animation/core/Transition$DeferredAnimation;
 	public static final fun createTransitionAnimation (Lorg/jetbrains/compose/swing/animation/core/Transition;Ljava/lang/Object;Ljava/lang/Object;Lorg/jetbrains/compose/swing/animation/core/FiniteAnimationSpec;Lorg/jetbrains/compose/swing/animation/core/TwoWayConverter;Ljava/lang/String;Landroidx/compose/runtime/Composer;I)Landroidx/compose/runtime/State;
-	public static final fun rememberTransition (Lorg/jetbrains/compose/swing/animation/core/DeferredTransitionState;Ljava/lang/String;Landroidx/compose/runtime/Composer;II)Lorg/jetbrains/compose/swing/animation/core/DeferredTransition;
+	public static final fun rememberDeferredTransition (Lorg/jetbrains/compose/swing/animation/core/DeferredTransitionState;Ljava/lang/String;Landroidx/compose/runtime/Composer;II)Lorg/jetbrains/compose/swing/animation/core/DeferredTransition;
 	public static final fun rememberTransition (Lorg/jetbrains/compose/swing/animation/core/TransitionState;Ljava/lang/String;Landroidx/compose/runtime/Composer;II)Lorg/jetbrains/compose/swing/animation/core/Transition;
 	public static final fun updateTransition (Ljava/lang/Object;Ljava/lang/String;Landroidx/compose/runtime/Composer;II)Lorg/jetbrains/compose/swing/animation/core/Transition;
 }

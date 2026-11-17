@@ -20,7 +20,6 @@ import androidx.collection.mutableScatterMapOf
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.key
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
 import org.jetbrains.compose.swing.animation.core.FiniteAnimationSpec
 import org.jetbrains.compose.swing.animation.core.Transition
@@ -99,7 +98,6 @@ public fun <T> Crossfade(
  *     fades nothing. The state itself by default.
  * @param content the composable content of one state of the container.
  */
-@ExperimentalAnimationApi
 @Composable
 public fun <T> Transition<T>.Crossfade(
     modifier: SwingModifier = SwingModifier,
@@ -107,8 +105,9 @@ public fun <T> Transition<T>.Crossfade(
     contentKey: (targetState: T) -> Any? = { it },
     content: @Composable (targetState: T) -> Unit,
 ) {
-    val currentlyVisible = remember { mutableStateListOf<T>().apply { add(currentState) } }
+    val currentlyVisible = remember { mutableListOf(currentState) }
     val contentMap = remember { mutableScatterMapOf<T, @Composable () -> Unit>() }
+    val targetState = targetState
     if (currentState == targetState) {
         // If not animating, just display the current state
         if (currentlyVisible.size != 1 || currentlyVisible[0] != targetState) {
@@ -119,7 +118,10 @@ public fun <T> Transition<T>.Crossfade(
     }
     if (targetState !in contentMap) {
         // Replace target with the same key if any
-        val replacementId = currentlyVisible.indexOfFirst { contentKey(it) == contentKey(targetState) }
+        val replacementId =
+            currentlyVisible.indexOfFirst {
+                contentKey(it) == contentKey(targetState)
+            }
         if (replacementId == -1) {
             currentlyVisible.add(targetState)
         } else {

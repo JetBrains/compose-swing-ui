@@ -5,9 +5,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.animation.core.DeferredTransitionState
-import org.jetbrains.compose.swing.animation.core.ExperimentalDeferredTransitionApi
 import org.jetbrains.compose.swing.animation.core.LinearEasing
-import org.jetbrains.compose.swing.animation.core.rememberTransition
+import org.jetbrains.compose.swing.animation.core.rememberDeferredTransition
 import org.jetbrains.compose.swing.animation.core.tween
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.foundation.layout.Alignment
@@ -176,7 +175,6 @@ class MutableTransitionValueTest {
         }
     }
 
-    @OptIn(ExperimentalDeferredTransitionApi::class)
     @ParameterizedTest(name = "{0}")
     @MethodSource("deferredTransformCases")
     fun deferredTransformGeometryIsCopied(
@@ -195,7 +193,7 @@ class MutableTransitionValueTest {
             }
         setContent {
             DeferredViewport {
-                rememberTransition(state).DeferredAnimatedVisibility(
+                rememberDeferredTransition(state).DeferredAnimatedVisibility(
                     modifier = SwingModifier.testTag("deferredVisibility"),
                     visible = { it },
                     enter = EnterTransition.None,

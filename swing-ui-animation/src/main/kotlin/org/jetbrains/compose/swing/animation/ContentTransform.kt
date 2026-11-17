@@ -22,6 +22,7 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.animation.core.FiniteAnimationSpec
 import org.jetbrains.compose.swing.animation.core.Spring
 import org.jetbrains.compose.swing.animation.core.spring
+import org.jetbrains.compose.swing.animation.core.tween
 import java.awt.Dimension
 
 // Derived from androidx.compose.animation.ContentTransform, SizeTransform and togetherWith, with
@@ -51,7 +52,7 @@ public class ContentTransform(
     public val targetContentEnter: EnterTransition,
     public val initialContentExit: ExitTransition,
     targetContentZIndex: Float = 0f,
-    sizeTransform: SizeTransform? = SizeTransform(),
+    sizeTransform: SizeTransform? = AnimatedContentDefaults.SizeTransform,
 ) {
     /**
      * The paint order of the target content. Content with a higher value paints over content with a
@@ -90,7 +91,7 @@ public fun SizeTransform(
     clip: Boolean = true,
     sizeAnimationSpec: (initialSize: Dimension, targetSize: Dimension) -> FiniteAnimationSpec<Dimension> =
         { _, _ ->
-            spring(stiffness = Spring.StiffnessMediumLow, visibilityThreshold = dimensionVisibilityThreshold())
+            AnimatedContentDefaults.SizeAnimationSpec
         },
 ): SizeTransform =
     object : SizeTransform {
@@ -124,4 +125,21 @@ public interface SizeTransform {
         initialSize: Dimension,
         targetSize: Dimension,
     ): FiniteAnimationSpec<Dimension>
+}
+
+/** Contains default values used throughout [AnimatedContent]. */
+internal object AnimatedContentDefaults {
+    /** Default animation spec used for size animation in [SizeTransform]. */
+    val SizeAnimationSpec: FiniteAnimationSpec<Dimension>
+        get() = spring(stiffness = Spring.StiffnessMediumLow, visibilityThreshold = dimensionVisibilityThreshold())
+
+    /** Default [SizeTransform] used in [ContentTransform]. */
+    val SizeTransform: SizeTransform = SizeTransform()
+
+    /** Default [ContentTransform] used in [AnimatedContent] if none is specified. */
+    val ContentTransform: ContentTransform =
+        (
+            fadeIn(animationSpec = tween(220, delayMillis = 90)) +
+                scaleIn(initialScale = 0.92f, animationSpec = tween(220, delayMillis = 90))
+        ).togetherWith(fadeOut(animationSpec = tween(90)))
 }

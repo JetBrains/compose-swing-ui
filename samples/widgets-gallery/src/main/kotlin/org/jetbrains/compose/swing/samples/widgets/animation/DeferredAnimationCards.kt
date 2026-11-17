@@ -13,8 +13,7 @@ import org.jetbrains.compose.swing.animation.DeferredAnimatedVisibility
 import org.jetbrains.compose.swing.animation.MutableContentTransform
 import org.jetbrains.compose.swing.animation.MutableTransform
 import org.jetbrains.compose.swing.animation.core.DeferredTransitionState
-import org.jetbrains.compose.swing.animation.core.ExperimentalDeferredTransitionApi
-import org.jetbrains.compose.swing.animation.core.rememberTransition
+import org.jetbrains.compose.swing.animation.core.rememberDeferredTransition
 import org.jetbrains.compose.swing.animation.fadeIn
 import org.jetbrains.compose.swing.animation.fadeOut
 import org.jetbrains.compose.swing.animation.scaleIn
@@ -39,7 +38,6 @@ import java.awt.Dimension
 import java.awt.Point
 import javax.swing.SwingConstants
 
-@OptIn(ExperimentalDeferredTransitionApi::class)
 @Composable
 internal fun ColumnScope.DeferredDismissCard() {
     ExampleCard("DeferredAnimatedVisibility (experimental)") {
@@ -63,7 +61,7 @@ internal fun ColumnScope.DeferredDismissCard() {
             "Preview a dismissal with the slider. Commit lets the exit continue from that position; Cancel " +
                 "returns the order. The slider stands in for a pointer drag.",
         )
-        rememberTransition(state).DeferredAnimatedVisibility(
+        rememberDeferredTransition(state).DeferredAnimatedVisibility(
             visible = { it },
             enter = fadeIn() + scaleIn(initialScale = 0.8f),
             exit = fadeOut() + scaleOut(targetScale = 0.6f) + slideOutHorizontally { it / 2 },
@@ -93,7 +91,6 @@ internal fun ColumnScope.DeferredDismissCard() {
     }
 }
 
-@OptIn(ExperimentalDeferredTransitionApi::class)
 @Composable
 internal fun ColumnScope.DeferredPageSwipeCard() {
     ExampleCard("DeferredAnimatedContent (experimental)") {
@@ -108,14 +105,14 @@ internal fun ColumnScope.DeferredPageSwipeCard() {
             "Preview a swipe between folders. Both pages follow the slider; Commit completes the " +
                 "swipe and Cancel restores the current folder.",
         )
-        rememberTransition(state).DeferredAnimatedContent(
+        rememberDeferredTransition(state).DeferredAnimatedContent(
             transitionSpec = {
                 slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Left) togetherWith
                     slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Left)
             },
             mutableTransformSpec = {
                 MutableContentTransform {
-                    targetContentTransform { fullSize -> offset = Point(-fullSize.width * swiped / 100, 0) }
+                    targetContentTransform { fullSize -> offset = Point(fullSize.width * (100 - swiped) / 100, 0) }
                     initialContentTransform { fullSize -> offset = Point(-fullSize.width * swiped / 100, 0) }
                 }
             },

@@ -37,7 +37,6 @@ import java.awt.Color
  *     content's rectangle; `false` by default.
  * @return the enter transition.
  */
-@ExperimentalAnimationApi
 @Stable
 public fun unveilIn(
     animationSpec: FiniteAnimationSpec<Color> = spring(stiffness = Spring.StiffnessMediumLow),
@@ -61,7 +60,6 @@ public fun unveilIn(
  *     content's rectangle; `false` by default.
  * @return the exit transition.
  */
-@ExperimentalAnimationApi
 @Stable
 public fun veilOut(
     animationSpec: FiniteAnimationSpec<Color> = spring(stiffness = Spring.StiffnessMediumLow),

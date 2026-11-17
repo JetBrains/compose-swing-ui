@@ -14,9 +14,6 @@
  * limitations under the License.
  */
 
-// AnimatedContentImpl, which every overload calls, takes the experimental deferred transform.
-@file:OptIn(ExperimentalDeferredTransitionApi::class)
-
 package org.jetbrains.compose.swing.animation
 
 import androidx.collection.mutableScatterMapOf
@@ -33,12 +30,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.Snapshot
 import org.jetbrains.compose.swing.animation.core.AnimationVector2D
 import org.jetbrains.compose.swing.animation.core.DeferredTransition
-import org.jetbrains.compose.swing.animation.core.ExperimentalDeferredTransitionApi
-import org.jetbrains.compose.swing.animation.core.Spring
 import org.jetbrains.compose.swing.animation.core.Transition
 import org.jetbrains.compose.swing.animation.core.createDeferredAnimation
-import org.jetbrains.compose.swing.animation.core.spring
-import org.jetbrains.compose.swing.animation.core.tween
+import org.jetbrains.compose.swing.animation.core.internal.fastForEach
 import org.jetbrains.compose.swing.animation.core.updateTransition
 import org.jetbrains.compose.swing.foundation.graphics.RectangleShape
 import org.jetbrains.compose.swing.foundation.graphics.clip
@@ -134,10 +128,7 @@ public fun <S> AnimatedContent(
     targetState: S,
     modifier: SwingModifier = SwingModifier,
     transitionSpec: AnimatedContentTransitionScope<S>.() -> ContentTransform = {
-        (
-            fadeIn(animationSpec = tween(220, delayMillis = 90)) +
-                scaleIn(initialScale = 0.92f, animationSpec = tween(220, delayMillis = 90))
-        ).togetherWith(fadeOut(animationSpec = tween(90)))
+        AnimatedContentDefaults.ContentTransform
     },
     contentAlignment: Alignment = Alignment.TopStart,
     label: String = "AnimatedContent",
@@ -174,10 +165,7 @@ public fun <S> ConstrainedScope.AnimatedContent(
     targetState: S,
     modifier: SwingModifier = SwingModifier,
     transitionSpec: AnimatedContentTransitionScope<S>.() -> ContentTransform = {
-        (
-            fadeIn(animationSpec = tween(220, delayMillis = 90)) +
-                scaleIn(initialScale = 0.92f, animationSpec = tween(220, delayMillis = 90))
-        ).togetherWith(fadeOut(animationSpec = tween(90)))
+        AnimatedContentDefaults.ContentTransform
     },
     contentAlignment: Alignment = Alignment.TopStart,
     label: String = "AnimatedContent",
@@ -225,10 +213,7 @@ public fun <S> ConstrainedScope.AnimatedContent(
 public fun <S> Transition<S>.AnimatedContent(
     modifier: SwingModifier = SwingModifier,
     transitionSpec: AnimatedContentTransitionScope<S>.() -> ContentTransform = {
-        (
-            fadeIn(animationSpec = tween(220, delayMillis = 90)) +
-                scaleIn(initialScale = 0.92f, animationSpec = tween(220, delayMillis = 90))
-        ).togetherWith(fadeOut(animationSpec = tween(90)))
+        AnimatedContentDefaults.ContentTransform
     },
     contentAlignment: Alignment = Alignment.TopStart,
     contentKey: (targetState: S) -> Any? = { it },
@@ -255,7 +240,7 @@ public fun <S> Transition<S>.AnimatedContent(
  *
  * ```
  * val state = remember { DeferredTransitionState(Page.Summary) }
- * rememberTransition(state).DeferredAnimatedContent(
+ * rememberDeferredTransition(state).DeferredAnimatedContent(
  *     mutableTransformSpec = {
  *         MutableContentTransform { targetContentTransform { alpha = progress } }
  *     },
@@ -277,15 +262,11 @@ public fun <S> Transition<S>.AnimatedContent(
  *     the scope of the change that phase announces. By default nothing is transformed.
  * @param content the composable content of one state of the container; see [AnimatedContentScope].
  */
-@ExperimentalDeferredTransitionApi
 @Composable
 public fun <S> DeferredTransition<S>.DeferredAnimatedContent(
     modifier: SwingModifier = SwingModifier,
     transitionSpec: AnimatedContentTransitionScope<S>.() -> ContentTransform = {
-        (
-            fadeIn(animationSpec = tween(220, delayMillis = 90)) +
-                scaleIn(initialScale = 0.92f, animationSpec = tween(220, delayMillis = 90))
-        ).togetherWith(fadeOut(animationSpec = tween(90)))
+        AnimatedContentDefaults.ContentTransform
     },
     contentAlignment: Alignment = Alignment.TopStart,
     contentKey: (targetState: S) -> Any? = { it },
@@ -310,7 +291,6 @@ public fun <S> DeferredTransition<S>.DeferredAnimatedContent(
  * @see MutableTransform
  * @see DeferredAnimatedContent
  */
-@ExperimentalDeferredTransitionApi
 public class MutableContentTransform internal constructor(
     initialVeilMatchParentSize: Boolean,
     targetVeilMatchParentSize: Boolean,
@@ -356,7 +336,6 @@ public class MutableContentTransform internal constructor(
  *     [MutableTransform.offsetVelocityProvider].
  * @param block declares the transform of each of the two contents.
  */
-@ExperimentalDeferredTransitionApi
 public fun MutableContentTransform(
     initialVeilMatchParentSize: Boolean = false,
     targetVeilMatchParentSize: Boolean = false,
@@ -415,12 +394,15 @@ internal fun <S> Transition<S>.AnimatedContentImpl(
 
     pendingTargetState?.let { pendingTargetState ->
         if (pendingTargetState != currentState) {
-            // Replace the target with the same key if any
-            val id = currentlyVisible.indexOfFirst { contentKey(it) == contentKey(pendingTargetState) }
-            if (id == -1) {
-                currentlyVisible.add(pendingTargetState)
-            } else if (currentlyVisible[id] != pendingTargetState) {
-                currentlyVisible[id] = pendingTargetState
+            val pendingKey = contentKey(pendingTargetState)
+            if (pendingKey != contentKey(targetState)) {
+                // Replace the target with the same key if any
+                val id = currentlyVisible.indexOfFirst { contentKey(it) == pendingKey }
+                if (id == -1) {
+                    currentlyVisible.add(pendingTargetState)
+                } else if (currentlyVisible[id] != pendingTargetState) {
+                    currentlyVisible[id] = pendingTargetState
+                }
             }
         }
     }
@@ -450,15 +432,22 @@ internal fun <S> Transition<S>.AnimatedContentImpl(
             }
         }
     val mutableContentTransformData =
-        remember(pendingScope, mutableTransformSpec) { pendingScope?.mutableTransformSpec() }
+        remember(pendingScope, mutableTransformSpec) {
+            pendingScope?.run {
+                if (contentKey(initialState) != contentKey(targetState)) {
+                    mutableTransformSpec()
+                } else {
+                    MutableContentTransform()
+                }
+            }
+        }
     if (
         targetState !in contentMap ||
         currentState !in contentMap ||
         (localPendingTargetState != null && localPendingTargetState !in contentMap)
     ) {
         contentMap.clear()
-        for (index in currentlyVisible.indices) {
-            val stateForContent = currentlyVisible[index]
+        currentlyVisible.toList().fastForEach { stateForContent ->
             contentMap[stateForContent] = {
                 val specOnEnter =
                     remember(stateForContent == pendingTargetState) {
@@ -491,14 +480,16 @@ internal fun <S> Transition<S>.AnimatedContentImpl(
                             rootScope.transitionSpec().initialContentExit
                         }
                     }
+                val stateContentKey = contentKey(stateForContent)
                 val childData =
                     AnimatedContentChildData(
                         stateForContent = stateForContent,
                         isTarget = stateForContent == targetState,
                         isPendingTarget =
-                            stateForContent == pendingTargetState &&
-                                stateForContent != targetState &&
-                                stateForContent != currentState,
+                            localPendingTargetState != null &&
+                                stateContentKey == contentKey(localPendingTargetState) &&
+                                stateContentKey != contentKey(targetState) &&
+                                stateContentKey != contentKey(currentState),
                     )
                 AnimatedEnterExitImpl(
                     transition = this@AnimatedContentImpl,
@@ -522,6 +513,12 @@ internal fun <S> Transition<S>.AnimatedContentImpl(
                                 else -> null
                             }
                         },
+                    forceVisible =
+                        this@AnimatedContentImpl is DeferredTransition &&
+                            currentlyVisible.indexOf(stateForContent).let { index ->
+                                index >= 0 &&
+                                    index >= currentlyVisible.size - MAX_INTERRUPTION_RETENTION
+                            },
                     parentScope = this,
                 ) {
                     DisposableEffect(this, stateForContent) {
@@ -536,7 +533,8 @@ internal fun <S> Transition<S>.AnimatedContentImpl(
             }
         }
     }
-    val contentTransform = remember(rootScope, segment, pendingTargetState) { transitionSpec(rootScope) }
+    val contentTransform =
+        remember(pendingScope, rootScope, segment) { transitionSpec(pendingScope ?: rootScope) }
     val sizeAnimation = rootScope.createSizeAnimation(contentTransform)
     val hasAnimatedSize = sizeAnimation.animation != null
     val clipsAnimatedSize = hasAnimatedSize && contentTransform.sizeTransform?.clip != false
@@ -561,8 +559,7 @@ internal fun <S> Transition<S>.AnimatedContentImpl(
                 AnimatedContentMeasurePolicy(rootScope, if (parentScope != null) null else sizeAnimation)
             },
         content = {
-            for (index in currentlyVisible.indices) {
-                val state = currentlyVisible[index]
+            currentlyVisible.toList().fastForEach { state ->
                 key(contentKey(state)) { contentMap[state]?.invoke(this) }
             }
         },
@@ -610,15 +607,15 @@ internal class ContentSizeAnimation<S>(
 
     // The size change under way, so that a changed target state starts from the last size seen to the new target
     // size, keeping the size continuous.
-    private var lastSize: Dimension = UnspecifiedSize
+    private var lastSize: Dimension? = null
 
     // Intrinsic answers hold the size the animation ended at until a pass measures without the animation.
     private var endedAt: Dimension? = null
 
-    private fun lastContinuousSizeOrDefault(default: Dimension) = if (lastSize == UnspecifiedSize) default else lastSize
+    private fun lastContinuousSizeOrDefault(default: Dimension) = lastSize ?: default
 
     fun reset() {
-        lastSize = UnspecifiedSize
+        lastSize = null
         endedAt = null
     }
 
@@ -626,7 +623,7 @@ internal class ContentSizeAnimation<S>(
     fun replaceAnimation(animation: Transition<S>.DeferredAnimation<Dimension, AnimationVector2D>?) {
         if (animation == null && this.animation != null) {
             val animatedSize = Snapshot.withoutReadObservation { scope.animatedSize?.value }
-            endedAt = animatedSize ?: lastSize.takeIf { it != UnspecifiedSize }
+            endedAt = animatedSize ?: lastSize
         }
         this.animation = animation
     }
@@ -659,7 +656,7 @@ internal class ContentSizeAnimation<S>(
                         }
                     val target = scope.sizeOf(targetState)
                     sizeTransform.value?.createAnimationSpec(Dimension(initial), Dimension(target))
-                        ?: spring(stiffness = Spring.StiffnessMediumLow)
+                        ?: AnimatedContentDefaults.SizeAnimationSpec
                 },
             ) {
                 if (it == scope.initialState) {
@@ -680,8 +677,15 @@ internal class ContentSizeAnimation<S>(
     ): Dimension = animation?.let { scope.animatedSize?.value } ?: endedAt ?: Dimension(width, height)
 }
 
-/** Compared with and never handed out. */
-private val UnspecifiedSize = Dimension(Int.MIN_VALUE, Int.MIN_VALUE)
+/**
+ * The maximum number of interrupted states to keep in the composition tree at once.
+ *
+ * This limit is only applied to [DeferredTransition] based [AnimatedContent]. It ensures that the
+ * most recent states in a transition chain (e.g. A -> B -> C) stay visible and finish their exit
+ * animations gracefully, while preventing an infinite "pile-up" of scenes in the composition tree
+ * during rapid interruptions.
+ */
+private const val MAX_INTERRUPTION_RETENTION = 3
 
 private class SizeModifierElement<S>(
     val sizeAnimation: ContentSizeAnimation<S>,

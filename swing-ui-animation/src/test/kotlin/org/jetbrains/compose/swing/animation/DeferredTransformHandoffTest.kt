@@ -5,8 +5,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.animation.core.DeferredTransitionState
-import org.jetbrains.compose.swing.animation.core.ExperimentalDeferredTransitionApi
-import org.jetbrains.compose.swing.animation.core.rememberTransition
+import org.jetbrains.compose.swing.animation.core.rememberDeferredTransition
 import org.jetbrains.compose.swing.animation.core.tween
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
@@ -25,17 +24,16 @@ import kotlin.test.assertTrue
  * where both declare one property, what a transition that declares nothing holds a phase's value at, and
  * what a phase interrupted while the transition after it is still running leaves on screen.
  */
-@OptIn(ExperimentalDeferredTransitionApi::class)
 class DeferredTransformHandoffTest {
     @Test
-    fun `a hand-driven offset is added to the offset the transition holds`() =
+    fun `a hand-driven offset stands in place of the offset the transition holds`() =
         runComposeSwingTest {
             val state = DeferredTransitionState(false)
             val transform = MutableTransform()
             transform.update { offset = Point(PHASE_OFFSET, 0) }
             setContent {
                 DeferredViewport {
-                    rememberTransition(state).DeferredAnimatedVisibility(
+                    rememberDeferredTransition(state).DeferredAnimatedVisibility(
                         modifier = SwingModifier.testTag("deferredVisibility"),
                         visible = { it },
                         enter = slideInHorizontally(tween(durationMillis = 320)) { SLIDE_IN },
@@ -50,24 +48,25 @@ class DeferredTransformHandoffTest {
             state.defer(true)
             awaitIdle()
             assertEquals(
-                SLIDE_IN + PHASE_OFFSET,
+                PHASE_OFFSET,
                 paintedDeferredContentLeft(),
-                "the phase's offset stood in place of the enter's rather than being added to it",
+                "the enter's slide was added to the phase's offset instead of being replaced by it",
             )
         }
 
     @Test
-    fun `a hand-driven opacity is multiplied into the opacity the transition holds`() =
+    fun `a hand-driven opacity stands in place of the opacity the transition holds`() =
         runComposeSwingTest {
             val state = DeferredTransitionState(false)
             val transform = MutableTransform()
             transform.update { alpha = HELD_ALPHA }
             setContent {
                 DeferredViewport {
-                    rememberTransition(state).DeferredAnimatedVisibility(
+                    rememberDeferredTransition(state).DeferredAnimatedVisibility(
                         modifier = SwingModifier.testTag("deferredVisibility"),
                         visible = { it },
-                        enter = fadeIn(tween(durationMillis = 320), initialAlpha = HELD_ALPHA),
+                        // Apart from HELD_ALPHA, so replacing and multiplying leave different opacities.
+                        enter = fadeIn(tween(durationMillis = 320), initialAlpha = 0.2f),
                         exit = ExitTransition.None,
                         mutableTransform = transform,
                     ) {
@@ -79,10 +78,10 @@ class DeferredTransformHandoffTest {
             state.defer(true)
             awaitIdle()
             assertEquals(
-                // what HELD_ALPHA multiplied into itself leaves of the content, as one channel of the pixel read back
-                64,
+                // HELD_ALPHA alone, as one channel of the pixel read back
+                128,
                 sampledContent().alpha,
-                "the phase's opacity stood in place of the enter's rather than being multiplied into it",
+                "the phase's opacity was multiplied into the enter's instead of standing in place of it",
             )
         }
 
@@ -94,7 +93,7 @@ class DeferredTransformHandoffTest {
             transform.update { veil = PhaseScrim }
             setContent {
                 DeferredViewport {
-                    rememberTransition(state).DeferredAnimatedVisibility(
+                    rememberDeferredTransition(state).DeferredAnimatedVisibility(
                         modifier = SwingModifier.testTag("deferredVisibility"),
                         visible = { it },
                         enter = unveilIn(tween(durationMillis = 320), initialColor = TransitionScrim),
@@ -123,7 +122,7 @@ class DeferredTransformHandoffTest {
             transform.update { offset = Point(PHASE_OFFSET, 0) }
             setContent {
                 DeferredViewport {
-                    rememberTransition(state).DeferredAnimatedVisibility(
+                    rememberDeferredTransition(state).DeferredAnimatedVisibility(
                         modifier = SwingModifier.testTag("deferredVisibility"),
                         visible = { it },
                         enter = EnterTransition.None,
@@ -157,7 +156,7 @@ class DeferredTransformHandoffTest {
             transform.update { scale = HALF_SCALE }
             setContent {
                 DeferredViewport {
-                    rememberTransition(state).DeferredAnimatedVisibility(
+                    rememberDeferredTransition(state).DeferredAnimatedVisibility(
                         modifier = SwingModifier.testTag("deferredVisibility"),
                         visible = { it },
                         enter = EnterTransition.None,
@@ -191,7 +190,7 @@ class DeferredTransformHandoffTest {
             transform.update { offset = Point(PHASE_OFFSET, 0) }
             setContent {
                 DeferredViewport {
-                    rememberTransition(state).DeferredAnimatedVisibility(
+                    rememberDeferredTransition(state).DeferredAnimatedVisibility(
                         modifier = SwingModifier.testTag("deferredVisibility"),
                         visible = { it },
                         enter = slideInHorizontally(tween(durationMillis = 320)) { SLIDE_IN },
@@ -223,7 +222,7 @@ class DeferredTransformHandoffTest {
         }
 
     @Test
-    fun `a phase deferred over a running handoff leaves the content where it stood`() =
+    fun `a phase deferred over a running handoff does not inherit what the previous phase wrote`() =
         runComposeSwingTest {
             var driving by mutableStateOf(true)
             val state = DeferredTransitionState(true)
@@ -231,7 +230,7 @@ class DeferredTransformHandoffTest {
             transform.update { if (driving) offset = Point(PHASE_OFFSET, 0) }
             setContent {
                 DeferredViewport {
-                    rememberTransition(state).DeferredAnimatedVisibility(
+                    rememberDeferredTransition(state).DeferredAnimatedVisibility(
                         modifier = SwingModifier.testTag("deferredVisibility"),
                         visible = { it },
                         enter = fadeIn(tween(durationMillis = 320)),
@@ -252,13 +251,14 @@ class DeferredTransformHandoffTest {
             repeat(FRAMES_INTO_THE_EXIT) { mainClock.advanceTimeByFrame() }
 
             // A second phase over the running exit, declaring no offset of its own: what the first phase
-            // wrote is kept, so the content stays where it stood rather than dropping back.
+            // wrote is cleared; the property is left to the transition.
             driving = false
             state.defer(true)
             repeat(FRAMES_INTO_THE_EXIT) { mainClock.advanceTimeByFrame() }
             assertTrue(
-                paintedDeferredContentLeft() >= PHASE_OFFSET,
-                "the content snapped back as the second phase took over, to ${paintedDeferredContentLeft()}",
+                paintedDeferredContentLeft() in 0 until PHASE_OFFSET,
+                "the content was held at the offset the first phase wrote instead of following the transition, " +
+                    "at ${paintedDeferredContentLeft()}",
             )
 
             state.animateTo(true)
@@ -287,7 +287,7 @@ private const val PHASE_OFFSET = 10
 /** How far the enter the offset tests declare starts the content from its place. */
 private const val SLIDE_IN = 40
 
-/** How opaque a hand-driven phase paints the content, which is also where the enter's fade starts. */
+/** How opaque a hand-driven phase paints the content. */
 private const val HELD_ALPHA = 0.5f
 
 /** The scrim a hand-driven phase fills over the content, opaque so the pixel read back is that color. */

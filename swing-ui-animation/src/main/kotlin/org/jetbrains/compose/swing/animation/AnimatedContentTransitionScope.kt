@@ -82,27 +82,33 @@ public sealed interface AnimatedContentTransitionScope<S> : Transition.Segment<S
         public companion object {
             /** Towards the left edge, whatever the reading order. */
             @JvmStatic
-            public val Left: SlideDirection = SlideDirection(0)
+            public val Left: SlideDirection
+                get() = SlideDirection(0)
 
             /** Towards the right edge, whatever the reading order. */
             @JvmStatic
-            public val Right: SlideDirection = SlideDirection(1)
+            public val Right: SlideDirection
+                get() = SlideDirection(1)
 
             /** Towards the top edge. */
             @JvmStatic
-            public val Up: SlideDirection = SlideDirection(2)
+            public val Up: SlideDirection
+                get() = SlideDirection(2)
 
             /** Towards the bottom edge. */
             @JvmStatic
-            public val Down: SlideDirection = SlideDirection(3)
+            public val Down: SlideDirection
+                get() = SlideDirection(3)
 
             /** Towards the leading edge: the left under a left-to-right reading order. */
             @JvmStatic
-            public val Start: SlideDirection = SlideDirection(4)
+            public val Start: SlideDirection
+                get() = SlideDirection(4)
 
             /** Towards the trailing edge: the right under a left-to-right reading order. */
             @JvmStatic
-            public val End: SlideDirection = SlideDirection(5)
+            public val End: SlideDirection
+                get() = SlideDirection(5)
         }
     }
 

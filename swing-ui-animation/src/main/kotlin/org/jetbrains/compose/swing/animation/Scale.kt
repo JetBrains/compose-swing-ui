@@ -18,8 +18,6 @@ package org.jetbrains.compose.swing.animation
 
 import androidx.compose.runtime.Stable
 import org.jetbrains.compose.swing.animation.core.FiniteAnimationSpec
-import org.jetbrains.compose.swing.animation.core.Spring
-import org.jetbrains.compose.swing.animation.core.spring
 import org.jetbrains.compose.swing.foundation.graphics.TransformOrigin
 
 // Derived from androidx.compose.animation's scaleIn and scaleOut: the parameter names, order and defaults
@@ -41,7 +39,7 @@ import org.jetbrains.compose.swing.foundation.graphics.TransformOrigin
  */
 @Stable
 public fun scaleIn(
-    animationSpec: FiniteAnimationSpec<Float> = spring(stiffness = Spring.StiffnessMediumLow),
+    animationSpec: FiniteAnimationSpec<Float> = DefaultScaleSpring,
     initialScale: Float = 0f,
     transformOrigin: TransformOrigin = TransformOrigin.Center,
 ): EnterTransition =
@@ -62,7 +60,7 @@ public fun scaleIn(
  */
 @Stable
 public fun scaleOut(
-    animationSpec: FiniteAnimationSpec<Float> = spring(stiffness = Spring.StiffnessMediumLow),
+    animationSpec: FiniteAnimationSpec<Float> = DefaultScaleSpring,
     targetScale: Float = 0f,
     transformOrigin: TransformOrigin = TransformOrigin.Center,
 ): ExitTransition =

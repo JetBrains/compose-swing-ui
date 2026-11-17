@@ -16,7 +16,7 @@
 
 // Extracted subset of androidx.compose.ui.util.ListUtils (the iteration helpers that avoid
 // allocating an iterator) for compose-swing-ui's vendored animation-core. Sourced from
-// AndroidX (Jetpack Compose 1.12.0), with the declarations narrowed to internal.
+// AndroidX (Jetpack Compose 1.13.0), with the declarations narrowed to internal.
 
 package org.jetbrains.compose.swing.animation.core.internal
 

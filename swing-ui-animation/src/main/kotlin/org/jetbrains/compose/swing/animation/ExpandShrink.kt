@@ -45,7 +45,7 @@ import java.awt.Dimension
  */
 @Stable
 public fun expandIn(
-    animationSpec: FiniteAnimationSpec<Dimension> = DEFAULT_SIZE_SPRING,
+    animationSpec: FiniteAnimationSpec<Dimension> = DefaultSizeSpring,
     expandFrom: Alignment = Alignment.BottomEnd,
     clip: Boolean = true,
     initialSize: (fullSize: Dimension) -> Dimension = { Dimension(0, 0) },
@@ -71,7 +71,7 @@ public fun expandIn(
  */
 @Stable
 public fun shrinkOut(
-    animationSpec: FiniteAnimationSpec<Dimension> = DEFAULT_SIZE_SPRING,
+    animationSpec: FiniteAnimationSpec<Dimension> = DefaultSizeSpring,
     shrinkTowards: Alignment = Alignment.BottomEnd,
     clip: Boolean = true,
     targetSize: (fullSize: Dimension) -> Dimension = { Dimension(0, 0) },
@@ -93,7 +93,7 @@ public fun shrinkOut(
  */
 @Stable
 public fun expandHorizontally(
-    animationSpec: FiniteAnimationSpec<Dimension> = DEFAULT_SIZE_SPRING,
+    animationSpec: FiniteAnimationSpec<Dimension> = DefaultSizeSpring,
     expandFrom: Alignment.Horizontal = Alignment.End,
     clip: Boolean = true,
     initialWidth: (fullWidth: Int) -> Int = { 0 },
@@ -115,7 +115,7 @@ public fun expandHorizontally(
  */
 @Stable
 public fun expandVertically(
-    animationSpec: FiniteAnimationSpec<Dimension> = DEFAULT_SIZE_SPRING,
+    animationSpec: FiniteAnimationSpec<Dimension> = DefaultSizeSpring,
     expandFrom: Alignment.Vertical = Alignment.Bottom,
     clip: Boolean = true,
     initialHeight: (fullHeight: Int) -> Int = { 0 },
@@ -137,7 +137,7 @@ public fun expandVertically(
  */
 @Stable
 public fun shrinkHorizontally(
-    animationSpec: FiniteAnimationSpec<Dimension> = DEFAULT_SIZE_SPRING,
+    animationSpec: FiniteAnimationSpec<Dimension> = DefaultSizeSpring,
     shrinkTowards: Alignment.Horizontal = Alignment.End,
     clip: Boolean = true,
     targetWidth: (fullWidth: Int) -> Int = { 0 },
@@ -157,7 +157,7 @@ public fun shrinkHorizontally(
  */
 @Stable
 public fun shrinkVertically(
-    animationSpec: FiniteAnimationSpec<Dimension> = DEFAULT_SIZE_SPRING,
+    animationSpec: FiniteAnimationSpec<Dimension> = DefaultSizeSpring,
     shrinkTowards: Alignment.Vertical = Alignment.Bottom,
     clip: Boolean = true,
     targetHeight: (fullHeight: Int) -> Int = { 0 },
@@ -182,5 +182,5 @@ private fun Alignment.Vertical.toAlignment(): Alignment =
 
 // The default spec of every size factory. The threshold is explicit because the vendored engine's own threshold
 // map covers only Int and Float.
-private val DEFAULT_SIZE_SPRING: FiniteAnimationSpec<Dimension> =
-    spring(stiffness = Spring.StiffnessMediumLow, visibilityThreshold = dimensionVisibilityThreshold())
+private val DefaultSizeSpring: FiniteAnimationSpec<Dimension>
+    get() = spring(stiffness = Spring.StiffnessMediumLow, visibilityThreshold = dimensionVisibilityThreshold())

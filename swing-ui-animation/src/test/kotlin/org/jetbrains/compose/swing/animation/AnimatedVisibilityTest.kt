@@ -27,6 +27,7 @@ import org.jetbrains.compose.swing.animation.core.FastOutSlowInEasing
 import org.jetbrains.compose.swing.animation.core.LinearEasing
 import org.jetbrains.compose.swing.animation.core.LinearOutSlowInEasing
 import org.jetbrains.compose.swing.animation.core.MutableTransitionState
+import org.jetbrains.compose.swing.animation.core.SpringSpec
 import org.jetbrains.compose.swing.animation.core.Transition
 import org.jetbrains.compose.swing.animation.core.tween
 import org.jetbrains.compose.swing.animation.core.updateTransition
@@ -138,6 +139,15 @@ class AnimatedVisibilityTest {
                 "the exit exceeded its duration",
             )
         }
+
+    @Test
+    fun testScaleInAndScaleOutDefaultVisibilityThreshold() {
+        val enterSpring = scaleIn().config.scale?.animationSpec as? SpringSpec<Float>
+        assertEquals(0.002f, enterSpring?.visibilityThreshold)
+
+        val exitSpring = scaleOut().config.scale?.animationSpec as? SpringSpec<Float>
+        assertEquals(0.002f, exitSpring?.visibilityThreshold)
+    }
 
     @Test
     fun testSeekingAnimatedVisibility() =

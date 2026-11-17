@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 The Android Open Source Project
+ * Copyright 2026 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,14 +17,16 @@
 package org.jetbrains.compose.swing.animation.core
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
-import kotlinx.coroutines.channels.Channel
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 private val defaultAnimation = spring<Float>()
@@ -65,7 +67,10 @@ public fun animateFloatAsState(
     finishedListener: ((Float) -> Unit)? = null,
 ): State<Float> {
     val resolvedAnimSpec =
-        if (animationSpec === defaultAnimation) {
+        if (
+            animationSpec === defaultAnimation &&
+                visibilityThreshold != DefaultFloatVisibilityThreshold
+        ) {
             remember(visibilityThreshold) { spring(visibilityThreshold = visibilityThreshold) }
         } else {
             animationSpec
@@ -152,41 +157,112 @@ public fun <T, V : AnimationVector> animateValueAsState(
     label: String = "ValueAnimation",
     finishedListener: ((T) -> Unit)? = null,
 ): State<T> {
+    val coroutineScope = rememberCoroutineScope()
+    var updating = true
+    val state = remember {
+        AnimateAsState(
+                targetValue,
+                typeConverter,
+                animationSpec,
+                visibilityThreshold,
+                label,
+                finishedListener,
+                coroutineScope,
+            )
+            .also { updating = false }
+    }
 
-    val toolingOverride = remember { mutableStateOf<State<T>?>(null) }
-    val animatable = remember { Animatable(targetValue, typeConverter, visibilityThreshold, label) }
-    val listener by rememberUpdatedState(finishedListener)
-    val animSpec: AnimationSpec<T> by
-        rememberUpdatedState(
-            animationSpec.run {
-                if (
-                    visibilityThreshold != null &&
-                        this is SpringSpec &&
-                        this.visibilityThreshold != visibilityThreshold
-                ) {
-                    spring(dampingRatio, stiffness, visibilityThreshold)
-                } else {
-                    this
-                }
-            }
-        )
-    val channel = remember { Channel<T>(Channel.CONFLATED) }
-    SideEffect { channel.trySend(targetValue) }
-    LaunchedEffect(channel) {
-        for (target in channel) {
-            // This additional poll is needed because when the channel suspends on receive and
-            // two values are produced before consumers' dispatcher resumes, only the first value
-            // will be received.
-            // It may not be an issue elsewhere, but in animation we want to avoid being one
-            // frame late.
-            val newTarget = channel.tryReceive().getOrNull() ?: target
-            launch {
-                if (newTarget != animatable.targetValue) {
-                    animatable.animateTo(newTarget, animSpec)
-                    listener?.invoke(animatable.value)
-                }
-            }
+    // Avoid calling state.update on initial composition.
+    if (updating) {
+        SideEffect {
+            state.update(
+                targetValue,
+                typeConverter,
+                animationSpec,
+                visibilityThreshold,
+                label,
+                finishedListener,
+            )
         }
     }
-    return toolingOverride.value ?: animatable.asState()
+
+    return state
+}
+
+private class AnimateAsState<T, V : AnimationVector>(
+    initialValue: T,
+    typeConverter: TwoWayConverter<T, V>,
+    animationSpec: AnimationSpec<T>,
+    visibilityThreshold: T?,
+    label: String,
+    var finishedListener: ((T) -> Unit)?,
+    private val coroutineScope: CoroutineScope,
+) : State<T> {
+    // AndroidX 1.13 uses a plain field. Observing the reference keeps readers subscribed to
+    // the current Animatable after a label or converter change. See b/587045388.
+    var animatable by mutableStateOf(Animatable(initialValue, typeConverter, visibilityThreshold, label))
+    var animationSpec = resolveAnimationSpec(animationSpec, visibilityThreshold)
+    private var job: Job? = null
+
+    private val toolingOverride: State<T>? by mutableStateOf(null)
+
+    override val value: T
+        get() = toolingOverride?.value ?: animatable.value
+
+    fun update(
+        target: T,
+        typeConverter: TwoWayConverter<T, V>,
+        animationSpec: AnimationSpec<T>,
+        visibilityThreshold: T?,
+        label: String,
+        finishedListener: ((T) -> Unit)?,
+    ) {
+        var restartAnimation = false
+        if (animatable.typeConverter !== typeConverter || animatable.label != label) {
+            animatable = Animatable(animatable.value, typeConverter, visibilityThreshold, label)
+            restartAnimation = true
+        }
+
+        if (target != animatable.targetValue) {
+            restartAnimation = true
+        }
+
+        this.animationSpec = resolveAnimationSpec(animationSpec, visibilityThreshold)
+        this.finishedListener = finishedListener
+
+        if (restartAnimation) {
+            restartAnimation(target, this.animationSpec)
+        }
+    }
+
+    private fun restartAnimation(newTarget: T, animSpec: AnimationSpec<T>) {
+        if (job != null) {
+            job?.cancel()
+        }
+        if (animatable.targetValue == newTarget) return
+
+        job =
+            coroutineScope.launch(
+                // undispatched to allow for continuous progress when target changes every frame
+                start = CoroutineStart.UNDISPATCHED
+            ) {
+                animatable.animateTo(newTarget, animSpec)
+                finishedListener?.invoke(animatable.value)
+            }
+    }
+
+    private fun resolveAnimationSpec(
+        spec: AnimationSpec<T>,
+        visibilityThreshold: T?,
+    ): AnimationSpec<T> = spec.run {
+        if (
+            visibilityThreshold != null &&
+                this is SpringSpec &&
+                this.visibilityThreshold != visibilityThreshold
+        ) {
+            spring(dampingRatio, stiffness, visibilityThreshold)
+        } else {
+            this
+        }
+    }
 }

@@ -24,6 +24,9 @@ package org.jetbrains.compose.swing.animation.core
 public val Int.Companion.VisibilityThreshold: Int
     get() = 1
 
-@Suppress("PrimitiveInCollection")
-internal val VisibilityThresholdMap: Map<TwoWayConverter<*, *>, Float> =
-    mapOf(Int.VectorConverter to 1f, Float.VectorConverter to 0.01f)
+internal fun defaultVisibilityThresholdFor(converter: TwoWayConverter<*, *>): Float? =
+    when (converter) {
+        Int.VectorConverter -> 1f
+        Float.VectorConverter -> 0.01f
+        else -> null
+    }

@@ -7,8 +7,7 @@ import org.jetbrains.compose.swing.animation.AnimatedVisibilityScope
 import org.jetbrains.compose.swing.animation.DeferredAnimatedVisibility
 import org.jetbrains.compose.swing.animation.MutableTransform
 import org.jetbrains.compose.swing.animation.core.DeferredTransitionState
-import org.jetbrains.compose.swing.animation.core.ExperimentalDeferredTransitionApi
-import org.jetbrains.compose.swing.animation.core.rememberTransition
+import org.jetbrains.compose.swing.animation.core.rememberDeferredTransition
 import org.jetbrains.compose.swing.animation.core.tween
 import org.jetbrains.compose.swing.animation.fadeIn
 import org.jetbrains.compose.swing.animation.fadeOut
@@ -36,7 +35,6 @@ public data class DeferredAnimatedVisibilityParameters(
  * A [DeferredAnimatedVisibility] over a deferred transition settled at its target state, against a raw [JPanel] that
  * shows the same content at that state.
  */
-@OptIn(ExperimentalDeferredTransitionApi::class)
 public object DeferredAnimatedVisibilityFixture : ComposableFixture<DeferredAnimatedVisibilityParameters, JPanel>(
     initial =
         DeferredAnimatedVisibilityParameters(
@@ -83,7 +81,7 @@ public object DeferredAnimatedVisibilityFixture : ComposableFixture<DeferredAnim
         content: @Composable AnimatedVisibilityScope.() -> Unit,
     ) {
         val transitionState = remember { DeferredTransitionState(TARGET_STATE) }
-        val transition = rememberTransition(transitionState)
+        val transition = rememberDeferredTransition(transitionState)
         val transform = remember(transformAlpha) { MutableTransform().apply { update { alpha = transformAlpha } } }
         Box {
             transition.DeferredAnimatedVisibility(

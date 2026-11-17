@@ -5,8 +5,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.animation.core.DeferredTransitionState
-import org.jetbrains.compose.swing.animation.core.ExperimentalDeferredTransitionApi
-import org.jetbrains.compose.swing.animation.core.rememberTransition
+import org.jetbrains.compose.swing.animation.core.rememberDeferredTransition
 import org.jetbrains.compose.swing.animation.core.tween
 import org.jetbrains.compose.swing.foundation.graphics.TransformOrigin
 import org.jetbrains.compose.swing.modifier.SwingModifier
@@ -27,7 +26,6 @@ import kotlin.test.assertTrue
  * What a hand-driven transform does to the content of a deferred phase: the values it declares reach the
  * screen while the phase lasts, and the transition the phase ends with picks them up where it left them.
  */
-@OptIn(ExperimentalDeferredTransitionApi::class)
 class DeferredTransformTest {
     @Test
     fun `a hand-driven offset moves the content while the deferred phase lasts`() =
@@ -38,7 +36,7 @@ class DeferredTransformTest {
             transform.update { fullSize -> offset = Point((fullSize.width * fraction).toInt(), 0) }
             setContent {
                 DeferredViewport {
-                    rememberTransition(state).DeferredAnimatedVisibility(
+                    rememberDeferredTransition(state).DeferredAnimatedVisibility(
                         modifier = SwingModifier.testTag("deferredVisibility"),
                         visible = { it },
                         enter = EnterTransition.None,
@@ -75,7 +73,7 @@ class DeferredTransformTest {
             transform.update { fullSize -> offset = Point(fullSize.width / 2, 0) }
             setContent {
                 DeferredViewport {
-                    rememberTransition(state).DeferredAnimatedVisibility(
+                    rememberDeferredTransition(state).DeferredAnimatedVisibility(
                         modifier = SwingModifier.testTag("deferredVisibility"),
                         visible = { it },
                         enter = EnterTransition.None,
@@ -118,7 +116,7 @@ class DeferredTransformTest {
             transform.update { alpha = 0f }
             setContent {
                 DeferredViewport {
-                    rememberTransition(state).DeferredAnimatedVisibility(
+                    rememberDeferredTransition(state).DeferredAnimatedVisibility(
                         modifier = SwingModifier.testTag("deferredVisibility"),
                         visible = { it },
                         enter = EnterTransition.None,
@@ -144,7 +142,7 @@ class DeferredTransformTest {
             transform.update { veil = Scrim }
             setContent {
                 DeferredViewport {
-                    rememberTransition(state).DeferredAnimatedVisibility(
+                    rememberDeferredTransition(state).DeferredAnimatedVisibility(
                         modifier = SwingModifier.testTag("deferredVisibility"),
                         visible = { it },
                         enter = EnterTransition.None,
@@ -173,7 +171,7 @@ class DeferredTransformTest {
             transform.update { scale = HALF_SCALE }
             setContent {
                 DeferredViewport {
-                    rememberTransition(state).DeferredAnimatedVisibility(
+                    rememberDeferredTransition(state).DeferredAnimatedVisibility(
                         modifier = SwingModifier.testTag("deferredVisibility"),
                         visible = { it },
                         enter = EnterTransition.None,
@@ -211,7 +209,7 @@ class DeferredTransformTest {
             }
             setContent {
                 DeferredViewport {
-                    rememberTransition(state).DeferredAnimatedVisibility(
+                    rememberDeferredTransition(state).DeferredAnimatedVisibility(
                         modifier = SwingModifier.testTag("deferredVisibility"),
                         visible = { it },
                         enter = EnterTransition.None,
@@ -245,7 +243,7 @@ class DeferredTransformTest {
             transform.update { fullSize -> offset = Point(fullSize.width / 2, 0) }
             setContent {
                 DeferredViewport {
-                    rememberTransition(state).DeferredAnimatedVisibility(
+                    rememberDeferredTransition(state).DeferredAnimatedVisibility(
                         modifier = SwingModifier.testTag("deferredVisibility"),
                         visible = { it },
                         enter = EnterTransition.None,
@@ -286,7 +284,7 @@ class DeferredTransformTest {
             transform.update { alpha = HELD_ALPHA }
             setContent {
                 DeferredViewport {
-                    rememberTransition(state).DeferredAnimatedVisibility(
+                    rememberDeferredTransition(state).DeferredAnimatedVisibility(
                         modifier = SwingModifier.testTag("deferredVisibility"),
                         visible = { it },
                         enter = EnterTransition.None,
@@ -326,7 +324,7 @@ class DeferredTransformTest {
             }
             setContent {
                 DeferredViewport {
-                    rememberTransition(state).DeferredAnimatedVisibility(
+                    rememberDeferredTransition(state).DeferredAnimatedVisibility(
                         modifier = SwingModifier.testTag("deferredVisibility"),
                         visible = { it },
                         enter = EnterTransition.None,
@@ -376,7 +374,7 @@ class DeferredTransformTest {
         runComposeSwingTest {
             val state = DeferredTransitionState("a")
             setContent {
-                rememberTransition(state).DeferredAnimatedContent(
+                rememberDeferredTransition(state).DeferredAnimatedContent(
                     transitionSpec = {
                         fadeIn(tween(durationMillis = 320)) togetherWith fadeOut(tween(durationMillis = 320))
                     },

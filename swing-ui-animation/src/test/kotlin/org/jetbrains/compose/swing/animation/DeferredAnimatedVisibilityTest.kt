@@ -21,11 +21,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.animation.core.DeferredTransitionState
-import org.jetbrains.compose.swing.animation.core.ExperimentalDeferredTransitionApi
 import org.jetbrains.compose.swing.animation.core.LinearEasing
 import org.jetbrains.compose.swing.animation.core.Spring
 import org.jetbrains.compose.swing.animation.core.advanceTimeBy
-import org.jetbrains.compose.swing.animation.core.rememberTransition
+import org.jetbrains.compose.swing.animation.core.rememberDeferredTransition
 import org.jetbrains.compose.swing.animation.core.spring
 import org.jetbrains.compose.swing.animation.core.tween
 import org.jetbrains.compose.swing.foundation.layout.layout
@@ -33,6 +32,7 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.test.interaction.onChild
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import java.awt.Color
 import java.awt.Dimension
 import java.awt.Point
 import java.awt.geom.Point2D
@@ -41,8 +41,12 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-/** Behavioral parity cases ported from Compose Animation 1.12 DeferredAnimatedVisibilityTest. */
-@OptIn(ExperimentalDeferredTransitionApi::class)
+/**
+ * Behavioral parity cases ported from Compose Animation 1.13 DeferredAnimatedVisibilityTest. LargeClass is suppressed
+ * to keep the upstream suite as ported, for direct source comparison.
+ */
+@Suppress("LargeClass")
+@OptIn(ExperimentalAnimationApi::class)
 class DeferredAnimatedVisibilityTest {
     @Test
     fun visibility_enterGateClosed_defersAnimationUntilReady() =
@@ -51,7 +55,7 @@ class DeferredAnimatedVisibilityTest {
             var composed = false
             setContent {
                 DeferredViewport {
-                    rememberTransition(state).DeferredAnimatedVisibility(
+                    rememberDeferredTransition(state).DeferredAnimatedVisibility(
                         modifier = SwingModifier.testTag("deferredVisibility"),
                         visible = { it },
                         enter = fadeIn(tween(160, easing = LinearEasing)),
@@ -89,7 +93,7 @@ class DeferredAnimatedVisibilityTest {
             var composed = false
             setContent {
                 DeferredViewport {
-                    rememberTransition(state).DeferredAnimatedVisibility(
+                    rememberDeferredTransition(state).DeferredAnimatedVisibility(
                         modifier = SwingModifier.testTag("deferredVisibility"),
                         visible = { it },
                         enter = EnterTransition.None,
@@ -125,7 +129,7 @@ class DeferredAnimatedVisibilityTest {
             val state = DeferredTransitionState(false)
             setContent {
                 DeferredViewport {
-                    rememberTransition(state).DeferredAnimatedVisibility(
+                    rememberDeferredTransition(state).DeferredAnimatedVisibility(
                         visible = { it },
                         modifier = SwingModifier.testTag("deferredVisibility"),
                     ) {
@@ -149,7 +153,7 @@ class DeferredAnimatedVisibilityTest {
             val state = DeferredTransitionState(true)
             setContent {
                 DeferredViewport {
-                    rememberTransition(state).DeferredAnimatedVisibility(
+                    rememberDeferredTransition(state).DeferredAnimatedVisibility(
                         modifier = SwingModifier.testTag("deferredVisibility"),
                         visible = { it },
                         enter = EnterTransition.None,
@@ -176,7 +180,7 @@ class DeferredAnimatedVisibilityTest {
             var childState: EnterExitState? = null
             setContent {
                 DeferredViewport {
-                    rememberTransition(state).DeferredAnimatedVisibility(
+                    rememberDeferredTransition(state).DeferredAnimatedVisibility(
                         modifier = SwingModifier.testTag("deferredVisibility"),
                         visible = { it },
                         enter = fadeIn(tween(1000, easing = LinearEasing)),
@@ -205,7 +209,7 @@ class DeferredAnimatedVisibilityTest {
             var animatedSize = Dimension(-1, -1)
             setContent {
                 DeferredViewport {
-                    rememberTransition(state).DeferredAnimatedVisibility(
+                    rememberDeferredTransition(state).DeferredAnimatedVisibility(
                         visible = { it },
                         enter = expandIn(tween(100, easing = LinearEasing)) { Dimension(0, 0) },
                         modifier =
@@ -249,7 +253,7 @@ class DeferredAnimatedVisibilityTest {
             var animatedSize = Dimension(-1, -1)
             setContent {
                 DeferredViewport {
-                    rememberTransition(state).DeferredAnimatedVisibility(
+                    rememberDeferredTransition(state).DeferredAnimatedVisibility(
                         visible = { it },
                         enter = expandIn(tween(320, easing = LinearEasing)) { Dimension(0, 0) },
                         exit = shrinkOut(tween(160, easing = LinearEasing)) { Dimension(0, 0) },
@@ -304,7 +308,7 @@ class DeferredAnimatedVisibilityTest {
             }
             setContent {
                 DeferredViewport {
-                    rememberTransition(state).DeferredAnimatedVisibility(
+                    rememberDeferredTransition(state).DeferredAnimatedVisibility(
                         modifier = SwingModifier.testTag("deferredVisibility"),
                         visible = { it },
                         enter = fadeIn(tween(160)),
@@ -338,7 +342,7 @@ class DeferredAnimatedVisibilityTest {
             }
             setContent {
                 DeferredViewport {
-                    rememberTransition(state).DeferredAnimatedVisibility(
+                    rememberDeferredTransition(state).DeferredAnimatedVisibility(
                         modifier = SwingModifier.testTag("deferredVisibility"),
                         visible = { it },
                         enter = fadeIn(tween(160)),
@@ -371,7 +375,7 @@ class DeferredAnimatedVisibilityTest {
             }
             setContent {
                 DeferredViewport {
-                    rememberTransition(state).DeferredAnimatedVisibility(
+                    rememberDeferredTransition(state).DeferredAnimatedVisibility(
                         modifier = SwingModifier.testTag("deferredVisibility"),
                         visible = { it },
                         enter = scaleIn(tween(160)),
@@ -408,7 +412,7 @@ class DeferredAnimatedVisibilityTest {
             }
             setContent {
                 DeferredViewport {
-                    rememberTransition(state).DeferredAnimatedVisibility(
+                    rememberDeferredTransition(state).DeferredAnimatedVisibility(
                         modifier = SwingModifier.testTag("deferredVisibility"),
                         visible = { it },
                         enter = slideInHorizontally(tween(320)) { it },
@@ -422,13 +426,13 @@ class DeferredAnimatedVisibilityTest {
             awaitIdle()
             previewOffset = 10
             mainClock.advanceTimeByFrame()
-            assertEquals(DEFERRED_BLOCK_WIDTH + 10, paintedDeferredContentLeft())
+            assertEquals(10, paintedDeferredContentLeft())
 
             mainClock.autoAdvance = false
             state.animateTo(true)
             repeat(6) { mainClock.advanceTimeByFrame() }
             assertTrue(
-                paintedDeferredContentLeft() in 1 until DEFERRED_BLOCK_WIDTH + 10,
+                paintedDeferredContentLeft() in 1 until 10,
                 "the enter did not carry the preview offset in: ${paintedDeferredContentLeft()}",
             )
             repeat(70) { mainClock.advanceTimeByFrame() }
@@ -446,7 +450,7 @@ class DeferredAnimatedVisibilityTest {
             }
             setContent {
                 DeferredViewport {
-                    rememberTransition(state).DeferredAnimatedVisibility(
+                    rememberDeferredTransition(state).DeferredAnimatedVisibility(
                         modifier = SwingModifier.testTag("deferredVisibility"),
                         visible = { it },
                         enter = scaleIn(tween(1000, easing = LinearEasing), initialScale = 0f),
@@ -465,13 +469,16 @@ class DeferredAnimatedVisibilityTest {
             state.defer(false)
             mainClock.advanceTimeByFrame()
             val widthWithPreview = onRoot().onChild().paintedWidth()
-            assertTrue(widthWithPreview < widthDuringEnter)
+            assertTrue(
+                widthWithPreview < 100 * 0.55f,
+                "the width did not animate towards the preview scale: $widthDuringEnter -> $widthWithPreview",
+            )
 
             mainClock.advanceTimeByFrame()
             val widthOnNextFrame = onRoot().onChild().paintedWidth()
             assertTrue(
-                widthOnNextFrame > widthWithPreview,
-                "the enter stopped progressing beneath the preview: $widthWithPreview -> $widthOnNextFrame",
+                widthOnNextFrame <= widthWithPreview,
+                "the visual width did not stay at the preview target: $widthWithPreview -> $widthOnNextFrame",
             )
         }
 
@@ -487,7 +494,7 @@ class DeferredAnimatedVisibilityTest {
             }
             setContent {
                 DeferredViewport {
-                    rememberTransition(state).DeferredAnimatedVisibility(
+                    rememberDeferredTransition(state).DeferredAnimatedVisibility(
                         modifier = SwingModifier.testTag("deferredVisibility"),
                         visible = { it },
                         enter = fadeIn(tween(160)),
@@ -535,7 +542,7 @@ class DeferredAnimatedVisibilityTest {
             }
             setContent {
                 DeferredViewport {
-                    rememberTransition(state).DeferredAnimatedVisibility(
+                    rememberDeferredTransition(state).DeferredAnimatedVisibility(
                         modifier = SwingModifier.testTag("deferredVisibility"),
                         visible = { it },
                         enter = scaleIn(tween(1000, easing = LinearEasing), initialScale = 0f),
@@ -570,6 +577,164 @@ class DeferredAnimatedVisibilityTest {
         }
 
     @Test
+    fun visibility_previewScale_handoff_sustainUnlessSpecified_thenInterrupted_isSeamless() =
+        runComposeSwingTest {
+            val state = DeferredTransitionState(true)
+            var previewScale by mutableStateOf(1f)
+            val transform = MutableTransform()
+            transform.update { scale = previewScale }
+            setContent {
+                DeferredViewport {
+                    rememberDeferredTransition(state).DeferredAnimatedVisibility(
+                        modifier = SwingModifier.testTag("deferredVisibility"),
+                        visible = { it },
+                        enter = fadeIn(tween(1000, easing = LinearEasing)),
+                        exit = fadeOut(tween(1000, easing = LinearEasing)),
+                        mutableTransform = transform,
+                    ) { Block(width = 100, height = 100) }
+                }
+            }
+            val fullWidth = onRoot().onChild().paintedWidth()
+            mainClock.autoAdvance = false
+
+            state.defer(false)
+            previewScale = 0.8f
+            mainClock.advanceTimeByFrame()
+            assertEquals(fullWidth * 0.8f, onRoot().onChild().paintedWidth().toFloat(), 1f)
+
+            state.animateTo(false)
+            mainClock.advanceTimeByFrame()
+            advanceTimeBy(500)
+            val widthBeforeInterruption = onRoot().onChild().paintedWidth()
+            assertEquals(fullWidth * 0.8f, widthBeforeInterruption.toFloat(), 1f)
+
+            state.animateTo(true)
+            mainClock.advanceTimeByFrame()
+            val widthAfterInterruption = onRoot().onChild().paintedWidth()
+            assertTrue(
+                widthAfterInterruption < fullWidth * 0.95f,
+                "the width snapped back to full size after the interruption: " +
+                    "$widthBeforeInterruption -> $widthAfterInterruption",
+            )
+
+            mainClock.autoAdvance = true
+            awaitIdle()
+            assertEquals(fullWidth.toFloat(), onRoot().onChild().paintedWidth().toFloat(), 1f)
+        }
+
+    @Test
+    fun visibility_previewScale_handoffUnspecifiedEnter_animatesToVisibleValue_thenInterrupted_isSeamless() =
+        runComposeSwingTest {
+            val state = DeferredTransitionState(false)
+            var previewScale by mutableStateOf(1f)
+            val transform = MutableTransform()
+            transform.update { scale = previewScale }
+            setContent {
+                DeferredViewport {
+                    rememberDeferredTransition(state).DeferredAnimatedVisibility(
+                        modifier = SwingModifier.testTag("deferredVisibility"),
+                        visible = { it },
+                        enter = fadeIn(tween(1000, easing = LinearEasing), initialAlpha = 1f),
+                        exit = fadeOut(tween(1000, easing = LinearEasing)),
+                        mutableTransform = transform,
+                    ) { Block(width = 100, height = 100) }
+                }
+            }
+            mainClock.autoAdvance = false
+
+            state.defer(true)
+            previewScale = 0.8f
+            mainClock.advanceTimeByFrame()
+            assertEquals(80f, onRoot().onChild().paintedWidth().toFloat(), 1f)
+
+            state.animateTo(true)
+            mainClock.advanceTimeByFrame()
+            advanceTimeBy(50)
+            val widthBeforeInterruption = onRoot().onChild().paintedWidth()
+
+            state.animateTo(false)
+            mainClock.advanceTimeByFrame()
+            val widthAfterInterruption = onRoot().onChild().paintedWidth()
+            assertTrue(
+                widthAfterInterruption < 95,
+                "the width snapped back to full size after the interruption: " +
+                    "$widthBeforeInterruption -> $widthAfterInterruption",
+            )
+
+            advanceTimeBy(100)
+            val widthLater = onRoot().onChild().paintedWidth()
+            assertTrue(
+                widthLater > widthAfterInterruption,
+                "the width did not grow towards full size: $widthAfterInterruption -> $widthLater",
+            )
+
+            var lastPaintedWidth = widthLater
+            mainClock.advanceTimeUntil {
+                val width = onRoot().onChild().paintedWidth()
+                if (width > 0) lastPaintedWidth = width
+                width == 0
+            }
+            assertEquals(100f, lastPaintedWidth.toFloat(), 5f)
+
+            mainClock.autoAdvance = true
+            awaitIdle()
+            onAllNodesWithTag("deferredVisibility").assertCountEquals(0)
+        }
+
+    @Test
+    fun deferredAnimatedVisibility_interruptedEnter_doesNotFreezeVeil() =
+        runComposeSwingTest {
+            val state = DeferredTransitionState(false)
+            var activeHandoff by mutableStateOf(false)
+            var capturedColor = Color(0, 0, 0, 255)
+            val handoffTransform = MutableTransform()
+            handoffTransform.update { scale = 0.5f }
+            mainClock.autoAdvance = false
+            setContent {
+                DeferredViewport {
+                    rememberDeferredTransition(state).DeferredAnimatedVisibility(
+                        modifier = SwingModifier.testTag("deferredVisibility"),
+                        visible = { it },
+                        enter =
+                            unveilIn(
+                                initialColor = Color.BLACK,
+                                animationSpec = tween(500, easing = LinearEasing),
+                            ),
+                        exit = ExitTransition.None,
+                        mutableTransform = if (activeHandoff) handoffTransform else null,
+                    ) {
+                        val veilAnim = transition.animations.find { it.label.contains("veil") }
+                        if (veilAnim != null) {
+                            capturedColor = veilAnim.value as Color
+                        }
+                        Block()
+                    }
+                }
+            }
+
+            state.animateTo(true)
+            mainClock.advanceTimeByFrame()
+            advanceTimeBy(250)
+
+            activeHandoff = true
+            state.defer(false)
+            mainClock.advanceTimeByFrame()
+
+            activeHandoff = false
+            state.animateTo(false)
+            mainClock.advanceTimeByFrame()
+            val handoffVeilAlpha = capturedColor.alpha
+
+            advanceTimeBy(100)
+
+            assertTrue(
+                handoffVeilAlpha > capturedColor.alpha,
+                "expected the veil alpha to animate towards 0, but it froze or increased " +
+                    "(handoff alpha: $handoffVeilAlpha, current alpha: ${capturedColor.alpha})",
+            )
+        }
+
+    @Test
     fun visibility_previewOffset_handoffVelocity() =
         runComposeSwingTest {
             val state = DeferredTransitionState(true)
@@ -578,7 +743,7 @@ class DeferredAnimatedVisibilityTest {
             transform.update { if (state.pendingTargetState != null) offset = Point(10, 0) }
             setContent {
                 DeferredViewport {
-                    rememberTransition(state).DeferredAnimatedVisibility(
+                    rememberDeferredTransition(state).DeferredAnimatedVisibility(
                         modifier = SwingModifier.testTag("deferredVisibility"),
                         visible = { it },
                         enter = fadeIn(tween(160)),
@@ -625,7 +790,7 @@ class DeferredAnimatedVisibilityTest {
             }
             setContent {
                 DeferredViewport {
-                    rememberTransition(state).DeferredAnimatedVisibility(
+                    rememberDeferredTransition(state).DeferredAnimatedVisibility(
                         modifier = SwingModifier.testTag("deferredVisibility"),
                         visible = { it },
                         enter = scaleIn(tween(1000, easing = LinearEasing), initialScale = 0f),

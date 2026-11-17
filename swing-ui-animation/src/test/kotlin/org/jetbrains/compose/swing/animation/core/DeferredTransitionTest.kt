@@ -28,7 +28,7 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 
-@OptIn(ExperimentalTransitionApi::class, ExperimentalDeferredTransitionApi::class)
+@OptIn(ExperimentalTransitionApi::class)
 class DeferredTransitionTest {
 
     private enum class TestStates {
@@ -44,7 +44,7 @@ class DeferredTransitionTest {
 
         setContent {
             state = remember { DeferredTransitionState(TestStates.A) }
-            transition = rememberTransition(state)
+            transition = rememberDeferredTransition(state)
         }
 
         // 1. Verify Initial state (Initial state cannot be deferred)
@@ -77,7 +77,7 @@ class DeferredTransitionTest {
 
         setContent {
             state = remember { DeferredTransitionState(TestStates.A) }
-            transition = rememberTransition(state)
+            transition = rememberDeferredTransition(state)
         }
 
         // Update target to B (Deferred)
@@ -105,7 +105,7 @@ class DeferredTransitionTest {
 
             setContent {
                 state = remember { DeferredTransitionState(TestStates.A) }
-                transition = rememberTransition(state)
+                transition = rememberDeferredTransition(state)
                 animatedValue =
                     transition
                         .animateInt(
@@ -163,7 +163,7 @@ class DeferredTransitionTest {
 
         setContent {
             state = remember { DeferredTransitionState(TestStates.A) }
-            transition = rememberTransition(state)
+            transition = rememberDeferredTransition(state)
             childTransition = transition.createChildTransition { it == TestStates.B }
         }
 
@@ -192,7 +192,7 @@ class DeferredTransitionTest {
 
         setContent {
             state = remember { DeferredTransitionState(TestStates.A) }
-            val transition = rememberTransition(state)
+            val transition = rememberDeferredTransition(state)
             value =
                 transition
                     .animateFloat(
@@ -240,7 +240,7 @@ class DeferredTransitionTest {
 
         setContent {
             state = remember { DeferredTransitionState(TestStates.A) }
-            transition = rememberTransition(state)
+            transition = rememberDeferredTransition(state)
             childTransition =
                 transition.createChildTransition(label = "ChildTransition") { it == TestStates.B }
         }
@@ -278,7 +278,7 @@ class DeferredTransitionTest {
 
         setContent {
             state = remember { DeferredTransitionState(TestStates.A) }
-            transition = rememberTransition(state)
+            transition = rememberDeferredTransition(state)
         }
 
         // 1. Defer A -> B
@@ -305,7 +305,7 @@ class DeferredTransitionTest {
 
         setContent {
             state = remember { DeferredTransitionState(TestStates.A) }
-            transition = rememberTransition(state)
+            transition = rememberDeferredTransition(state)
             animatedValue =
                 transition
                     .animateInt(

@@ -913,6 +913,46 @@ class TransitionTest {
         assertEquals(AnimStates.From, transitionState.currentState)
         onNodeWithTag("text").assertTextEquals("2.5")
     }
+
+    @Test
+    fun testLazyChildTransitionLabel() = runComposeSwingTest {
+        lateinit var parentWithoutLabel: Transition<Int>
+        lateinit var defaultChildOfUnlabeledParent: Transition<Boolean>
+        lateinit var customChildOfUnlabeledParent: Transition<Boolean>
+        lateinit var parentWithLabel: Transition<Int>
+        lateinit var defaultChildOfLabeledParent: Transition<Boolean>
+        lateinit var customChildOfLabeledParent: Transition<Boolean>
+        lateinit var grandchild: Transition<Boolean>
+
+        setContent {
+            parentWithoutLabel = updateTransition(1)
+            defaultChildOfUnlabeledParent = parentWithoutLabel.createChildTransition { it == 1 }
+            customChildOfUnlabeledParent =
+                parentWithoutLabel.createChildTransition("CustomChild") { it == 1 }
+
+            parentWithLabel = updateTransition(1, label = "Parent")
+            defaultChildOfLabeledParent = parentWithLabel.createChildTransition { it == 1 }
+            customChildOfLabeledParent =
+                parentWithLabel.createChildTransition("CustomChild") { it == 1 }
+            grandchild = customChildOfLabeledParent.createChildTransition("Grandchild") { it }
+        }
+        awaitIdle()
+
+        // Parent without label
+        assertEquals(null, parentWithoutLabel.label)
+        // Child of parent without label should not have "null > " prefix
+        assertEquals("ChildTransition", defaultChildOfUnlabeledParent.label)
+        assertEquals("CustomChild", customChildOfUnlabeledParent.label)
+
+        // Parent with label
+        assertEquals("Parent", parentWithLabel.label)
+        assertEquals("Parent > ChildTransition", defaultChildOfLabeledParent.label)
+        assertEquals("Parent > CustomChild", customChildOfLabeledParent.label)
+
+        // Grandchild
+        assertEquals("Parent > CustomChild > Grandchild", grandchild.label)
+    }
+
     @TestFactory
     fun createDeferredAnimationRawSwing() = CreateDeferredAnimationFixture.rawSwingTests()
 

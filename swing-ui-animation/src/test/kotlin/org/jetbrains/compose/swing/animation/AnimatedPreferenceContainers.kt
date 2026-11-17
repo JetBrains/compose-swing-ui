@@ -33,7 +33,7 @@ internal val PartWay: Duration = TransitionTime * 0.3
 
 /**
  * The composition time at which a slide exit is read: a text leaf re-wrapping moves the slide's target, which ends the
- * exit on a spring before [PartWay].
+ * exit on a spring before [PartWay], and the exited content is disposed in the pass that sees the exit finish.
  */
 internal val SlideExitTime: Duration = 100.milliseconds
 
@@ -314,13 +314,16 @@ internal fun contentContainers(
     insideBox: Boolean,
     finished: Boolean,
     widthFromLeafHeight: Boolean,
-): Map<String, ContainerContent> = contentContainerGroups(leafEnters, insideBox, finished, widthFromLeafHeight).all
+    slide: Boolean? = null,
+): Map<String, ContainerContent> =
+    contentContainerGroups(leafEnters, insideBox, finished, widthFromLeafHeight, slide).all
 
 internal fun contentContainerGroups(
     leafEnters: Boolean,
     insideBox: Boolean,
     finished: Boolean,
     widthFromLeafHeight: Boolean,
+    slide: Boolean? = null,
 ): HeightGroups<ContainerContent> {
     val contentKinds =
         mapOf(
@@ -328,7 +331,8 @@ internal fun contentContainerGroups(
             "slide" to (slideInHorizontally(transitionTween()) to slideOutHorizontally(transitionTween())),
             "scale" to (scaleIn(transitionTween()) to scaleOut(transitionTween())),
             "expand and shrink" to (expandIn(transitionTween()) to shrinkOut(transitionTween())),
-        )
+        ).filterValues { (_, exit) -> slide == null || (exit.config.slide != null) == slide }
+    check(contentKinds.isNotEmpty())
     val sizeTransforms =
         mapOf<String, SizeTransform?>(
             "clipped size transform" to SizeTransform(clip = true) { _, _ -> transitionTween() },

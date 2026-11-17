@@ -23,6 +23,7 @@ import java.awt.Dimension
 import java.awt.Point
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertIs
 import kotlin.test.assertNotEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNotSame
@@ -192,6 +193,58 @@ class EnterExitTransitionTest {
         assertEquals(Dimension(1, 1), size.visibilityThreshold)
         val offset = slideInHorizontally().config.slide?.animationSpec as SpringSpec<*>
         assertEquals(Point(1, 1), offset.visibilityThreshold)
+    }
+
+    @Test
+    fun `changing the default size transform threshold leaves later specs untouched`() {
+        val transform = SizeTransform()
+        val initialSize = Dimension(20, 10)
+        val targetSize = Dimension(40, 30)
+        val first = assertIs<SpringSpec<*>>(transform.createAnimationSpec(initialSize, targetSize))
+        val threshold = assertIs<Dimension>(first.visibilityThreshold)
+        val original = Dimension(threshold)
+        try {
+            threshold.setSize(50, 50)
+
+            val next = assertIs<SpringSpec<*>>(transform.createAnimationSpec(initialSize, targetSize))
+            assertEquals(Dimension(1, 1), next.visibilityThreshold)
+        } finally {
+            threshold.size = original
+        }
+    }
+
+    @Test
+    fun `changing the expand threshold leaves later expand and shrink specs untouched`() {
+        val first = assertIs<SpringSpec<*>>(expandIn().config.changeSize?.animationSpec)
+        val threshold = assertIs<Dimension>(first.visibilityThreshold)
+        val original = Dimension(threshold)
+        try {
+            threshold.setSize(50, 50)
+
+            val expand = assertIs<SpringSpec<*>>(expandIn().config.changeSize?.animationSpec)
+            val shrink = assertIs<SpringSpec<*>>(shrinkOut().config.changeSize?.animationSpec)
+            assertEquals(Dimension(1, 1), expand.visibilityThreshold)
+            assertEquals(Dimension(1, 1), shrink.visibilityThreshold)
+        } finally {
+            threshold.size = original
+        }
+    }
+
+    @Test
+    fun `changing the slide in threshold leaves later slide in and out specs untouched`() {
+        val first = assertIs<SpringSpec<*>>(slideInHorizontally().config.slide?.animationSpec)
+        val threshold = assertIs<Point>(first.visibilityThreshold)
+        val original = Point(threshold)
+        try {
+            threshold.setLocation(50, 50)
+
+            val slideIn = assertIs<SpringSpec<*>>(slideInVertically().config.slide?.animationSpec)
+            val slideOut = assertIs<SpringSpec<*>>(slideOutHorizontally().config.slide?.animationSpec)
+            assertEquals(Point(1, 1), slideIn.visibilityThreshold)
+            assertEquals(Point(1, 1), slideOut.visibilityThreshold)
+        } finally {
+            threshold.location = original
+        }
     }
 
     /**

@@ -18,6 +18,7 @@ package org.jetbrains.compose.swing.animation
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
@@ -27,7 +28,6 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.animation.core.AnimationVector1D
 import org.jetbrains.compose.swing.animation.core.AnimationVector2D
 import org.jetbrains.compose.swing.animation.core.AnimationVector4D
-import org.jetbrains.compose.swing.animation.core.ExperimentalDeferredTransitionApi
 import org.jetbrains.compose.swing.animation.core.FiniteAnimationSpec
 import org.jetbrains.compose.swing.animation.core.Spring
 import org.jetbrains.compose.swing.animation.core.Transition
@@ -72,8 +72,8 @@ import kotlin.math.min
  */
 @Immutable
 public sealed class EnterTransition {
-    /** What this transition animates. */
-    internal abstract val config: EnterExitTransitionConfig
+    /** The underlying configuration with the specs for fade, slide, scale, expand and veil animations. */
+    public abstract val config: EnterExitTransitionConfig
 
     /**
      * Combines this transition with [enter] into one that runs both at the same time. When both define
@@ -118,8 +118,8 @@ public sealed class EnterTransition {
  */
 @Immutable
 public sealed class ExitTransition {
-    /** What this transition animates. */
-    internal abstract val config: EnterExitTransitionConfig
+    /** The underlying configuration with the specs for fade, slide, scale, shrink and veil animations. */
+    public abstract val config: EnterExitTransitionConfig
 
     /**
      * Combines this transition with [exit] into one that runs both at the same time. When both define
@@ -169,14 +169,22 @@ public sealed class ExitTransition {
  *     exit.
  */
 @Immutable
-internal class EnterExitTransitionConfig(
-    val fade: FadeConfig? = null,
-    val slide: SlideConfig? = null,
-    val changeSize: ChangeSizeConfig? = null,
-    val scale: ScaleConfig? = null,
-    val veil: VeilConfig? = null,
-    val hold: Boolean = false,
+public class EnterExitTransitionConfig internal constructor(
+    public val fade: FadeConfig? = null,
+    public val slide: SlideConfig? = null,
+    public val changeSize: ChangeSizeConfig? = null,
+    public val scale: ScaleConfig? = null,
+    public val veil: VeilConfig? = null,
+    internal val hold: Boolean = false,
 ) {
+    internal fun copy(
+        fade: FadeConfig? = this.fade,
+        slide: SlideConfig? = this.slide,
+        changeSize: ChangeSizeConfig? = this.changeSize,
+        scale: ScaleConfig? = this.scale,
+        veil: VeilConfig? = this.veil,
+    ): EnterExitTransitionConfig = EnterExitTransitionConfig(fade, slide, changeSize, scale, veil, hold)
+
     override fun equals(other: Any?): Boolean =
         this === other ||
             (
@@ -211,10 +219,15 @@ internal class EnterExitTransitionConfig(
  * @property animationSpec how the opacity travels between the two.
  */
 @Immutable
-internal class FadeConfig(
-    val alpha: Float,
-    val animationSpec: FiniteAnimationSpec<Float>,
+public class FadeConfig internal constructor(
+    public val alpha: Float,
+    public val animationSpec: FiniteAnimationSpec<Float>,
 ) {
+    internal fun copy(
+        alpha: Float = this.alpha,
+        animationSpec: FiniteAnimationSpec<Float> = this.animationSpec,
+    ): FadeConfig = FadeConfig(alpha, animationSpec)
+
     override fun equals(other: Any?): Boolean =
         this === other || (other is FadeConfig && alpha == other.alpha && animationSpec == other.animationSpec)
 
@@ -234,10 +247,15 @@ internal class FadeConfig(
  * @property animationSpec how the offset travels between the two.
  */
 @Immutable
-internal class SlideConfig(
-    val slideOffset: (fullSize: Dimension) -> Point,
-    val animationSpec: FiniteAnimationSpec<Point>,
+public class SlideConfig internal constructor(
+    public val slideOffset: (fullSize: Dimension) -> Point,
+    public val animationSpec: FiniteAnimationSpec<Point>,
 ) {
+    internal fun copy(
+        slideOffset: (fullSize: Dimension) -> Point = this.slideOffset,
+        animationSpec: FiniteAnimationSpec<Point> = this.animationSpec,
+    ): SlideConfig = SlideConfig(slideOffset, animationSpec)
+
     override fun equals(other: Any?): Boolean =
         this === other ||
             (other is SlideConfig && slideOffset === other.slideOffset && animationSpec == other.animationSpec)
@@ -263,12 +281,19 @@ internal class SlideConfig(
  * @property clip whether content outside the animated space is clipped.
  */
 @Immutable
-internal class ChangeSizeConfig(
-    val alignment: Alignment,
-    val size: (fullSize: Dimension) -> Dimension,
-    val animationSpec: FiniteAnimationSpec<Dimension>,
-    val clip: Boolean,
+public class ChangeSizeConfig internal constructor(
+    public val alignment: Alignment,
+    public val size: (fullSize: Dimension) -> Dimension,
+    public val animationSpec: FiniteAnimationSpec<Dimension>,
+    public val clip: Boolean,
 ) {
+    internal fun copy(
+        alignment: Alignment = this.alignment,
+        size: (fullSize: Dimension) -> Dimension = this.size,
+        animationSpec: FiniteAnimationSpec<Dimension> = this.animationSpec,
+        clip: Boolean = this.clip,
+    ): ChangeSizeConfig = ChangeSizeConfig(alignment, size, animationSpec, clip)
+
     override fun equals(other: Any?): Boolean =
         this === other ||
             (
@@ -300,11 +325,17 @@ internal class ChangeSizeConfig(
  * @property animationSpec how the scale travels between the two.
  */
 @Immutable
-internal class ScaleConfig(
-    val scale: Float,
-    val transformOrigin: TransformOrigin,
-    val animationSpec: FiniteAnimationSpec<Float>,
+public class ScaleConfig internal constructor(
+    public val scale: Float,
+    public val transformOrigin: TransformOrigin,
+    public val animationSpec: FiniteAnimationSpec<Float>,
 ) {
+    internal fun copy(
+        scale: Float = this.scale,
+        transformOrigin: TransformOrigin = this.transformOrigin,
+        animationSpec: FiniteAnimationSpec<Float> = this.animationSpec,
+    ): ScaleConfig = ScaleConfig(scale, transformOrigin, animationSpec)
+
     override fun equals(other: Any?): Boolean =
         this === other ||
             (
@@ -336,12 +367,19 @@ internal class ScaleConfig(
  *     content's rectangle.
  */
 @Immutable
-internal class VeilConfig(
-    val initialColor: Color,
-    val targetColor: Color,
-    val animationSpec: FiniteAnimationSpec<Color>,
-    val matchParentSize: Boolean,
+public class VeilConfig internal constructor(
+    public val initialColor: Color,
+    public val targetColor: Color,
+    public val animationSpec: FiniteAnimationSpec<Color>,
+    public val matchParentSize: Boolean,
 ) {
+    internal fun copy(
+        initialColor: Color = this.initialColor,
+        targetColor: Color = this.targetColor,
+        animationSpec: FiniteAnimationSpec<Color> = this.animationSpec,
+        matchParentSize: Boolean = this.matchParentSize,
+    ): VeilConfig = VeilConfig(initialColor, targetColor, animationSpec, matchParentSize)
+
     override fun equals(other: Any?): Boolean =
         this === other ||
             (
@@ -397,83 +435,165 @@ internal class ExitTransitionImpl(
     override val config: EnterExitTransitionConfig,
 ) : ExitTransition()
 
+/** The enter, exit and deferred-phase state one container's modifier chain is built from. */
+internal class EnterExitModifierState(
+    val transformState: SharedMutableTransformState,
+    val enter: EnterTransition,
+    val exit: ExitTransition,
+)
+
 /**
- * The enter transition the running animations were set up from: [enter] for a fresh enter, or combined
- * with the interrupted one for an enter picked up partway.
- *
- * A settled-visible container tracks [EnterTransition.None], so that a later exit is not combined with
- * the enter that brought the content in.
+ * Tracks the enter and exit the running animations were set up from, and the deferred-phase state, across
+ * recompositions of one transition.
  */
-@Composable
-internal fun Transition<EnterExitState>.trackActiveEnter(enter: EnterTransition): EnterTransition {
-    var activeEnter by remember(this) { mutableStateOf(enter) }
-    if (currentState == targetState && currentState == EnterExitState.Visible) {
-        activeEnter = if (isSeeking) enter else EnterTransition.None
-    } else if (targetState != EnterExitState.PostExit) {
-        activeEnter += enter
+private class EnterExitTransitionTracker {
+    val activeTransformState: SharedMutableTransformState = SharedMutableTransformState()
+
+    private var wasMutating = false
+    private var lastTarget: EnterExitState? = null
+    var startTransformStateCatchup: Boolean = false
+
+    private lateinit var activeEnter: EnterTransition
+    private lateinit var activeExit: ExitTransition
+
+    // One parameter per input upstream's tracker reads from the transition.
+    @Suppress("LongParameterList")
+    fun update(
+        mutableTransformData: MutableTransform?,
+        enter: EnterTransition,
+        exit: ExitTransition,
+        pendingTargetState: EnterExitState?,
+        currentState: EnterExitState,
+        targetState: EnterExitState,
+        isSeeking: Boolean,
+    ): EnterExitModifierState {
+        trackActiveMutableState(mutableTransformData, pendingTargetState, currentState, targetState)
+        trackActiveEnter(enter, currentState, targetState, isSeeking)
+        trackActiveExit(exit, currentState, targetState, isSeeking)
+        return EnterExitModifierState(activeTransformState, activeEnter, activeExit)
     }
-    return activeEnter
+
+    private fun trackActiveMutableState(
+        mutableTransformData: MutableTransform?,
+        pendingTargetState: EnterExitState?,
+        currentState: EnterExitState,
+        targetState: EnterExitState,
+    ) {
+        val activeState = activeTransformState
+        activeState.mutableData = mutableTransformData
+        val isMutating = pendingTargetState != null && activeState.mutableData != null
+        val isSettled = currentState == targetState
+        activeState.updateMutationState(isMutating, isSettled)
+
+        val shouldCleanupState =
+            lastTarget != null &&
+                ((isSettled && !isMutating) || (lastTarget != targetState && !isMutating && !wasMutating))
+
+        if (shouldCleanupState) {
+            activeState.clear()
+        }
+
+        lastTarget = targetState
+        wasMutating = isMutating
+        startTransformStateCatchup = isMutating && !isSettled
+    }
+
+    private fun trackActiveEnter(
+        enter: EnterTransition,
+        currentState: EnterExitState,
+        targetState: EnterExitState,
+        isSeeking: Boolean,
+    ) {
+        if (!::activeEnter.isInitialized) {
+            activeEnter = enter
+        }
+        // Active enter & active exit reference the enter and exit transition that is currently being used. It is
+        // important to preserve the active enter/exit that was previously used before changing target state, such
+        // that if the previous enter/exit is interrupted, we still hold reference to the enter/exit that define
+        // those animations and therefore could recover.
+        if (currentState == targetState && currentState == EnterExitState.Visible) {
+            // When seeking, the timing is different and there's no need to handle interruptions.
+            activeEnter = if (isSeeking) enter else EnterTransition.None
+        } else if (targetState != EnterExitState.PostExit) {
+            // A fallback enter that seamlessly hands off deferred animations: properties modified during the
+            // deferred phase stay tracked even when the enter does not specify them, so they do not snap if
+            // interrupted. The enter's own properties override these when combined.
+            val handoffEnter = activeTransformState.getHandoffEnter()
+            activeEnter += handoffEnter + enter
+        }
+    }
+
+    private fun trackActiveExit(
+        exit: ExitTransition,
+        currentState: EnterExitState,
+        targetState: EnterExitState,
+        isSeeking: Boolean,
+    ) {
+        if (!::activeExit.isInitialized) {
+            activeExit = exit
+        }
+        if (currentState == targetState && currentState == EnterExitState.Visible) {
+            // When seeking, the timing is different and there's no need to handle interruptions.
+            activeExit = if (isSeeking) exit else ExitTransition.None
+        } else if (targetState != EnterExitState.Visible) {
+            // The exit transition accumulates when the content goes from exiting, to incoming, to then again
+            // exiting. The previous exit's effects are first neutralized, each animated back to its resting value,
+            // so the new exit starts from where the content stands and the old exit does not bleed into the new one.
+            val neutralizedExit =
+                if (activeTransformState.isMutating) {
+                    // Manual transforms apply on top of any still running animations, so those continue.
+                    activeExit
+                } else {
+                    activeExit.neutralized()
+                }
+            // Sustains the deferred animations that were active at handoff; the exit's own properties override them.
+            val handoffExit = activeTransformState.getHandoffExit()
+            activeExit = neutralizedExit + handoffExit + exit
+        }
+    }
 }
 
 /**
- * The exit transition the running animations were set up from; see [trackActiveEnter].
- *
- * When content exits, is interrupted back in, and exits again, the previous exit's effects are neutralized,
- * each animated back to its resting value, so the new exit starts from where the content stands instead of
- * combining with the old exit's targets.
+ * Tracks [enter] and [exit] on [transition] and returns what the container's modifier chain is built from.
+ * [mutableTransformData] is the transform driving a deferred phase, or `null` where the container has none.
  */
 @Composable
-internal fun Transition<EnterExitState>.trackActiveExit(exit: ExitTransition): ExitTransition {
-    var activeExit by remember(this) { mutableStateOf(exit) }
-    if (currentState == targetState && currentState == EnterExitState.Visible) {
-        activeExit = if (isSeeking) exit else ExitTransition.None
-    } else if (targetState != EnterExitState.Visible) {
-        activeExit = activeExit.neutralized() + exit
+internal fun updateEnterExitModifierState(
+    transition: Transition<EnterExitState>,
+    enter: EnterTransition,
+    exit: ExitTransition,
+    mutableTransformData: MutableTransform? = null,
+): EnterExitModifierState {
+    val tracker = remember(transition) { EnterExitTransitionTracker() }
+    val modifierState =
+        tracker.update(
+            mutableTransformData,
+            enter,
+            exit,
+            transition.pendingTargetState,
+            transition.currentState,
+            transition.targetState,
+            transition.isSeeking,
+        )
+    if (tracker.startTransformStateCatchup) {
+        LaunchedEffect(tracker) {
+            tracker.activeTransformState.startCatchUp()
+        }
     }
-    return activeExit
-}
-
-/**
- * Runs [effect] whenever this transition settles on its target state, and whenever it is retargeted
- * outside a deferred phase, as ending a deferred phase does and beginning one does not.
- *
- * It drops the state a deferred phase left behind: a phase that ends in a transition keeps it until the
- * transition finishes, and an abandoned phase drops it as soon as the pending target state is cleared.
- */
-@OptIn(ExperimentalDeferredTransitionApi::class)
-@Composable
-internal fun <T> Transition<T>.DeferredTransitionCleanupEffect(effect: () -> Unit) {
-    val isDeferring = pendingTargetState != null
-    if (currentState == targetState && !isDeferring) effect()
-
-    val wasDeferring = remember { booleanArrayOf(isDeferring) }
-    val lastTarget = remember { arrayOfNulls<Any?>(1) }
-    if (lastTarget[0] != targetState) {
-        if (!isDeferring && !wasDeferring[0]) effect()
-        lastTarget[0] = targetState
-    }
-    wasDeferring[0] = isDeferring
+    return modifierState
 }
 
 /** This exit with every effect aimed at the content's resting value instead of its exit target. */
-private fun ExitTransition.neutralized(): ExitTransition {
-    val config = config
-    return ExitTransitionImpl(
-        EnterExitTransitionConfig(
-            fade = config.fade?.let { FadeConfig(1f, it.animationSpec) },
-            scale = config.scale?.let { ScaleConfig(1f, it.transformOrigin, it.animationSpec) },
-            slide = config.slide?.let { SlideConfig(RestingOffset, it.animationSpec) },
-            veil =
-                config.veil?.let {
-                    VeilConfig(it.initialColor, it.initialColor, it.animationSpec, it.matchParentSize)
-                },
-            changeSize =
-                config.changeSize?.let {
-                    ChangeSizeConfig(it.alignment, RestingSize, it.animationSpec, it.clip)
-                },
+private fun ExitTransition.neutralized(): ExitTransition =
+    ExitTransitionImpl(
+        config.copy(
+            fade = config.fade?.copy(alpha = 1f),
+            scale = config.scale?.copy(scale = 1f),
+            slide = config.slide?.copy(slideOffset = RestingOffset),
+            changeSize = config.changeSize?.copy(size = RestingSize),
+            veil = config.veil?.let { it.copy(targetColor = it.initialColor) },
         ),
     )
-}
 
 /** Where a slide rests: no offset from where the content is laid out. */
 private val RestingOffset: (Dimension) -> Point = { Point(0, 0) }
@@ -482,23 +602,8 @@ private val RestingOffset: (Dimension) -> Point = { Point(0, 0) }
 private val RestingSize: (Dimension) -> Dimension = { it }
 
 /**
- * The deferred-phase state of one enter/exit, updated with whether a phase is running: [sharedMutableTransformState]
- * when the caller keeps one, otherwise a remembered one. It is cleared once the transition after the phase finishes.
- */
-@OptIn(ExperimentalDeferredTransitionApi::class)
-@Composable
-internal fun Transition<EnterExitState>.trackActiveMutableState(
-    sharedMutableTransformState: SharedMutableTransformState?,
-): SharedMutableTransformState {
-    val shared = sharedMutableTransformState ?: remember(this) { SharedMutableTransformState() }
-    shared.isMutating = pendingTargetState != null
-    DeferredTransitionCleanupEffect { shared.clear() }
-    return shared
-}
-
-/**
- * The layout-modifier chain that runs [enter] and [exit] on its component under a Foundation parent: the size change
- * and the slide are the placement the parent runs, and the fade and scale are the layer the component is placed with.
+ * Runs the enter and exit transitions in [state] under a Foundation parent. Size and slide affect placement.
+ * Fade and scale apply to the component's layer.
  * A size change clips the component to the animated box; a slide alone is not clipped.
  */
 @Suppress(
@@ -509,15 +614,11 @@ internal fun Transition<EnterExitState>.trackActiveMutableState(
     "ComposableParamOrder",
 )
 @Composable
-internal fun Transition<EnterExitState>.createModifier(
-    enter: EnterTransition,
-    exit: ExitTransition,
-    trackActiveEnterExit: Boolean = true,
-    sharedMutableTransformState: SharedMutableTransformState? = null,
+internal fun Transition<EnterExitState>.createEnterExitModifier(
+    state: EnterExitModifierState,
     label: String,
 ): SwingModifier {
-    val transform =
-        createEnterExitTransform(enter, exit, trackActiveEnterExit, sharedMutableTransformState, label)
+    val transform = createEnterExitTransform(state, label)
     val veil = transform.veil(contentBox = false)
     return SwingModifier
         .then(if (transform.veilMatchesParentSize) veil else SwingModifier)
@@ -526,7 +627,10 @@ internal fun Transition<EnterExitState>.createModifier(
         .then(if (!transform.veilMatchesParentSize) veil else SwingModifier)
 }
 
-/** What [createModifier] builds its chain from, and what a container running its own transition paints with. */
+/**
+ * What [createEnterExitModifier] builds its chain from, and what a container running its own transition
+ * paints with.
+ */
 internal class EnterExitTransform(
     val layout: EnterExitTransitionLayout,
     private val veilBlock: VeilBlockForEnterExit?,
@@ -543,20 +647,16 @@ internal class EnterExitTransform(
         } ?: SwingModifier
 }
 
-@OptIn(ExperimentalDeferredTransitionApi::class)
 // Upstream's createModifier body; every branch is one effect the transition may or may not carry.
 @Suppress("CyclomaticComplexMethod")
 @Composable
 internal fun Transition<EnterExitState>.createEnterExitTransform(
-    enter: EnterTransition,
-    exit: ExitTransition,
-    trackActiveEnterExit: Boolean,
-    sharedMutableTransformState: SharedMutableTransformState?,
+    state: EnterExitModifierState,
     label: String,
 ): EnterExitTransform {
-    val activeEnter = if (trackActiveEnterExit) trackActiveEnter(enter) else enter
-    val activeExit = if (trackActiveEnterExit) trackActiveExit(exit) else exit
-    val activeMutableState = trackActiveMutableState(sharedMutableTransformState)
+    val activeEnter = state.enter
+    val activeExit = state.exit
+    val activeMutableState = state.transformState
 
     val shouldAnimateVeil =
         activeEnter.config.veil != null ||
@@ -653,15 +753,15 @@ internal class GraphicsLayerBlockForEnterExit(
                 transitionSpec = {
                     when {
                         EnterExitState.PreEnter isTransitioningTo EnterExitState.Visible -> {
-                            enter.config.fade?.animationSpec ?: DefaultAlphaAndScaleSpring
+                            enter.config.fade?.animationSpec ?: DefaultAlphaSpring
                         }
 
                         EnterExitState.Visible isTransitioningTo EnterExitState.PostExit -> {
-                            exit.config.fade?.animationSpec ?: DefaultAlphaAndScaleSpring
+                            exit.config.fade?.animationSpec ?: DefaultAlphaSpring
                         }
 
                         else -> {
-                            DefaultAlphaAndScaleSpring
+                            DefaultAlphaSpring
                         }
                     }
                 },
@@ -670,7 +770,7 @@ internal class GraphicsLayerBlockForEnterExit(
                 when (it) {
                     EnterExitState.Visible -> 1f
                     EnterExitState.PreEnter -> enter.config.fade?.alpha ?: 1f
-                    EnterExitState.PostExit -> exit.config.fade?.alpha ?: mutableTransformState.lastAlpha
+                    EnterExitState.PostExit -> exit.config.fade?.alpha ?: 1f
                 }
             }
 
@@ -679,15 +779,15 @@ internal class GraphicsLayerBlockForEnterExit(
                 transitionSpec = {
                     when {
                         EnterExitState.PreEnter isTransitioningTo EnterExitState.Visible -> {
-                            enter.config.scale?.animationSpec ?: DefaultAlphaAndScaleSpring
+                            enter.config.scale?.animationSpec ?: DefaultScaleSpring
                         }
 
                         EnterExitState.Visible isTransitioningTo EnterExitState.PostExit -> {
-                            exit.config.scale?.animationSpec ?: DefaultAlphaAndScaleSpring
+                            exit.config.scale?.animationSpec ?: DefaultScaleSpring
                         }
 
                         else -> {
-                            DefaultAlphaAndScaleSpring
+                            DefaultScaleSpring
                         }
                     }
                 },
@@ -696,7 +796,7 @@ internal class GraphicsLayerBlockForEnterExit(
                 when (it) {
                     EnterExitState.Visible -> 1f
                     EnterExitState.PreEnter -> enter.config.scale?.scale ?: 1f
-                    EnterExitState.PostExit -> exit.config.scale?.scale ?: mutableTransformState.lastScale
+                    EnterExitState.PostExit -> exit.config.scale?.scale ?: 1f
                 }
             }
         val transformOriginWhenVisible =
@@ -722,7 +822,7 @@ internal class GraphicsLayerBlockForEnterExit(
                     }
 
                     EnterExitState.PostExit -> {
-                        exit.config.scale?.transformOrigin ?: mutableTransformState.lastTransformOrigin
+                        exit.config.scale?.transformOrigin ?: TransformOrigin.Center
                     }
                 } ?: TransformOrigin.Center
             }
@@ -782,13 +882,17 @@ private fun Transition<EnterExitState>.createGraphicsLayerBlock(
     )
 }
 
-private val TransformOriginVectorConverter: TwoWayConverter<TransformOrigin, AnimationVector2D> =
+internal val TransformOriginVectorConverter: TwoWayConverter<TransformOrigin, AnimationVector2D> =
     TwoWayConverter(
         convertToVector = { AnimationVector2D(it.pivotFractionX, it.pivotFractionY) },
         convertFromVector = { TransformOrigin(it.v1, it.v2) },
     )
 
-private val DefaultAlphaAndScaleSpring: FiniteAnimationSpec<Float> = spring(stiffness = Spring.StiffnessMediumLow)
+private val DefaultAlphaSpring: FiniteAnimationSpec<Float> = spring(stiffness = Spring.StiffnessMediumLow)
+
+// A 0.002f threshold (0.2%) prevents popping near the target scale while ensuring timely completion.
+internal val DefaultScaleSpring: FiniteAnimationSpec<Float> =
+    spring(stiffness = Spring.StiffnessMediumLow, visibilityThreshold = 0.002f)
 
 private val DefaultTransformOriginSpring: FiniteAnimationSpec<TransformOrigin> = spring()
 
@@ -1014,11 +1118,7 @@ internal class EnterExitTransitionLayout(
                 forcedInitialValue = mutableTransformState.slideHandoffValue,
                 forcedInitialVelocity = mutableTransformState.slideHandoffVelocity,
             ) {
-                if (it == EnterExitState.PostExit && exit.config.slide == null) {
-                    mutableTransformState.lastSlide
-                } else {
-                    slideTargetValueByState(it, measuredSize)
-                }
+                slideTargetValueByState(it, measuredSize)
             }
     }
 
@@ -1039,7 +1139,6 @@ internal class EnterExitTransitionLayout(
     }
 
     /** The size a running size change stands at, or null: queries never set up or aim the animation. */
-    @OptIn(ExperimentalDeferredTransitionApi::class)
     fun runningSize(): Dimension? =
         animSizeState
             ?.takeIf { transition.currentState != transition.targetState || transition.pendingTargetState != null }
@@ -1199,8 +1298,7 @@ internal class VeilBlockForEnterExit(
                     }
 
                     EnterExitState.PostExit -> {
-                        exit.config.veil?.targetColor ?: mutableTransformState.lastVeil
-                            ?: NoScrim
+                        exit.config.veil?.targetColor ?: NoScrim
                     }
                 }
             }

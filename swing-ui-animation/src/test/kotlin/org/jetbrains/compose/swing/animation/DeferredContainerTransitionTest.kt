@@ -3,8 +3,7 @@ package org.jetbrains.compose.swing.animation
 
 import androidx.compose.runtime.Composable
 import org.jetbrains.compose.swing.animation.core.DeferredTransitionState
-import org.jetbrains.compose.swing.animation.core.ExperimentalDeferredTransitionApi
-import org.jetbrains.compose.swing.animation.core.rememberTransition
+import org.jetbrains.compose.swing.animation.core.rememberDeferredTransition
 import org.jetbrains.compose.swing.animation.core.tween
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.foundation.layout.Box
@@ -41,7 +40,6 @@ private fun Body(text: String) =
  * What a deferred phase puts on screen: content the transition itself does not show yet is composed and
  * held at its pre-enter state, and a phase abandoned without a transition leaves nothing behind.
  */
-@OptIn(ExperimentalDeferredTransitionApi::class)
 class DeferredContainerTransitionTest {
     @Test
     fun `a pending target state composes content neither the current nor the target state shows`() =
@@ -50,7 +48,7 @@ class DeferredContainerTransitionTest {
             var animatedSize = Dimension(-1, -1)
             setContent {
                 Box {
-                    rememberTransition(state).AnimatedVisibility(
+                    rememberDeferredTransition(state).AnimatedVisibility(
                         visible = { it },
                         modifier =
                             SwingModifier
@@ -90,7 +88,7 @@ class DeferredContainerTransitionTest {
         runComposeSwingTest {
             val state = DeferredTransitionState("a")
             setContent {
-                rememberTransition(state).AnimatedContent(
+                rememberDeferredTransition(state).AnimatedContent(
                     transitionSpec = { fadeIn(tween(320)) togetherWith fadeOut(tween(320)) },
                 ) {
                     Body(text = it)
@@ -137,7 +135,7 @@ class DeferredContainerTransitionTest {
             val state = DeferredTransitionState(false)
             setContent {
                 Box {
-                    rememberTransition(state).AnimatedVisibility(
+                    rememberDeferredTransition(state).AnimatedVisibility(
                         modifier = SwingModifier.testTag("deferredVisibility"),
                         visible = { it },
                         enter = fadeIn(animationSpec = tween(160)),
@@ -168,11 +166,11 @@ class DeferredContainerTransitionTest {
         }
 
     @Test
-    fun `a pending target state is replaced by the next one rather than joining it`() =
+    fun `a pending target state stays composed beside the next one until the transition settles`() =
         runComposeSwingTest {
             val state = DeferredTransitionState(0)
             setContent {
-                rememberTransition(state).AnimatedContent { Body(text = it.toString()) }
+                rememberDeferredTransition(state).AnimatedContent { Body(text = it.toString()) }
             }
 
             state.defer(1)
@@ -180,9 +178,10 @@ class DeferredContainerTransitionTest {
             // Index 0 is the hit-test overlay the default enter's scale adds; the two contents follow it.
             onRoot().onChild().onChildren().assertCountEquals(3)
 
+            // The superseded pending content may carry hand-driven transforms, so it stays composed.
             state.defer(2)
             awaitIdle()
-            onRoot().onChild().onChildren().assertCountEquals(3)
+            onRoot().onChild().onChildren().assertCountEquals(4)
             onRoot()
                 .onChild()
                 .onChildAt(1)
@@ -192,7 +191,22 @@ class DeferredContainerTransitionTest {
                 .onChild()
                 .onChildAt(2)
                 .onChild()
+                .assertTextEquals("1")
+            onRoot()
+                .onChild()
+                .onChildAt(3)
+                .onChild()
                 .assertTextEquals("0")
+
+            // Settling on the last announced state clears the superseded content, and the overlay with it.
+            state.animateTo(2)
+            awaitIdle()
+            onRoot().onChild().onChildren().assertCountEquals(1)
+            onRoot()
+                .onChild()
+                .onChild()
+                .onChild()
+                .assertTextEquals("2")
         }
 
     @Test
@@ -201,7 +215,7 @@ class DeferredContainerTransitionTest {
             val state = DeferredTransitionState("a")
             val announced = mutableSetOf<Pair<String, String>>()
             setContent {
-                rememberTransition(state).AnimatedContent(
+                rememberDeferredTransition(state).AnimatedContent(
                     transitionSpec = {
                         announced += initialState to targetState
                         fadeIn() togetherWith fadeOut()
@@ -225,7 +239,7 @@ class DeferredContainerTransitionTest {
             val state = DeferredTransitionState("a")
             val announced = mutableSetOf<Pair<String, String>>()
             setContent {
-                rememberTransition(state).AnimatedContent(
+                rememberDeferredTransition(state).AnimatedContent(
                     transitionSpec = {
                         announced += initialState to targetState
                         fadeIn(tween(320)) togetherWith fadeOut(tween(320))
@@ -251,14 +265,14 @@ class DeferredContainerTransitionTest {
         }
 
     @Test
-    fun `content a deferred phase announced is held for the transition that phase ends with`() =
+    fun `an animated visibility drops content a superseded phase announced`() =
         runComposeSwingTest {
             val state = DeferredTransitionState("a")
             setContent {
                 Box {
-                    val transition = rememberTransition(state)
+                    val transition = rememberDeferredTransition(state)
                     transition.AnimatedVisibility(
-                        modifier = SwingModifier.testTag("deferredVisibility"),
+                        modifier = SwingModifier.testTag("b"),
                         visible = { it == "b" },
                         enter = fadeIn(animationSpec = tween(160)),
                         exit = fadeOut(animationSpec = tween(160)),
@@ -266,7 +280,7 @@ class DeferredContainerTransitionTest {
                         Body(text = "b")
                     }
                     transition.AnimatedVisibility(
-                        modifier = SwingModifier.testTag("deferredVisibility"),
+                        modifier = SwingModifier.testTag("c"),
                         visible = { it == "c" },
                         enter = fadeIn(animationSpec = tween(160)),
                         exit = fadeOut(animationSpec = tween(160)),
@@ -275,26 +289,31 @@ class DeferredContainerTransitionTest {
                     }
                 }
             }
-            onAllNodesWithTag("deferredVisibility").assertCountEquals(0)
+            onNodeWithTag("b").assertDoesNotExist()
+            onNodeWithTag("c").assertDoesNotExist()
 
             state.defer("b")
             awaitIdle()
-            onAllNodesWithTag("deferredVisibility").assertCountEquals(1)
+            onNodeWithTag("b").assertExists()
+            onNodeWithTag("c").assertDoesNotExist()
 
             mainClock.autoAdvance = false
             state.animateTo("c")
             mainClock.advanceTimeByFrame()
-            onAllNodesWithTag("deferredVisibility").assertCountEquals(2)
+            onNodeWithTag("b").assertDoesNotExist()
+            onNodeWithTag("c").assertExists()
 
             mainClock.autoAdvance = true
             awaitIdle()
-            onAllNodesWithTag("deferredVisibility").assertCountEquals(1)
+            onNodeWithTag("b").assertDoesNotExist()
+            onNodeWithTag("c").assertExists()
 
-            // The settled transition dropped the hold, so a later change composes nothing the phase named.
+            // A later change composes nothing the phase named.
             mainClock.autoAdvance = false
             state.animateTo("a")
             mainClock.advanceTimeByFrame()
-            onAllNodesWithTag("deferredVisibility").assertCountEquals(1)
+            onNodeWithTag("b").assertDoesNotExist()
+            onNodeWithTag("c").assertExists()
         }
 
     @Test
@@ -302,7 +321,7 @@ class DeferredContainerTransitionTest {
         runComposeSwingTest {
             val state = DeferredTransitionState("a")
             setContent {
-                rememberTransition(state).AnimatedContent(
+                rememberDeferredTransition(state).AnimatedContent(
                     transitionSpec = { fadeIn(tween(320)) togetherWith fadeOut(tween(320)) },
                 ) {
                     Body(text = it)
@@ -341,7 +360,7 @@ class DeferredContainerTransitionTest {
         runComposeSwingTest {
             val state = DeferredTransitionState("a")
             setContent {
-                rememberTransition(state).AnimatedContent(
+                rememberDeferredTransition(state).AnimatedContent(
                     transitionSpec = { fadeIn(tween(320)) togetherWith fadeOut(tween(320)) },
                 ) {
                     Label(text = it, style = { preferredSize(WIDTHS.getValue(it), 20) })
@@ -386,7 +405,7 @@ class DeferredContainerTransitionTest {
                 null
             }
             setContent {
-                rememberTransition(state).DeferredAnimatedContent(
+                rememberDeferredTransition(state).DeferredAnimatedContent(
                     transitionSpec = { fadeIn(tween(320)) togetherWith fadeOut(tween(320)) },
                     mutableTransformSpec = transformSpec,
                 ) {
@@ -415,7 +434,7 @@ class DeferredContainerTransitionTest {
         runComposeSwingTest {
             val state = DeferredTransitionState("a")
             setContent {
-                rememberTransition(state).AnimatedContent {
+                rememberDeferredTransition(state).AnimatedContent {
                     Label(text = it, style = { preferredSize(if (it == "a") 40 else 80, 20) })
                 }
             }

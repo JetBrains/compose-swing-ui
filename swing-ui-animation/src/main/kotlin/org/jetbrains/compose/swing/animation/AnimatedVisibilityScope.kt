@@ -66,7 +66,15 @@ public sealed interface AnimatedVisibilityScope : ConstrainedScope {
         enter: EnterTransition = fadeIn(),
         exit: ExitTransition = fadeOut(),
         label: String = "animateEnterExit",
-    ): SwingModifier = composed { this.then(transition.createModifier(enter, exit, label = label)) }
+    ): SwingModifier =
+        composed {
+            this.then(
+                transition.createEnterExitModifier(
+                    updateEnterExitModifierState(transition, enter, exit),
+                    label = label,
+                ),
+            )
+        }
 }
 
 /** The state of an animated container's content between hidden and shown. */
@@ -84,10 +92,8 @@ public enum class EnterExitState {
 /** The [AnimatedVisibilityScope] one animated container hands its content. */
 internal class AnimatedVisibilityScopeImpl(
     override var transition: Transition<EnterExitState>,
+    val sharedMutableTransformState: SharedMutableTransformState,
 ) : AnimatedVisibilityScope {
     /** The size the container measured over its content, written by its measure policy. */
     val targetSize = mutableStateOf(Dimension(0, 0))
-
-    /** The deferred-phase state of the container's own enter and exit. */
-    val sharedMutableTransformState = SharedMutableTransformState()
 }

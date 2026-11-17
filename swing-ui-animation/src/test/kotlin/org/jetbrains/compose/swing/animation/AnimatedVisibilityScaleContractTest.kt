@@ -5,8 +5,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.animation.core.DeferredTransitionState
-import org.jetbrains.compose.swing.animation.core.ExperimentalDeferredTransitionApi
-import org.jetbrains.compose.swing.animation.core.rememberTransition
+import org.jetbrains.compose.swing.animation.core.rememberDeferredTransition
 import org.jetbrains.compose.swing.animation.core.tween
 import org.jetbrains.compose.swing.animation.core.updateTransition
 import org.jetbrains.compose.swing.components.button.Button
@@ -34,7 +33,6 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.milliseconds
 
-@OptIn(ExperimentalDeferredTransitionApi::class)
 class AnimatedVisibilityScaleContractTest {
     @Test
     fun `a receiverless scale enter is rejected before a hidden container is emitted`() {
@@ -110,7 +108,7 @@ class AnimatedVisibilityScaleContractTest {
             val state = DeferredTransitionState(false)
             setContent {
                 Box {
-                    rememberTransition(state).DeferredAnimatedVisibility(
+                    rememberDeferredTransition(state).DeferredAnimatedVisibility(
                         visible = { it },
                         enter = scaleIn(),
                     ) { Block() }
@@ -169,7 +167,7 @@ class AnimatedVisibilityScaleContractTest {
             val transform = MutableTransform().apply { update { scale = 1f } }
             setContent {
                 Box {
-                    rememberTransition(state).DeferredAnimatedVisibility(
+                    rememberDeferredTransition(state).DeferredAnimatedVisibility(
                         visible = { it },
                         mutableTransform = transform,
                     ) { Block(SwingModifier.testTag("block")) }

@@ -63,11 +63,38 @@ class AnimatedContentPreferencesAtWidthTest {
         @JvmStatic
         fun preferenceCases(): Stream<Arguments> =
             Stream.of(
-                preferenceCase("entering directly", PartWay, leafEnters = true, insideBox = false, finished = false),
-                preferenceCase("entered directly", null, leafEnters = true, insideBox = false, finished = true),
-                preferenceCase("entering inside Box", PartWay, leafEnters = true, insideBox = true, finished = false),
-                preferenceCase("entered inside Box", null, leafEnters = true, insideBox = true, finished = true),
-                preferenceCase("leaving inside Box", PartWay, leafEnters = false, insideBox = true, finished = false),
+                preferenceCase(
+                    "entering directly",
+                    PartWay,
+                    CaseShape(leafEnters = true, insideBox = false, finished = false),
+                ),
+                preferenceCase(
+                    "entered directly",
+                    null,
+                    CaseShape(leafEnters = true, insideBox = false, finished = true),
+                ),
+                preferenceCase(
+                    "entering inside Box",
+                    PartWay,
+                    CaseShape(leafEnters = true, insideBox = true, finished = false),
+                ),
+                preferenceCase(
+                    "entered inside Box",
+                    null,
+                    CaseShape(leafEnters = true, insideBox = true, finished = true),
+                ),
+                preferenceCase(
+                    "leaving inside Box",
+                    PartWay,
+                    CaseShape(leafEnters = false, insideBox = true, finished = false),
+                    slide = false,
+                ),
+                preferenceCase(
+                    "leaving inside Box, slide",
+                    SlideExitTime,
+                    CaseShape(leafEnters = false, insideBox = true, finished = false),
+                    slide = true,
+                ),
             )
 
         @JvmStatic
@@ -92,22 +119,30 @@ class AnimatedContentPreferencesAtWidthTest {
         private fun preferenceCase(
             name: String,
             transitionTime: Duration?,
-            leafEnters: Boolean,
-            insideBox: Boolean,
-            finished: Boolean,
-        ): Arguments =
-            Arguments.of(
-                Named.of(name, contentContainers(leafEnters, insideBox, finished, widthFromLeafHeight = false)),
-                contentContainers(leafEnters, insideBox, finished, widthFromLeafHeight = true),
+            shape: CaseShape,
+            slide: Boolean? = null,
+        ): Arguments {
+            fun containers(widthFromLeafHeight: Boolean) =
+                contentContainers(shape.leafEnters, shape.insideBox, shape.finished, widthFromLeafHeight, slide)
+            return Arguments.of(
+                Named.of(name, containers(widthFromLeafHeight = false)),
+                containers(widthFromLeafHeight = true),
                 transitionTime,
             )
+        }
     }
 
     @Test
     fun `a stock parent's preference read leaves no work behind while a content leaves`() {
         val scrollPane = "JScrollPane 400 high"
         val containers =
-            contentContainers(leafEnters = false, insideBox = false, finished = false, widthFromLeafHeight = false)
+            contentContainers(
+                leafEnters = false,
+                insideBox = false,
+                finished = false,
+                widthFromLeafHeight = false,
+                slide = false,
+            )
         val wrappingPanelContainers =
             listOf("fade", "scale", "expand and shrink").flatMap { kind ->
                 listOf("clipped", "unclipped").map { sizing ->
@@ -115,11 +150,17 @@ class AnimatedContentPreferencesAtWidthTest {
                 }
             }
         assertPreferencesSettle(
-            containers.filterKeys { it !in wrappingPanelContainers && "slide" !in it },
+            containers.filterKeys { it !in wrappingPanelContainers },
             transitionTime = PartWay,
         )
         assertPreferencesSettle(
-            containers.filterKeys { "slide" in it },
+            contentContainers(
+                leafEnters = false,
+                insideBox = false,
+                finished = false,
+                widthFromLeafHeight = false,
+                slide = true,
+            ),
             transitionTime = SlideExitTime,
         )
         // A wrapping JTextArea in a JPanel does not settle under the scroll pane slot.
@@ -132,3 +173,10 @@ class AnimatedContentPreferencesAtWidthTest {
         )
     }
 }
+
+/** The content and container state one preference case is built from. */
+private data class CaseShape(
+    val leafEnters: Boolean,
+    val insideBox: Boolean,
+    val finished: Boolean,
+)

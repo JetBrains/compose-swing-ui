@@ -16,7 +16,7 @@
 
 // Extracted subset of androidx.compose.ui.graphics.Bezier (the cubic root/bounds float helpers
 // used by CubicBezierEasing) for compose-swing-ui's vendored animation-core. Sourced from AndroidX
-// (Jetpack Compose 1.12.0). The PathSegment-based overloads are omitted.
+// (Jetpack Compose 1.13.0). The PathSegment-based overloads are omitted.
 
 @file:Suppress("NOTHING_TO_INLINE")
 

@@ -281,7 +281,7 @@ class SingleValueAnimationTest {
     fun defaultVisibilityThresholdTest() = runComposeSwingTest {
         // The specs the defaulted animations below are expected to run: a spring carrying the
         // threshold each type's converter is registered with.
-        val floatThreshold = VisibilityThresholdMap.getValue(Float.VectorConverter)
+        val floatThreshold = defaultVisibilityThresholdFor(Float.VectorConverter)!!
         val intThreshold = Int.VisibilityThreshold.toFloat()
         val specForFloat = FloatSpringSpec(visibilityThreshold = floatThreshold)
         val specForInt = FloatSpringSpec(visibilityThreshold = intThreshold)
@@ -505,6 +505,75 @@ class SingleValueAnimationTest {
         // Animation is finished at this point
         assertEquals(250f, expected)
     }
+
+    @Test
+    fun updateVisibilityThresholdTest() = runComposeSwingTest {
+        var duration by mutableStateOf(100)
+        var firstRun by mutableStateOf(true)
+        var visibilityThreshold by mutableStateOf(0f)
+        var enabled by mutableStateOf(false)
+        var expected by mutableStateOf(250f)
+
+        var finished = false
+        var midpoint = false
+
+        mainClock.autoAdvance = false
+        setContent {
+            val animationValue by
+                animateFloatAsState(
+                    if (enabled) 50f else 250f,
+                    visibilityThreshold = visibilityThreshold,
+                    animationSpec = TweenSpec(duration, easing = FastOutSlowInEasing),
+                    finishedListener = { finished = true },
+                )
+            assertEquals(expected, animationValue)
+            if (!firstRun) {
+                LaunchedEffect(enabled) {
+                    if (enabled) {
+                        assertEquals(100, duration)
+                    } else {
+                        assertEquals(200, duration)
+                    }
+                    val startTime = withFrameNanos { it }
+                    var frameTime = startTime
+                    do {
+                        withFrameNanos {
+                            frameTime = it
+                            // Frames are not whole milliseconds apart, so the play time keeps its nanoseconds
+                            val playTimeNanos =
+                                (frameTime - startTime).coerceIn(0, duration * 1_000_000L)
+                            val fraction =
+                                FastOutSlowInEasing.transform(
+                                    playTimeNanos / (duration * 1_000_000f),
+                                )
+                            expected =
+                                if (enabled) {
+                                    lerp(250f, 50f, fraction)
+                                } else {
+                                    lerp(50f, 250f, fraction)
+                                }
+                            if (fraction > .5f) {
+                                midpoint = true
+                            }
+                        }
+                    } while (frameTime - startTime <= duration * 1_000_000L)
+                    expected = if (enabled) 50f else 250f
+                }
+            }
+        }
+        awaitIdle()
+        finished = false
+        enabled = true
+        firstRun = false
+        mainClock.advanceTimeUntil { midpoint }
+        awaitIdle()
+        visibilityThreshold = 10f
+        mainClock.advanceTimeUntil { finished }
+        awaitIdle()
+        // Animation is finished at this point
+        assertEquals(50f, expected)
+    }
+
     @TestFactory
     fun animateFloatAsStateRawSwing() = AnimateFloatAsStateFixture.rawSwingTests()
 

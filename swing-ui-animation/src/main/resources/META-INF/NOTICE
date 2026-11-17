@@ -4,10 +4,10 @@ This module contains source code copied and adapted from the Android Open Source
 Project's Jetpack Compose animation-core and animation libraries, redistributed
 under the Apache License, Version 2.0.
 
-  Original: androidx.compose.animation:animation-core 1.12.0
-            (AndroidX commit 963bf914f78b389bdddef0da7f36bee19d897274)
-  Original: androidx.compose.animation:animation 1.12.0
-            (AndroidX commit 963bf914f78b389bdddef0da7f36bee19d897274)
+  Original: androidx.compose.animation:animation-core 1.13.0
+            (AndroidX commit ac6d2ce3d991b07d9b981d616bddc6d3ab461eab)
+  Original: androidx.compose.animation:animation 1.13.0
+            (AndroidX commit ac6d2ce3d991b07d9b981d616bddc6d3ab461eab)
   Copyright The Android Open Source Project
 
 Adaptations: flattened from Kotlin Multiplatform (expect/actual) to a single JVM

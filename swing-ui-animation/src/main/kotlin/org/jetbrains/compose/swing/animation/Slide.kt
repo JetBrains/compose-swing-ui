@@ -41,7 +41,7 @@ import java.awt.Point
  */
 @Stable
 public fun slideIn(
-    animationSpec: FiniteAnimationSpec<Point> = DEFAULT_SLIDE_SPRING,
+    animationSpec: FiniteAnimationSpec<Point> = DefaultSlideSpring,
     initialOffset: (fullSize: Dimension) -> Point,
 ): EnterTransition = EnterTransitionImpl(EnterExitTransitionConfig(slide = SlideConfig(initialOffset, animationSpec)))
 
@@ -60,7 +60,7 @@ public fun slideIn(
  */
 @Stable
 public fun slideOut(
-    animationSpec: FiniteAnimationSpec<Point> = DEFAULT_SLIDE_SPRING,
+    animationSpec: FiniteAnimationSpec<Point> = DefaultSlideSpring,
     targetOffset: (fullSize: Dimension) -> Point,
 ): ExitTransition = ExitTransitionImpl(EnterExitTransitionConfig(slide = SlideConfig(targetOffset, animationSpec)))
 
@@ -74,7 +74,7 @@ public fun slideOut(
  */
 @Stable
 public fun slideInHorizontally(
-    animationSpec: FiniteAnimationSpec<Point> = DEFAULT_SLIDE_SPRING,
+    animationSpec: FiniteAnimationSpec<Point> = DefaultSlideSpring,
     initialOffsetX: (fullWidth: Int) -> Int = { -it / 2 },
 ): EnterTransition = slideIn(animationSpec) { Point(initialOffsetX(it.width), 0) }
 
@@ -88,7 +88,7 @@ public fun slideInHorizontally(
  */
 @Stable
 public fun slideInVertically(
-    animationSpec: FiniteAnimationSpec<Point> = DEFAULT_SLIDE_SPRING,
+    animationSpec: FiniteAnimationSpec<Point> = DefaultSlideSpring,
     initialOffsetY: (fullHeight: Int) -> Int = { -it / 2 },
 ): EnterTransition = slideIn(animationSpec) { Point(0, initialOffsetY(it.height)) }
 
@@ -102,7 +102,7 @@ public fun slideInVertically(
  */
 @Stable
 public fun slideOutHorizontally(
-    animationSpec: FiniteAnimationSpec<Point> = DEFAULT_SLIDE_SPRING,
+    animationSpec: FiniteAnimationSpec<Point> = DefaultSlideSpring,
     targetOffsetX: (fullWidth: Int) -> Int = { -it / 2 },
 ): ExitTransition = slideOut(animationSpec) { Point(targetOffsetX(it.width), 0) }
 
@@ -116,11 +116,11 @@ public fun slideOutHorizontally(
  */
 @Stable
 public fun slideOutVertically(
-    animationSpec: FiniteAnimationSpec<Point> = DEFAULT_SLIDE_SPRING,
+    animationSpec: FiniteAnimationSpec<Point> = DefaultSlideSpring,
     targetOffsetY: (fullHeight: Int) -> Int = { -it / 2 },
 ): ExitTransition = slideOut(animationSpec) { Point(0, targetOffsetY(it.height)) }
 
 // The default spec of every slide factory. The threshold is explicit because the vendored engine's own
 // threshold map covers only Int and Float.
-private val DEFAULT_SLIDE_SPRING: FiniteAnimationSpec<Point> =
-    spring(stiffness = Spring.StiffnessMediumLow, visibilityThreshold = pointVisibilityThreshold())
+private val DefaultSlideSpring: FiniteAnimationSpec<Point>
+    get() = spring(stiffness = Spring.StiffnessMediumLow, visibilityThreshold = pointVisibilityThreshold())

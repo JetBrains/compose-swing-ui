@@ -37,15 +37,14 @@ class KeyframeArcAnimationTest {
         var linearVector: AnimationVector2D
 
         // Test above, below, linear keyframes
-        val keyframeAnimation =
-            keyframes {
-                    durationMillis = timeMillis
+        val keyframeAnimation = keyframes {
+            durationMillis = timeMillis
 
-                    Point2D(initialValue, initialValue) at 0 using LinearEasing using ArcAbove
-                    Point2D(200f, 200f) at 1000 using LinearEasing using ArcBelow
-                    Point2D(400f, 400f) atFraction 2f / 3f using LinearEasing using ArcLinear
-                }
-                .vectorize(Point2DVectorConverter)
+            Point2D(initialValue, initialValue) at 0 using LinearEasing using ArcAbove
+            Point2D(200f, 200f) at 1000 using LinearEasing using ArcBelow
+            Point2D(400f, 400f) atFraction 2f / 3f using LinearEasing using ArcLinear
+        }
+            .vectorize(Point2DVectorConverter)
 
         arcVector =
             keyframeAnimation.getValueFromNanos(
@@ -87,15 +86,14 @@ class KeyframeArcAnimationTest {
         var linearVector: AnimationVector2D
 
         // We test different Easing curves using Linear arc mode
-        val keyframeAnimation =
-            keyframes {
-                    durationMillis = timeMillis
+        val keyframeAnimation = keyframes {
+            durationMillis = timeMillis
 
-                    Point2D.Zero at 0 using EaseInCubic using ArcLinear
-                    Point2D(200f, 200f) at 1000 using LinearEasing using ArcLinear
-                    Point2D(400f, 400f) atFraction 2f / 3f using EaseOutCubic using ArcLinear
-                }
-                .vectorize(Point2DVectorConverter)
+            Point2D.Zero at 0 using EaseInCubic using ArcLinear
+            Point2D(200f, 200f) at 1000 using LinearEasing using ArcLinear
+            Point2D(400f, 400f) atFraction 2f / 3f using EaseOutCubic using ArcLinear
+        }
+            .vectorize(Point2DVectorConverter)
 
         // Start with EaseInCubic, which is always a lower value
         arcVector =
