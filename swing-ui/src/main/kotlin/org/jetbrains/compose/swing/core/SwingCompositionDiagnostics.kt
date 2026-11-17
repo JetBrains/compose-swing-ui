@@ -3,6 +3,7 @@ package org.jetbrains.compose.swing.core
 
 import org.jetbrains.compose.swing.annotations.InternalSwingUiApi
 import org.jetbrains.compose.swing.modifier.ModifierInfo
+import java.awt.Component
 import kotlin.coroutines.CoroutineContext
 
 /**
@@ -13,9 +14,16 @@ import kotlin.coroutines.CoroutineContext
  * parent's effect context - a cell renderer's composition, a menu's, a window's. Nothing installs one in
  * production.
  *
- * Every call runs on the event dispatch thread, from inside the change pass that provoked it. A violation
- * is reported rather than thrown: a throw from inside a modifier write reaches the apply phase and ends
- * the recomposer for good.
+ * A test harness also learns through it which content compositions exist under the recomposer. A content
+ * composition mounted under that recomposer - on a free host, a composed popup menu, a window's content
+ * pane - announces itself as it is mounted. A composition that only renders on demand - a cell renderer's,
+ * a tab header's - announces nothing, so what a component paints from is never a root. A root gets exactly
+ * one created call and, once that call has been made, exactly one disposed call, whichever way the
+ * composition ends; a root whose created call threw still gets its disposed call.
+ *
+ * Every call runs on the event dispatch thread. [declaring] and [restoring] run from inside the change pass
+ * that provoked them, and a violation there is reported rather than thrown: a throw from inside a modifier
+ * write reaches the apply phase and ends the recomposer for good.
  *
  * Marked [InternalSwingUiApi]; it may change or be removed without notice in any release.
  */
@@ -51,9 +59,38 @@ public interface SwingCompositionDiagnostics : CoroutineContext.Element {
         restore: () -> Unit,
     )
 
+    /**
+     * Announces [root], whose composition is initialized but has not composed its content yet.
+     *
+     * @param root the new root; the same instance is passed to [onRootForTestDisposed].
+     */
+    public fun onRootForTestCreated(root: RootForTest) {}
+
+    /**
+     * Withdraws [root], whose composition has ended or failed to start.
+     *
+     * @param root the root passed to [onRootForTestCreated].
+     */
+    public fun onRootForTestDisposed(root: RootForTest) {}
+
     /** The key this element is read off a coroutine context by. */
     @InternalSwingUiApi
     public companion object Key : CoroutineContext.Key<SwingCompositionDiagnostics>
+}
+
+/**
+ * A content composition a test harness can search: the component one `setContent`-style mount is rooted on.
+ *
+ * Owned by the composition that implements it; a harness only reads [component] while the root is announced
+ * to it and holds the root from [SwingCompositionDiagnostics.onRootForTestCreated] until
+ * [SwingCompositionDiagnostics.onRootForTestDisposed].
+ *
+ * Marked [InternalSwingUiApi]; it may change or be removed without notice in any release.
+ */
+@InternalSwingUiApi
+public interface RootForTest {
+    /** The component this root's content is composed into. Read on the event dispatch thread. */
+    public val component: Component
 }
 
 /**

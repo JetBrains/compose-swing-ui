@@ -9,7 +9,9 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.Snapshot
+import io.mockk.Runs
 import io.mockk.every
+import io.mockk.just
 import io.mockk.mockk
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.job
@@ -395,6 +397,8 @@ class ModifierChainFailureTest {
             restored += firstArg<ModifierInfo>()
             secondArg<() -> Unit>().invoke()
         }
+        every { diagnostics.onRootForTestCreated(any()) } just Runs
+        every { diagnostics.onRootForTestDisposed(any()) } just Runs
         val recomposer = SwingRecomposer.create(JPanel(), effectContext = diagnostics)
         var capturedLabel: JLabel? = null
         var name by mutableStateOf("first")

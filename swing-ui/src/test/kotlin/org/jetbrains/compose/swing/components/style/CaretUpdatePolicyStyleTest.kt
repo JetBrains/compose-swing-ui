@@ -48,7 +48,8 @@ class CaretUpdatePolicyStyleTest {
             )
         }
         onNodeOfType<JTextArea>().apply {
-            val insert = { fetch<JTextArea>().document.insertString(0, "appended: ", null) }
+            val document = fetch<JTextArea>().document
+            val insert = { document.insertString(0, "appended: ", null) }
             if (offEdt) {
                 Thread(insert).apply {
                     start()

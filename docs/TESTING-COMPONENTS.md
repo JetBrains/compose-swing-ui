@@ -77,7 +77,7 @@ Single-node finders return a `SwingNodeInteraction`:
 - `onNodeWithTag(tag)` — match by test tag (see *Test tags* below).
 - `onNodeWithName(name)` — match by component name.
 - `onNodeOfType<T>()` — match the single component of a given Swing type.
-- `onRoot()` — the composition root.
+- `onRoot()` — the composition root; fails naming `onAllRoots()` when the test has several roots.
 - `onNode(matcher)` — match with a `SwingMatcher` (e.g. `hasText`, `hasTestTag`, `hasName`,
   `hasAccessibleName`, `isEnabled`, `isSelected`, `isEditable`, composed with `and`, `or` and `!`).
 
@@ -86,6 +86,10 @@ Multi-node finders return a `SwingNodeInteractionCollection`:
 - `onAllNodesWithText(text)`, `onAllNodesWithTag(tag)`, `onAllNodesOfType<T>()`, `onAllNodes(matcher)`.
 
 Menu items can appear among these matches too (see *Menus* below).
+
+The finders search the test's root and every other root composed under its context: content set on a free
+host, a composed popup menu (shown or not), a panel that is not in a window. `onAllRoots()` lists those roots; content in a
+window stays under `onWindow(...)`.
 
 Narrow a collection with `filter(matcher)` or `filterToOne(matcher)`, assert its size with
 `assertCountEquals(n)`, assert over its members with `assertAll(matcher)` / `assertAny(matcher)`, and

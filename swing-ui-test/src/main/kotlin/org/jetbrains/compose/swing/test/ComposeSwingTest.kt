@@ -22,8 +22,11 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
 import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.core.InfiniteAnimationPolicy
+import org.jetbrains.compose.swing.core.RootForTest
+import org.jetbrains.compose.swing.core.SwingCompositionDiagnostics
 import org.jetbrains.compose.swing.core.SwingUiSettings
 import org.jetbrains.compose.swing.core.setLifecycleOwner
+import org.jetbrains.compose.swing.modifier.ModifierInfo
 import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.test.interaction.MouseState
 import org.jetbrains.compose.swing.test.interaction.NodePick
@@ -269,15 +272,31 @@ public interface ComposeSwingTest {
     /**
      * Finds all nodes matching [matcher].
      *
-     * @param matcher applied to [root] and every component under it, in depth-first pre-order.
+     * @param matcher applied to every root (see [onAllRoots]) and every component under it, in depth-first
+     *   pre-order.
      * @return a handle to the match set, empty rather than failing when nothing matches.
      */
     public fun onAllNodes(matcher: SwingMatcher): SwingNodeInteractionCollection<Component>
 
     /**
      * Returns an interaction targeting the composition [root] itself.
+     *
+     * Where the test composes content on a host it does not hold under [root] - a free host, a composed popup
+     * menu - there are several roots and this fails naming their count; [onAllRoots] reaches each of them.
+     *
+     * @return a handle that fails on use unless the test has exactly one root.
      */
     public fun onRoot(): SwingNodeInteraction<Component>
+
+    /**
+     * Finds every root the finders search: [root], and each content composition under this test's context that
+     * stands in no other root and in no window - content set on a free host, a composed popup menu, shown or
+     * not, a panel that is not in a window. Content in a window is reached with [onWindow]. A composition that
+     * is disposed is no longer a root.
+     *
+     * @return a handle to the roots, empty rather than failing when there are none.
+     */
+    public fun onAllRoots(): SwingNodeInteractionCollection<Component>
 
     /**
      * Finds the single window matching [matcher] among every window currently realized in the test
@@ -497,12 +516,34 @@ internal class ComposeSwingTestImpl(
 
     private val clock = BroadcastFrameClock()
 
-    /**
-     * The restore check every composition this test mounts is held to, stated on the context its
-     * recomposer is built over so a nested composition - a cell renderer's, a menu's, a window's -
-     * inherits the same one.
-     */
+    /** The content compositions under this test's recomposer, announced to it through the context. */
+    private val rootRegistry = ComposeRootRegistry()
+
+    /** The restore check every composition this test mounts is held to, reached through [diagnostics]. */
     private val restoreCheck = ModifierRestoreCheck(::recordUncaughtFailure)
+
+    /**
+     * The one diagnostics element this test states on its recomposer's context, so a nested composition - a cell
+     * renderer's, a menu's, a window's - inherits the same one. It forwards to [restoreCheck] and [rootRegistry]
+     * by hand: interface delegation would also delegate the context lookup, which then hands out the delegate
+     * instead of this element.
+     */
+    private val diagnostics =
+        object : SwingCompositionDiagnostics {
+            override fun declaring(
+                info: ModifierInfo,
+                write: () -> Unit,
+            ) = restoreCheck.declaring(info, write)
+
+            override fun restoring(
+                info: ModifierInfo,
+                restore: () -> Unit,
+            ) = restoreCheck.restoring(info, restore)
+
+            override fun onRootForTestCreated(root: RootForTest) = rootRegistry.onRootForTestCreated(root)
+
+            override fun onRootForTestDisposed(root: RootForTest) = rootRegistry.onRootForTestDisposed(root)
+        }
 
     /**
      * The policy an animation that never ends is held to. While frames run on their own such an
@@ -536,7 +577,7 @@ internal class ComposeSwingTestImpl(
     private val scope =
         CoroutineScope(
             SwingUiSettings.motionDurationScale + effectContext + Dispatchers.Swing + Job() + clock +
-                restoreCheck + infiniteAnimationPolicy +
+                diagnostics + infiniteAnimationPolicy +
                 CoroutineExceptionHandler { context, failure ->
                     onEventDispatchThread { if (compositionFailure == null) compositionFailure = failure }
                     try {
@@ -563,7 +604,7 @@ internal class ComposeSwingTestImpl(
             lastFrameTimeNanos = { lastFrameTimeNanos },
             advanceTime = { frameTimeNanos += it },
             runFrame = ::runFrame,
-            diagnostics = { root.dumpTree() + realizedWindowsTreeDump() + compositionFailureNote() },
+            diagnostics = { searchedRoots().dumpTrees() + realizedWindowsTreeDump() + compositionFailureNote() },
             throwFailure = ::throwUncaughtFailure,
         )
 
@@ -698,7 +739,8 @@ internal class ComposeSwingTestImpl(
             if (frames >= MAX_STEPS || System.nanoTime() >= deadline) {
                 throw ComposeTimeoutException(
                     "Condition still not met after $frames consumed frames / $timeout. " +
-                        "Current tree:\n" + root.dumpTree() + realizedWindowsTreeDump() + compositionFailureNote(),
+                        "Current tree:\n" + searchedRoots().dumpTrees() + realizedWindowsTreeDump() +
+                        compositionFailureNote(),
                 )
             }
             val frame = if (mainClock.autoAdvance) FRAME_INTERVAL_NANOS else null
@@ -891,7 +933,7 @@ internal class ComposeSwingTestImpl(
                 "hasPendingChanges=${Snapshot.current.hasPendingChanges()}, " +
                 "mainClock.autoAdvance=${mainClock.autoAdvance}, awaitingFrame=${clock.hasAwaiters}). " +
                 "The composition likely never reaches a stable frame. Current tree:\n" +
-                root.dumpTree() + realizedWindowsTreeDump() + compositionFailureNote(),
+                searchedRoots().dumpTrees() + realizedWindowsTreeDump() + compositionFailureNote(),
         )
 
     override fun onNodeWithText(
@@ -907,11 +949,11 @@ internal class ComposeSwingTestImpl(
         SwingNodeInteraction(
             this,
             matcher.description,
-            { listOf(root) },
+            ::searchedRoots,
             NodePick.Single,
             { it },
         ) {
-            root.findMatchingIncludingSelf(matcher)
+            searchedRoots().flatMap { it.findMatchingIncludingSelf(matcher) }
         }
 
     override fun onAllNodesWithText(
@@ -926,22 +968,35 @@ internal class ComposeSwingTestImpl(
         SwingNodeInteractionCollection(
             this,
             matcher.description,
-            { listOf(root) },
+            ::searchedRoots,
             { it },
         ) {
-            root.findMatchingIncludingSelf(matcher)
+            searchedRoots().flatMap { it.findMatchingIncludingSelf(matcher) }
         }
+
+    override fun onAllRoots(): SwingNodeInteractionCollection<Component> =
+        SwingNodeInteractionCollection(this, "allRoots", ::searchedRoots, { it }) { searchedRoots() }
 
     override fun onRoot(): SwingNodeInteraction<Component> =
         SwingNodeInteraction(
             this,
             "root",
-            { listOf(root) },
+            ::searchedRoots,
             NodePick.Single,
             { it },
         ) {
-            root.findMatchingIncludingSelf(SwingMatcher.isRoot(root))
+            val roots = searchedRoots()
+            if (roots.size > 1) {
+                throw AssertionError(
+                    "onRoot() is ambiguous: the test has ${roots.size} roots. Use onAllRoots() to reach them.\n" +
+                        "Tree:\n${roots.dumpTrees()}",
+                )
+            }
+            roots
         }
+
+    /** The trees every finder searches: [root] and the roots composed under this test's context. */
+    private fun searchedRoots(): List<Container> = rootRegistry.searchedRoots(root)
 
     override fun onWindow(matcher: SwingMatcher): SwingWindowInteraction<Window> =
         SwingWindowInteraction(
@@ -976,6 +1031,7 @@ internal class ComposeSwingTestImpl(
             }
         }
         tearDown { root.removeNotify() }
+        tearDown { rootRegistry.clear() }
         tearDown { root.setLifecycleOwner(null) }
         tearDown { dispatchThread.setUncaughtExceptionHandler(enclosingHandler) }
         // The first failure stands, whether a gate never got the chance to throw it or a step above raised

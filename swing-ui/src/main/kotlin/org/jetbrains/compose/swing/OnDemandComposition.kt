@@ -118,14 +118,9 @@ public class OnDemandComposition private constructor(
         checkEventDispatchThread()
         rootHolder.childPlacement = ChildPlacement.Slots(content = rootAttachment)
         composition =
-            SwingContentComposition.nested(
-                parent,
-                rootHolder,
-                compositionDataHost = null,
-                applierFactory = { root ->
-                    SwingApplier(root, rootSlotPolicy = RootSlotPolicy { requireOneTopLevelComponent() })
-                },
-            )
+            SwingContentComposition(parent, rootHolder, compositionDataHost = null) {
+                SwingApplier(rootHolder, rootSlotPolicy = RootSlotPolicy { requireOneTopLevelComponent() })
+            }
         disposingOnFailure(::dispose) {
             composition.setContent(content)
             requireOneTopLevelComponent()

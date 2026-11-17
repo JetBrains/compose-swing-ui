@@ -8,6 +8,7 @@ public abstract interface class org/jetbrains/compose/swing/test/ComposeSwingTes
 	public abstract fun onAllNodesWithTag (Ljava/lang/String;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteractionCollection;
 	public abstract fun onAllNodesWithText (Ljava/lang/String;Z)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteractionCollection;
 	public static synthetic fun onAllNodesWithText$default (Lorg/jetbrains/compose/swing/test/ComposeSwingTest;Ljava/lang/String;ZILjava/lang/Object;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteractionCollection;
+	public abstract fun onAllRoots ()Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteractionCollection;
 	public abstract fun onAllWindows (Lorg/jetbrains/compose/swing/test/SwingMatcher;)Lorg/jetbrains/compose/swing/test/interaction/SwingWindowInteractionCollection;
 	public abstract fun onNode (Lorg/jetbrains/compose/swing/test/SwingMatcher;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;
 	public abstract fun onNodeWithName (Ljava/lang/String;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;

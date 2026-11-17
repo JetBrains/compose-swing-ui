@@ -133,12 +133,24 @@ private inline fun <R> withMutableSnapshot(
  * every node below takes it from its parent as it is inserted. It detaches the root as it is disposed, and when
  * its construction fails.
  */
-internal class SwingContentComposition private constructor(
+internal class SwingContentComposition internal constructor(
     private val parent: CompositionContext,
     private val root: SwingNodeHolder<*>,
     private val compositionDataHost: JComponent?,
     applierFactory: () -> AbstractApplier<out NodeHolder>,
-) : SwingCompositionOwner {
+) : SwingCompositionOwner,
+    RootForTest {
+    init {
+        GlobalSnapshotManager.ensureStarted()
+    }
+
+    override val component: Component get() = root.component
+
+    /** The diagnostics told this composition exists, until they have been told it is gone. */
+    private var announcedTo: SwingCompositionDiagnostics? = null
+
+    private var released = false
+
     /**
      * The observer's callbacks run on the event dispatch thread: inline when the change is published
      * there, which is where [GlobalSnapshotManager] publishes an ordinary write, and posted with
@@ -216,9 +228,8 @@ internal class SwingContentComposition private constructor(
                 // Cancels the recomposer's effect job, which every context under it shares. Only the shutdown
                 // happens here; the recomposer disposes its content on a later turn, after a pass still open
                 // around this call has unwound. Completion handlers on jobs under it run here, as they do
-                // for Recomposer.cancel().
-                coroutineContext.cancel()
-                dispose()
+                // for Recomposer.cancel(), and one that throws does not keep this composition from disposing.
+                runEveryStep({ coroutineContext.cancel() }, ::dispose)
             },
         ) {
             composition.setContent { InspectedContent(compositionDataHost, inspection.isRecording, content) }
@@ -287,14 +298,30 @@ internal class SwingContentComposition private constructor(
         runEveryStep({ composition.dispose() }, ::release)
     }
 
-    /** Detaches the root and ends what this owner holds for its nodes, even when detaching throws. */
+    /**
+     * Tells [listener] this composition exists. From here on [release] tells it the composition is gone, also
+     * when [listener] itself throws, so the diagnostics never hold a root they were not told ended.
+     */
+    private fun announceTo(listener: SwingCompositionDiagnostics) {
+        announcedTo = listener
+        listener.onRootForTestCreated(this)
+    }
+
+    /**
+     * Detaches the root, ends what this owner holds for its nodes and withdraws this composition from the
+     * diagnostics it was announced to, each even when an earlier one throws; the first failure stands. Runs its
+     * steps once: a later call does nothing.
+     */
     private fun release() {
-        try {
-            root.attachedTo(null)
-        } finally {
-            afterValidationActions.dispose()
-            snapshotObserver.dispose()
-        }
+        if (released) return
+        released = true
+        runEveryStep(
+            { root.attachedTo(null) },
+            { afterValidationActions.dispose() },
+            { snapshotObserver.dispose() },
+            { announcedTo?.onRootForTestDisposed(this) },
+        )
+        announcedTo = null
     }
 
     companion object {
@@ -314,8 +341,9 @@ internal class SwingContentComposition private constructor(
             compositionDataHost: JComponent?,
             applierFactory: (root: SwingNodeHolder<T>) -> AbstractApplier<out NodeHolder>,
         ): SwingContentComposition {
-            GlobalSnapshotManager.ensureStarted()
-            return SwingContentComposition(parent, root, compositionDataHost) { applierFactory(root) }
+            val composition = SwingContentComposition(parent, root, compositionDataHost) { applierFactory(root) }
+            composition.diagnostics?.let { disposingOnFailure(composition::dispose) { composition.announceTo(it) } }
+            return composition
         }
     }
 }
