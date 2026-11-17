@@ -85,25 +85,7 @@ private class MouseCallbacks(
     val onMouseReleased: (MouseEvent) -> Unit,
     val onMouseEntered: (MouseEvent) -> Unit,
     val onMouseExited: (MouseEvent) -> Unit,
-) : CallbackBundle {
-    override fun equals(other: Any?): Boolean {
-        if (other !is MouseCallbacks) return false
-        if (!sameCallback(onMouseClicked, other.onMouseClicked)) return false
-        if (!sameCallback(onMousePressed, other.onMousePressed)) return false
-        if (!sameCallback(onMouseReleased, other.onMouseReleased)) return false
-        if (!sameCallback(onMouseEntered, other.onMouseEntered)) return false
-        return sameCallback(onMouseExited, other.onMouseExited)
-    }
-
-    override fun hashCode(): Int {
-        var result = callbackHash(onMouseClicked)
-        result = 31 * result + callbackHash(onMousePressed)
-        result = 31 * result + callbackHash(onMouseReleased)
-        result = 31 * result + callbackHash(onMouseEntered)
-        result = 31 * result + callbackHash(onMouseExited)
-        return result
-    }
-}
+)
 
 private val MOUSE =
     ListenerRegistration<Component, MouseListener>(
@@ -113,7 +95,7 @@ private val MOUSE =
     )
 
 private val MOUSE_CALLBACKS =
-    CallbackRegistration<Component, MouseCallbacks, MouseListener>(
+    CallbackRegistration.byCallbackIdentity<Component, MouseCallbacks, MouseListener>(
         adapter = { callback ->
             object : MouseListener {
                 override fun mouseClicked(event: MouseEvent): Unit = callback.current.onMouseClicked(event)
@@ -128,4 +110,9 @@ private val MOUSE_CALLBACKS =
             }
         },
         registration = MOUSE,
+        MouseCallbacks::onMouseClicked,
+        MouseCallbacks::onMousePressed,
+        MouseCallbacks::onMouseReleased,
+        MouseCallbacks::onMouseEntered,
+        MouseCallbacks::onMouseExited,
     )

@@ -64,19 +64,7 @@ public fun SwingModifier.containerListener(listener: ContainerListener): SwingMo
 private class ContainerCallbacks(
     val onComponentAdded: (ContainerEvent) -> Unit,
     val onComponentRemoved: (ContainerEvent) -> Unit,
-) : CallbackBundle {
-    override fun equals(other: Any?): Boolean {
-        if (other !is ContainerCallbacks) return false
-        if (!sameCallback(onComponentAdded, other.onComponentAdded)) return false
-        return sameCallback(onComponentRemoved, other.onComponentRemoved)
-    }
-
-    override fun hashCode(): Int {
-        var result = callbackHash(onComponentAdded)
-        result = 31 * result + callbackHash(onComponentRemoved)
-        return result
-    }
-}
+)
 
 private val CONTAINER =
     ListenerRegistration<Container, ContainerListener>(
@@ -86,7 +74,7 @@ private val CONTAINER =
     )
 
 private val CONTAINER_CALLBACKS =
-    CallbackRegistration<Container, ContainerCallbacks, ContainerListener>(
+    CallbackRegistration.byCallbackIdentity<Container, ContainerCallbacks, ContainerListener>(
         adapter = { callback ->
             object : ContainerListener {
                 override fun componentAdded(event: ContainerEvent): Unit =
@@ -97,4 +85,6 @@ private val CONTAINER_CALLBACKS =
             }
         },
         registration = CONTAINER,
+        ContainerCallbacks::onComponentAdded,
+        ContainerCallbacks::onComponentRemoved,
     )

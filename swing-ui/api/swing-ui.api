@@ -1056,9 +1056,14 @@ public final class org/jetbrains/compose/swing/modifier/layout/LayoutModifierKt 
 
 public final class org/jetbrains/compose/swing/modifier/listener/CallbackRegistration {
 	public static final field $stable I
+	public static final field Companion Lorg/jetbrains/compose/swing/modifier/listener/CallbackRegistration$Companion;
 	public fun <init> (Lkotlin/jvm/functions/Function1;Lorg/jetbrains/compose/swing/modifier/listener/ListenerRegistration;)V
 	public fun equals (Ljava/lang/Object;)Z
 	public fun hashCode ()I
+}
+
+public final class org/jetbrains/compose/swing/modifier/listener/CallbackRegistration$Companion {
+	public final fun byCallbackIdentity (Lkotlin/jvm/functions/Function1;Lorg/jetbrains/compose/swing/modifier/listener/ListenerRegistration;[Lkotlin/reflect/KProperty1;)Lorg/jetbrains/compose/swing/modifier/listener/CallbackRegistration;
 }
 
 public final class org/jetbrains/compose/swing/modifier/listener/DeclaredCallback {

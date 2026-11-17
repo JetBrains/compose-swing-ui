@@ -5,15 +5,12 @@
 package org.jetbrains.compose.swing.components.modifier.listener
 
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.listener.CallbackBundle
 import org.jetbrains.compose.swing.modifier.listener.CallbackRegistration
 import org.jetbrains.compose.swing.modifier.listener.ListenerRegistration
 import org.jetbrains.compose.swing.modifier.listener.UNDECLARED
-import org.jetbrains.compose.swing.modifier.listener.callbackHash
 import org.jetbrains.compose.swing.modifier.listener.declared
 import org.jetbrains.compose.swing.modifier.listener.listener
 import org.jetbrains.compose.swing.modifier.listener.requireAnyDeclared
-import org.jetbrains.compose.swing.modifier.listener.sameCallback
 import javax.swing.event.TreeExpansionEvent
 import javax.swing.event.TreeExpansionListener
 import javax.swing.JTree as SwingJTree
@@ -72,19 +69,7 @@ public fun SwingModifier.treeExpansionListener(listener: TreeExpansionListener):
 private class TreeExpansionCallbacks(
     val onTreeExpanded: (TreeExpansionEvent) -> Unit,
     val onTreeCollapsed: (TreeExpansionEvent) -> Unit,
-) : CallbackBundle {
-    override fun equals(other: Any?): Boolean {
-        if (other !is TreeExpansionCallbacks) return false
-        if (!sameCallback(onTreeExpanded, other.onTreeExpanded)) return false
-        return sameCallback(onTreeCollapsed, other.onTreeCollapsed)
-    }
-
-    override fun hashCode(): Int {
-        var result = callbackHash(onTreeExpanded)
-        result = 31 * result + callbackHash(onTreeCollapsed)
-        return result
-    }
-}
+)
 
 private val TREE_EXPANSION =
     ListenerRegistration<SwingJTree, TreeExpansionListener>(
@@ -94,7 +79,7 @@ private val TREE_EXPANSION =
     )
 
 private val TREE_EXPANSION_CALLBACKS =
-    CallbackRegistration<SwingJTree, TreeExpansionCallbacks, TreeExpansionListener>(
+    CallbackRegistration.byCallbackIdentity<SwingJTree, TreeExpansionCallbacks, TreeExpansionListener>(
         adapter = { callback ->
             object : TreeExpansionListener {
                 override fun treeExpanded(event: TreeExpansionEvent): Unit =
@@ -105,4 +90,6 @@ private val TREE_EXPANSION_CALLBACKS =
             }
         },
         registration = TREE_EXPANSION,
+        TreeExpansionCallbacks::onTreeExpanded,
+        TreeExpansionCallbacks::onTreeCollapsed,
     )

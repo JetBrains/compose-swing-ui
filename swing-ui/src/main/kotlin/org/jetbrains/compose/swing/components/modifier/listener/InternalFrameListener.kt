@@ -5,15 +5,12 @@
 package org.jetbrains.compose.swing.components.modifier.listener
 
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.listener.CallbackBundle
 import org.jetbrains.compose.swing.modifier.listener.CallbackRegistration
 import org.jetbrains.compose.swing.modifier.listener.ListenerRegistration
 import org.jetbrains.compose.swing.modifier.listener.UNDECLARED
-import org.jetbrains.compose.swing.modifier.listener.callbackHash
 import org.jetbrains.compose.swing.modifier.listener.declared
 import org.jetbrains.compose.swing.modifier.listener.listener
 import org.jetbrains.compose.swing.modifier.listener.requireAnyDeclared
-import org.jetbrains.compose.swing.modifier.listener.sameCallback
 import javax.swing.JInternalFrame
 import javax.swing.event.InternalFrameEvent
 import javax.swing.event.InternalFrameListener
@@ -117,29 +114,7 @@ private class InternalFrameCallbacks(
     val onFrameDeiconified: (InternalFrameEvent) -> Unit,
     val onFrameActivated: (InternalFrameEvent) -> Unit,
     val onFrameDeactivated: (InternalFrameEvent) -> Unit,
-) : CallbackBundle {
-    override fun equals(other: Any?): Boolean {
-        if (other !is InternalFrameCallbacks) return false
-        if (!sameCallback(onFrameOpened, other.onFrameOpened)) return false
-        if (!sameCallback(onFrameClosing, other.onFrameClosing)) return false
-        if (!sameCallback(onFrameClosed, other.onFrameClosed)) return false
-        if (!sameCallback(onFrameIconified, other.onFrameIconified)) return false
-        if (!sameCallback(onFrameDeiconified, other.onFrameDeiconified)) return false
-        if (!sameCallback(onFrameActivated, other.onFrameActivated)) return false
-        return sameCallback(onFrameDeactivated, other.onFrameDeactivated)
-    }
-
-    override fun hashCode(): Int {
-        var result = callbackHash(onFrameOpened)
-        result = 31 * result + callbackHash(onFrameClosing)
-        result = 31 * result + callbackHash(onFrameClosed)
-        result = 31 * result + callbackHash(onFrameIconified)
-        result = 31 * result + callbackHash(onFrameDeiconified)
-        result = 31 * result + callbackHash(onFrameActivated)
-        result = 31 * result + callbackHash(onFrameDeactivated)
-        return result
-    }
-}
+)
 
 private val INTERNAL_FRAME =
     ListenerRegistration<JInternalFrame, InternalFrameListener>(
@@ -149,7 +124,7 @@ private val INTERNAL_FRAME =
     )
 
 private val INTERNAL_FRAME_CALLBACKS =
-    CallbackRegistration<JInternalFrame, InternalFrameCallbacks, InternalFrameListener>(
+    CallbackRegistration.byCallbackIdentity<JInternalFrame, InternalFrameCallbacks, InternalFrameListener>(
         adapter = { callback ->
             object : InternalFrameListener {
                 override fun internalFrameOpened(event: InternalFrameEvent): Unit =
@@ -175,4 +150,11 @@ private val INTERNAL_FRAME_CALLBACKS =
             }
         },
         registration = INTERNAL_FRAME,
+        InternalFrameCallbacks::onFrameOpened,
+        InternalFrameCallbacks::onFrameClosing,
+        InternalFrameCallbacks::onFrameClosed,
+        InternalFrameCallbacks::onFrameIconified,
+        InternalFrameCallbacks::onFrameDeiconified,
+        InternalFrameCallbacks::onFrameActivated,
+        InternalFrameCallbacks::onFrameDeactivated,
     )

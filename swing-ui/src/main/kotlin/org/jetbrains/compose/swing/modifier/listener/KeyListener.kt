@@ -70,21 +70,7 @@ private class KeyCallbacks(
     val onKeyTyped: (KeyEvent) -> Unit,
     val onKeyPressed: (KeyEvent) -> Unit,
     val onKeyReleased: (KeyEvent) -> Unit,
-) : CallbackBundle {
-    override fun equals(other: Any?): Boolean {
-        if (other !is KeyCallbacks) return false
-        if (!sameCallback(onKeyTyped, other.onKeyTyped)) return false
-        if (!sameCallback(onKeyPressed, other.onKeyPressed)) return false
-        return sameCallback(onKeyReleased, other.onKeyReleased)
-    }
-
-    override fun hashCode(): Int {
-        var result = callbackHash(onKeyTyped)
-        result = 31 * result + callbackHash(onKeyPressed)
-        result = 31 * result + callbackHash(onKeyReleased)
-        return result
-    }
-}
+)
 
 /** The registration a key listener sits on, shared by every builder over a component's keys. */
 internal val KEY =
@@ -95,7 +81,7 @@ internal val KEY =
     )
 
 private val KEY_CALLBACKS =
-    CallbackRegistration<Component, KeyCallbacks, KeyListener>(
+    CallbackRegistration.byCallbackIdentity<Component, KeyCallbacks, KeyListener>(
         adapter = { callback ->
             object : KeyListener {
                 override fun keyTyped(event: KeyEvent): Unit = callback.current.onKeyTyped(event)
@@ -106,4 +92,7 @@ private val KEY_CALLBACKS =
             }
         },
         registration = KEY,
+        KeyCallbacks::onKeyTyped,
+        KeyCallbacks::onKeyPressed,
+        KeyCallbacks::onKeyReleased,
     )

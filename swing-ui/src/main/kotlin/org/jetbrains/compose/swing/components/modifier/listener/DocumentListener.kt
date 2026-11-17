@@ -5,14 +5,11 @@
 package org.jetbrains.compose.swing.components.modifier.listener
 
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.listener.CallbackBundle
 import org.jetbrains.compose.swing.modifier.listener.CallbackRegistration
 import org.jetbrains.compose.swing.modifier.listener.UNDECLARED
-import org.jetbrains.compose.swing.modifier.listener.callbackHash
 import org.jetbrains.compose.swing.modifier.listener.declared
 import org.jetbrains.compose.swing.modifier.listener.listener
 import org.jetbrains.compose.swing.modifier.listener.requireAnyDeclared
-import org.jetbrains.compose.swing.modifier.listener.sameCallback
 import javax.swing.event.DocumentEvent
 import javax.swing.event.DocumentListener
 import javax.swing.text.JTextComponent
@@ -81,24 +78,10 @@ private class DocumentCallbacks(
     val onInsert: (DocumentEvent) -> Unit,
     val onRemove: (DocumentEvent) -> Unit,
     val onChange: (DocumentEvent) -> Unit,
-) : CallbackBundle {
-    override fun equals(other: Any?): Boolean {
-        if (other !is DocumentCallbacks) return false
-        if (!sameCallback(onInsert, other.onInsert)) return false
-        if (!sameCallback(onRemove, other.onRemove)) return false
-        return sameCallback(onChange, other.onChange)
-    }
-
-    override fun hashCode(): Int {
-        var result = callbackHash(onInsert)
-        result = 31 * result + callbackHash(onRemove)
-        result = 31 * result + callbackHash(onChange)
-        return result
-    }
-}
+)
 
 private val DOCUMENT_CALLBACKS =
-    CallbackRegistration<JTextComponent, DocumentCallbacks, DocumentListener>(
+    CallbackRegistration.byCallbackIdentity<JTextComponent, DocumentCallbacks, DocumentListener>(
         adapter = { callback ->
             object : DocumentListener {
                 override fun insertUpdate(event: DocumentEvent): Unit = callback.report { it.onInsert(event) }
@@ -109,4 +92,7 @@ private val DOCUMENT_CALLBACKS =
             }
         },
         registration = SWAPPABLE_DOCUMENT,
+        DocumentCallbacks::onInsert,
+        DocumentCallbacks::onRemove,
+        DocumentCallbacks::onChange,
     )

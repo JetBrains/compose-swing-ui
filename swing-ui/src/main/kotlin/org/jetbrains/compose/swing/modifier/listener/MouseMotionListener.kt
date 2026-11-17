@@ -64,19 +64,7 @@ public fun SwingModifier.mouseMotionListener(listener: MouseMotionListener): Swi
 private class MouseMotionCallbacks(
     val onMouseDragged: (MouseEvent) -> Unit,
     val onMouseMoved: (MouseEvent) -> Unit,
-) : CallbackBundle {
-    override fun equals(other: Any?): Boolean {
-        if (other !is MouseMotionCallbacks) return false
-        if (!sameCallback(onMouseDragged, other.onMouseDragged)) return false
-        return sameCallback(onMouseMoved, other.onMouseMoved)
-    }
-
-    override fun hashCode(): Int {
-        var result = callbackHash(onMouseDragged)
-        result = 31 * result + callbackHash(onMouseMoved)
-        return result
-    }
-}
+)
 
 private val MOUSE_MOTION =
     ListenerRegistration<Component, MouseMotionListener>(
@@ -86,7 +74,7 @@ private val MOUSE_MOTION =
     )
 
 private val MOUSE_MOTION_CALLBACKS =
-    CallbackRegistration<Component, MouseMotionCallbacks, MouseMotionListener>(
+    CallbackRegistration.byCallbackIdentity<Component, MouseMotionCallbacks, MouseMotionListener>(
         adapter = { callback ->
             object : MouseMotionListener {
                 override fun mouseDragged(event: MouseEvent): Unit = callback.current.onMouseDragged(event)
@@ -95,4 +83,6 @@ private val MOUSE_MOTION_CALLBACKS =
             }
         },
         registration = MOUSE_MOTION,
+        MouseMotionCallbacks::onMouseDragged,
+        MouseMotionCallbacks::onMouseMoved,
     )

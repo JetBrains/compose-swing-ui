@@ -66,19 +66,7 @@ public fun SwingModifier.focusListener(listener: FocusListener): SwingModifier =
 private class FocusCallbacks(
     val onFocusGained: (FocusEvent) -> Unit,
     val onFocusLost: (FocusEvent) -> Unit,
-) : CallbackBundle {
-    override fun equals(other: Any?): Boolean {
-        if (other !is FocusCallbacks) return false
-        if (!sameCallback(onFocusGained, other.onFocusGained)) return false
-        return sameCallback(onFocusLost, other.onFocusLost)
-    }
-
-    override fun hashCode(): Int {
-        var result = callbackHash(onFocusGained)
-        result = 31 * result + callbackHash(onFocusLost)
-        return result
-    }
-}
+)
 
 private val FOCUS =
     ListenerRegistration<Component, FocusListener>(
@@ -88,7 +76,7 @@ private val FOCUS =
     )
 
 private val FOCUS_CALLBACKS =
-    CallbackRegistration<Component, FocusCallbacks, FocusListener>(
+    CallbackRegistration.byCallbackIdentity<Component, FocusCallbacks, FocusListener>(
         adapter = { callback ->
             object : FocusListener {
                 override fun focusGained(event: FocusEvent): Unit = callback.current.onFocusGained(event)
@@ -97,4 +85,6 @@ private val FOCUS_CALLBACKS =
             }
         },
         registration = FOCUS,
+        FocusCallbacks::onFocusGained,
+        FocusCallbacks::onFocusLost,
     )

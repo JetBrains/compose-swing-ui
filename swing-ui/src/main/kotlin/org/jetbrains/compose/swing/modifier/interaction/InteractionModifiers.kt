@@ -5,16 +5,21 @@
 package org.jetbrains.compose.swing.modifier.interaction
 
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.listener.CallbackBundle
+import org.jetbrains.compose.swing.modifier.listener.CallbackRegistration
+import org.jetbrains.compose.swing.modifier.listener.ListenerRegistration
 import org.jetbrains.compose.swing.modifier.listener.UNDECLARED
 import org.jetbrains.compose.swing.modifier.listener.UNDECLARED_ACTION
-import org.jetbrains.compose.swing.modifier.listener.callbackHash
 import org.jetbrains.compose.swing.modifier.listener.declared
-import org.jetbrains.compose.swing.modifier.listener.focusListener
+import org.jetbrains.compose.swing.modifier.listener.listener
 import org.jetbrains.compose.swing.modifier.listener.mouseListener
 import org.jetbrains.compose.swing.modifier.listener.requireAnyDeclared
-import org.jetbrains.compose.swing.modifier.listener.sameCallback
+import java.awt.Component
+import java.awt.event.FocusAdapter
+import java.awt.event.FocusEvent
+import java.awt.event.FocusListener
+import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
+import java.awt.event.MouseListener
 
 /**
  * Installs mouse enter/exit handlers.
@@ -33,7 +38,7 @@ public fun SwingModifier.onHover(
     onExit: () -> Unit = UNDECLARED_ACTION,
 ): SwingModifier {
     requireAnyDeclared("onHover", declared(onEnter) || declared(onExit))
-    return mouseListener(onMouseEntered = EventIgnoring(onEnter), onMouseExited = EventIgnoring(onExit))
+    return listener(HoverActions(onEnter, onExit), HOVER_ACTIONS)
 }
 
 /**
@@ -52,7 +57,7 @@ public fun SwingModifier.onFocus(
     onLost: () -> Unit = UNDECLARED_ACTION,
 ): SwingModifier {
     requireAnyDeclared("onFocus", declared(onGained) || declared(onLost))
-    return focusListener(onFocusGained = EventIgnoring(onGained), onFocusLost = EventIgnoring(onLost))
+    return listener(FocusActions(onGained, onLost), FOCUS_ACTIONS)
 }
 
 /**
@@ -88,14 +93,52 @@ public fun SwingModifier.onPointerEvent(
     )
 }
 
-/** Runs [action] on any event. */
-private class EventIgnoring(
-    private val action: () -> Unit,
-) : CallbackBundle,
-    (Any?) -> Unit {
-    override fun equals(other: Any?): Boolean = other is EventIgnoring && sameCallback(action, other.action)
+/** The actions [onHover] was declared with, as one value the built listener reads. */
+private class HoverActions(
+    val onEnter: () -> Unit,
+    val onExit: () -> Unit,
+)
 
-    override fun hashCode(): Int = callbackHash(action)
+/** The actions [onFocus] was declared with, as one value the built listener reads. */
+private class FocusActions(
+    val onGained: () -> Unit,
+    val onLost: () -> Unit,
+)
 
-    override fun invoke(event: Any?): Unit = action()
-}
+private val HOVER_ACTIONS =
+    CallbackRegistration.byCallbackIdentity<Component, HoverActions, MouseListener>(
+        adapter = { callback ->
+            object : MouseAdapter() {
+                override fun mouseEntered(event: MouseEvent): Unit = callback.current.onEnter()
+
+                override fun mouseExited(event: MouseEvent): Unit = callback.current.onExit()
+            }
+        },
+        registration =
+            ListenerRegistration<Component, MouseListener>(
+                name = "onHover",
+                Component::addMouseListener,
+                Component::removeMouseListener,
+            ),
+        HoverActions::onEnter,
+        HoverActions::onExit,
+    )
+
+private val FOCUS_ACTIONS =
+    CallbackRegistration.byCallbackIdentity<Component, FocusActions, FocusListener>(
+        adapter = { callback ->
+            object : FocusAdapter() {
+                override fun focusGained(event: FocusEvent): Unit = callback.current.onGained()
+
+                override fun focusLost(event: FocusEvent): Unit = callback.current.onLost()
+            }
+        },
+        registration =
+            ListenerRegistration<Component, FocusListener>(
+                name = "onFocus",
+                Component::addFocusListener,
+                Component::removeFocusListener,
+            ),
+        FocusActions::onGained,
+        FocusActions::onLost,
+    )
