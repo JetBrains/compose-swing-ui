@@ -102,9 +102,14 @@ private class IntrinsicWidthNode(
         measurable: Measurable,
         constraints: Constraints,
     ): MeasureResult {
-        val width = measurable.intrinsicWidth(intrinsicSize, constraints.maxHeight).coerceAtLeast(0)
-        val contentConstraints = Constraints.fixedWidth(width)
-        val measuredConstraints = if (enforceIncoming) constraints.constrain(contentConstraints) else contentConstraints
+        val measuredConstraints =
+            if (enforceIncoming && constraints.hasFixedWidth) {
+                constraints
+            } else {
+                val width = measurable.intrinsicWidth(intrinsicSize, constraints.maxHeight).coerceAtLeast(0)
+                val contentConstraints = Constraints.fixedWidth(width)
+                if (enforceIncoming) constraints.constrain(contentConstraints) else contentConstraints
+            }
         val placeable = measurable.measure(measuredConstraints)
         return layout(placeable.width, placeable.height) { placeable.place(0, 0) }
     }
@@ -156,10 +161,17 @@ private class IntrinsicHeightNode(
         measurable: Measurable,
         constraints: Constraints,
     ): MeasureResult {
-        val height =
-            measurable.intrinsicHeightUnder(intrinsicSize, constraints.minWidth, constraints.maxWidth).coerceAtLeast(0)
-        val contentConstraints = Constraints.fixedHeight(height)
-        val measuredConstraints = if (enforceIncoming) constraints.constrain(contentConstraints) else contentConstraints
+        val measuredConstraints =
+            if (enforceIncoming && constraints.hasFixedHeight) {
+                constraints
+            } else {
+                val height =
+                    measurable
+                        .intrinsicHeightUnder(intrinsicSize, constraints.minWidth, constraints.maxWidth)
+                        .coerceAtLeast(0)
+                val contentConstraints = Constraints.fixedHeight(height)
+                if (enforceIncoming) constraints.constrain(contentConstraints) else contentConstraints
+            }
         val placeable = measurable.measure(measuredConstraints)
         return layout(placeable.width, placeable.height) { placeable.place(0, 0) }
     }
