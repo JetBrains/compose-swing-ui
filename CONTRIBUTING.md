@@ -86,11 +86,17 @@ Compile the documentation examples while editing:
 
 ## Code style
 
-- **Explicit API mode is on** for the library modules. Every public declaration needs an explicit visibility modifier and an explicit return type. Keep helpers `internal` rather than widening visibility to make something reachable.
-- **KDoc every public declaration.** Document parameters and behavior, especially any threading (EDT) or lifecycle requirements. KDoc is the API catalog; documentation prose links out to it rather than re-listing the API.
 - **Stay on the EDT.** Composition entry points and component mutations run on the Event Dispatch Thread. Use `Dispatchers.Swing` for coroutines that touch Swing.
-- **Match the surrounding style.** Trailing commas, import ordering, and formatting are enforced by ktlint - run `ktlintFormat` rather than hand-tuning.
+- **Keep ktlint and Detekt green.**
+
 - **Pass arguments in the order the component declares them.** A named argument may sit anywhere, but a call that lists them out of order has to be read against the signature one name at a time to see what was passed and what was left defaulted. Write `Button("Save", onClick = ::save, modifier = m)`, not `Button("Save", modifier = m, onClick = ::save)`.
+
+### Design rules
+
+- **Keep Swing-owned state in Swing.** Read widget-owned values from the component or its model. Use the library's [state patterns](docs/COMPONENT-STATE.md) to make values observable when Swing and the composition both need to change them.
+- **Keep modifiers scoped to their component.** A modifier node registers listeners on the component that receives the modifier, never on a child or a parent, and removes them when the node detaches. See [the node lifecycle and listeners](docs/ARCHITECTURE.md#the-node-lifecycle-and-listeners).
+- **Keep AndroidX ports comparable to upstream.** Keep the upstream names and behavior, and limit changes to Swing adaptations. Preserve the upstream KDoc and copyright header, and record the adaptations in the module's `META-INF/NOTICE`.
+- **Public KDoc states the contract.** Document what a caller can rely on, including default behavior, threading and lifecycle requirements.
 
 ### Typed constants
 
