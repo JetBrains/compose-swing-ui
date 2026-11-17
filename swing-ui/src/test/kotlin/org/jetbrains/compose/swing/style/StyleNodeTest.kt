@@ -40,6 +40,7 @@ import org.junit.jupiter.params.provider.MethodSource
 import org.junit.jupiter.params.provider.ValueSource
 import java.awt.Color
 import java.awt.Component
+import java.awt.Container
 import java.awt.FlowLayout
 import javax.swing.JButton
 import javax.swing.JLabel
@@ -527,7 +528,7 @@ private object DualRoleElement :
     ParentLayoutElement {
     override val targetType: Class<Component> get() = Component::class.java
 
-    override val parentProtocol: ParentProtocol = parentProtocolOf("dual role") { true }
+    override val parentProtocol: ParentProtocol<*> = parentProtocolOf<Container>("dual role") { true }
 
     override val key: Any get() = javaClass
 

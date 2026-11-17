@@ -251,7 +251,7 @@ class PaintOutsetsFitTest {
     ) : ParentDataModifier {
         override val name: String get() = "shift"
 
-        override val parentProtocol: ParentProtocol get() = ShiftProtocol
+        override val parentProtocol: ParentProtocol<*> get() = ShiftProtocol
 
         override val declaredValues: Map<String, Any?> get() = mapOf("x" to x)
 

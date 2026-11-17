@@ -9,7 +9,6 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.DisposableHandle
 import kotlinx.coroutines.swing.Swing
-import org.jetbrains.compose.swing.OnDemandComposition
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.reportedUncaught
 import org.jetbrains.compose.swing.runSwingTest

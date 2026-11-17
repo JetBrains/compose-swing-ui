@@ -47,7 +47,7 @@ class DetachedLayoutNodeDeclarationTest {
         val layout = RecordingMeasurementLayout()
         val data =
             object : ParentDataModifier {
-                override val parentProtocol = parentProtocolOf("measuring") { it.layout === layout }
+                override val parentProtocol = parentProtocolOf<Container>("measuring") { it.layout === layout }
 
                 override fun modifyParentData(parentData: Any?): Any = object {
                     override fun toString(): String = "data"
@@ -350,7 +350,7 @@ private class WatchedLayoutNodeElement(
     private val value: String,
     private val watch: () -> Unit,
 ) : ParentLayoutNodeElement<WatchedLayoutNode>() {
-    override val parentProtocol: ParentProtocol get() = TestMeasurementParentProtocol
+    override val parentProtocol: ParentProtocol<*> get() = TestMeasurementParentProtocol
 
     /** Keyed by value, so two declared together hold two slots. */
     override val key: Any get() = value
@@ -367,7 +367,7 @@ private class WatchedLayoutNodeElement(
 private class WatchedLayoutNode(
     private val watch: () -> Unit,
 ) : ParentLayoutNode() {
-    override val parentProtocol: ParentProtocol get() = TestMeasurementParentProtocol
+    override val parentProtocol: ParentProtocol<*> get() = TestMeasurementParentProtocol
 
     override fun onDetach() = watch()
 }

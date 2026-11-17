@@ -19,7 +19,6 @@ import org.jetbrains.compose.swing.layout.parentProtocolOf
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.layout.slot
 import org.jetbrains.compose.swing.node.ExistingSwingNode
-import org.jetbrains.compose.swing.node.wrongSlotHost
 import org.jetbrains.compose.swing.style.ComponentStyleScope
 import org.jetbrains.compose.swing.style.ContainerStyleScope
 import org.jetbrains.compose.swing.style.NestedStyleProviderScope
@@ -160,7 +159,7 @@ public sealed interface ScrollPaneScope {
  * child declaring none of them is refused there. The four corners are written as the one builder that
  * reaches them, since that is how a caller fills any of them; a child names the corner it fills.
  */
-internal val ScrollPaneRegions: ChildPlacement =
+internal val ScrollPaneRegions: ChildPlacement<Container> =
     ChildPlacement.Slots(
         VIEWPORT_REGION,
         VERTICAL_SCROLLBAR_REGION,
@@ -263,12 +262,10 @@ internal class ScrollPaneScopeImpl : ScrollPaneScope {
      * would give back that pane's part from the wrong record.
      */
     private fun ownPane(
-        host: Container,
+        host: JScrollPane,
         builder: String,
-    ): JScrollPane {
-        val hostPane = scrollPaneHost(host, builder)
-        check(hostPane === pane) { wrongScopeHost(builder) }
-        return hostPane
+    ) {
+        check(host === pane) { wrongScopeHost(builder) }
     }
 
     /** Sets [increments] on both of the pane's scroll bars. */
@@ -324,16 +321,16 @@ internal class ScrollPaneScopeImpl : ScrollPaneScope {
      * pane with none is left without a header viewport and an emptied header reserves no layout space.
      */
     private val rowHeaderAttachment =
-        SlotAttachment { host, component, _ ->
-            val pane = ownPane(host, ROW_HEADER_REGION)
+        SlotAttachment<JScrollPane> { host, component, _ ->
+            ownPane(host, ROW_HEADER_REGION)
             val header = ownRegions.rowHeader
-            pane.setRowHeaderView(component)
+            host.setRowHeaderView(component)
             return@SlotAttachment {
-                val standing = pane.rowHeader
+                val standing = host.rowHeader
                 if (standing?.view === component) {
                     if (standing !== header.viewport) {
                         standing.view = null
-                        pane.setRowHeader(header.viewport)
+                        host.setRowHeader(header.viewport)
                     }
                     header.viewport?.view = header.view
                 }
@@ -342,16 +339,16 @@ internal class ScrollPaneScopeImpl : ScrollPaneScope {
 
     /** The column counterpart of [rowHeaderAttachment]. */
     private val columnHeaderAttachment =
-        SlotAttachment { host, component, _ ->
-            val pane = ownPane(host, COLUMN_HEADER_REGION)
+        SlotAttachment<JScrollPane> { host, component, _ ->
+            ownPane(host, COLUMN_HEADER_REGION)
             val header = ownRegions.columnHeader
-            pane.setColumnHeaderView(component)
+            host.setColumnHeaderView(component)
             return@SlotAttachment {
-                val standing = pane.columnHeader
+                val standing = host.columnHeader
                 if (standing?.view === component) {
                     if (standing !== header.viewport) {
                         standing.view = null
-                        pane.setColumnHeader(header.viewport)
+                        host.setColumnHeader(header.viewport)
                     }
                     header.viewport?.view = header.view
                 }
@@ -367,15 +364,15 @@ internal class ScrollPaneScopeImpl : ScrollPaneScope {
      * A child installs through `setCorner` under the key it spelled, and uninstall puts back the pane's own
      * component in the physical corner that key resolved to at install.
      */
-    private val cornerAttachments: Map<String, SlotAttachment> =
+    private val cornerAttachments: Map<String, SlotAttachment<JScrollPane>> =
         CornerKeys.associateWith { corner ->
-            SlotAttachment { host, component, _ ->
-                val pane = ownPane(host, cornerRegion(corner))
-                val physical = physicalCorner(corner, pane)
+            SlotAttachment<JScrollPane> { host, component, _ ->
+                ownPane(host, cornerRegion(corner))
+                val physical = physicalCorner(corner, host)
                 val own = ownRegions.corners[physical]
-                pane.setCorner(corner, component)
+                host.setCorner(corner, component)
                 return@SlotAttachment {
-                    if (pane.getCorner(physical) === component) pane.setCorner(physical, own)
+                    if (host.getCorner(physical) === component) host.setCorner(physical, own)
                 }
             }
         }
@@ -391,18 +388,7 @@ internal class ScrollPaneScopeImpl : ScrollPaneScope {
     ): SwingModifier = slot(ScrollPaneParentProtocol, cornerRegion(corner), cornerAttachments.getValue(corner))
 }
 
-private val ScrollPaneParentProtocol = parentProtocolOf("JScrollPane slot") { it is JScrollPane }
-
-/**
- * The pane a region-filling child is installed into. Every region builder of [ScrollPaneScope] reaches its
- * child through a `JScrollPane` setter, so a child carrying one of them under another container - a split
- * pane's `first()` composed under a scroll pane, say - is refused here by name, rather than reaching the
- * setter and failing as a bare `ClassCastException` naming neither the builder nor the host.
- */
-private fun scrollPaneHost(
-    host: Container,
-    builder: String,
-): JScrollPane = host as? JScrollPane ?: error(wrongSlotHost(host, JScrollPane::class.java, builder))
+private val ScrollPaneParentProtocol = parentProtocolOf<JScrollPane>("JScrollPane slot")
 
 /** The refusal of a [builder] call installed on a pane other than the one its scope belongs to. */
 private fun wrongScopeHost(builder: String): String =

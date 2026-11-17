@@ -5,7 +5,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionContext
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
-import org.jetbrains.compose.swing.OnDemandComposition
+import org.jetbrains.compose.swing.core.OnDemandComposition
 import java.awt.Component
 import java.awt.Container
 import java.awt.Dimension

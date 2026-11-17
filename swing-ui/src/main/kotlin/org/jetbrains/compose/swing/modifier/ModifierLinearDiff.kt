@@ -6,7 +6,6 @@ import org.jetbrains.compose.swing.node.declareWrittenLayoutNodes
 import org.jetbrains.compose.swing.style.StyleElement
 import org.jetbrains.compose.swing.style.collectsNothingUnder
 import org.jetbrains.compose.swing.style.requireKindTarget
-import java.awt.Component
 
 /**
  * Diffs [modifier] onto this node unless the slots take it in place, which is what [linearDiff] answers -
@@ -21,7 +20,7 @@ import java.awt.Component
  * whose last diff threw partway diffs its next declaration too. A node whose use of its
  * component ended, such as one another node took the component from, writes nothing.
  */
-internal fun SwingNodeHolder<Component>.applyDeclaredModifier(modifier: SwingModifier) {
+internal fun SwingNodeHolder<*>.applyDeclaredModifier(modifier: SwingModifier) {
     if (usedUp) return
     val state = modifierState
     var needsDeclaredNodes = false
@@ -126,7 +125,7 @@ private value class LinearDiff private constructor(
  * behind it pairs everything correctly. A record the walk wrote before parting ways holds its new element, which the
  * diff then reuses; where [LinearDiff.needsDeclaredNodes], the diff hands the nodes over.
  */
-private fun SwingNodeHolder<Component>.linearDiff(
+private fun SwingNodeHolder<*>.linearDiff(
     applied: SwingModifier,
     next: SwingModifier,
     records: NodeRecords?,
@@ -158,7 +157,7 @@ private fun SwingNodeHolder<Component>.linearDiff(
  * collect nothing is reused while [next] can collect nothing either. Answers [LinearDiff.aborted] where the node
  * holds more than one style slot or the slot holds another element.
  */
-private fun SwingNodeHolder<Component>.reuseLastStyle(
+private fun SwingNodeHolder<*>.reuseLastStyle(
     applied: StyleElement<*, *>,
     next: StyleElement<*, *>,
     records: NodeRecords?,
@@ -199,7 +198,7 @@ private fun SwingNodeHolder<Component>.reuseLastStyle(
  * record's node; a record written with a node the holder's [DeclaredNodesListener] needs has the nodes handed over
  * once the walk ends.
  */
-private fun SwingNodeHolder<Component>.diffElement(
+private fun SwingNodeHolder<*>.diffElement(
     applied: SwingModifier.Element,
     next: SwingModifier.Element,
     records: NodeRecords?,

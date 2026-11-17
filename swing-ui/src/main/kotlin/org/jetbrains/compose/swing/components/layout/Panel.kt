@@ -677,7 +677,9 @@ internal object CardPanelScopeImpl : CardPanelScope {
 private class SwingLayoutParentProtocol(
     private val layoutManagerClass: Class<out LayoutManager>,
     override val description: String,
-) : ParentProtocol {
+) : ParentProtocol<Container> {
+    override val hostType: Class<Container> = Container::class.java
+
     override fun accepts(parent: Container): Boolean = layoutManagerClass.isInstance(parent.layout)
 }
 
@@ -688,7 +690,7 @@ private val CardParentProtocol = SwingLayoutParentProtocol(CardLayout::class.jav
 /** One built-in panel-scope declaration, resolved last-wins with its own `type` as the slot key. */
 private data class PanelParentDataElement(
     val parentData: Any,
-    override val parentProtocol: ParentProtocol,
+    override val parentProtocol: ParentProtocol<*>,
     override val name: String,
 ) : ParentDataModifier {
     override val key: Any get() = parentProtocol
@@ -699,7 +701,7 @@ private data class PanelParentDataElement(
 }
 
 private fun SwingModifier.parentData(
-    parentProtocol: ParentProtocol,
+    parentProtocol: ParentProtocol<*>,
     parentData: Any,
     name: String,
 ): SwingModifier = this then PanelParentDataElement(parentData, parentProtocol, name)

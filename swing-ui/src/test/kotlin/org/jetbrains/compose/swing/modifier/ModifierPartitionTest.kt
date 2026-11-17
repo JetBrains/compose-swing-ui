@@ -104,7 +104,7 @@ class ModifierPartitionTest {
 
     @Test
     fun slotsAndLayoutDeclarationsShareKeyedResolution() {
-        val attachment = SlotAttachment { _, _, _ -> {} }
+        val attachment = SlotAttachment<Container> { _, _, _ -> {} }
         val partition = ModifierPartition()
         (
             SwingModifier
@@ -176,7 +176,7 @@ private data class AdditiveComponentElement(
 }
 
 private open class TestLayoutNodeElement : ParentLayoutNodeElement<TestLayoutNode>() {
-    override val parentProtocol: ParentProtocol get() = TestParentProtocol
+    override val parentProtocol: ParentProtocol<*> get() = TestParentProtocol
 
     override val additive: Boolean get() = true
 
@@ -202,19 +202,19 @@ private class ParentDataLayoutNodeElement :
 }
 
 private class TestLayoutNode : ParentLayoutNode() {
-    override val parentProtocol: ParentProtocol get() = TestParentProtocol
+    override val parentProtocol: ParentProtocol<*> get() = TestParentProtocol
 }
 
 private data class TestParentLayoutElement(
     override val name: String,
 ) : ParentLayoutElement {
-    override val parentProtocol: ParentProtocol get() = TestParentProtocol
+    override val parentProtocol: ParentProtocol<*> get() = TestParentProtocol
 }
 
 private data class AdditiveParentLayoutElement(
     override val name: String,
 ) : ParentLayoutElement {
-    override val parentProtocol: ParentProtocol get() = TestParentProtocol
+    override val parentProtocol: ParentProtocol<*> get() = TestParentProtocol
 
     override val additive: Boolean get() = true
 }
@@ -230,7 +230,7 @@ private data object AmbiguousElement :
 
     override val inheritable: Boolean get() = false
 
-    override val parentProtocol: ParentProtocol get() = TestParentProtocol
+    override val parentProtocol: ParentProtocol<*> get() = TestParentProtocol
 
     override fun create(): SwingModifier.ComponentNode<Component> = SwingModifier.ComponentNode()
 
@@ -241,25 +241,31 @@ private data class AppendParentData(
     val value: String,
     override val key: Any = value,
     override val additive: Boolean = false,
-    override val parentProtocol: ParentProtocol = FirstProtocol,
+    override val parentProtocol: ParentProtocol<*> = FirstProtocol,
 ) : ParentDataModifier {
     override fun modifyParentData(parentData: Any?): Any =
         (parentData as? List<*>)?.filterIsInstance<String>().orEmpty() + value
 }
 
-private data object FirstProtocol : ParentProtocol {
+private data object FirstProtocol : ParentProtocol<Container> {
+    override val hostType: Class<Container> get() = Container::class.java
+
     override val description: String get() = "first test parent data"
 
     override fun accepts(parent: Container): Boolean = true
 }
 
-private data object SecondProtocol : ParentProtocol {
+private data object SecondProtocol : ParentProtocol<Container> {
+    override val hostType: Class<Container> get() = Container::class.java
+
     override val description: String get() = "second test parent data"
 
     override fun accepts(parent: Container): Boolean = true
 }
 
-private data object TestParentProtocol : ParentProtocol {
+private data object TestParentProtocol : ParentProtocol<Container> {
+    override val hostType: Class<Container> get() = Container::class.java
+
     override val description: String get() = "test parent"
 
     override fun accepts(parent: Container): Boolean = true
@@ -267,6 +273,8 @@ private data object TestParentProtocol : ParentProtocol {
 
 private data class EqualParentProtocol(
     override val description: String,
-) : ParentProtocol {
+) : ParentProtocol<Container> {
+    override val hostType: Class<Container> get() = Container::class.java
+
     override fun accepts(parent: Container): Boolean = true
 }

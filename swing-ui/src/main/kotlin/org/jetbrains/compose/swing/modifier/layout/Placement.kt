@@ -11,14 +11,17 @@ import org.jetbrains.compose.swing.layout.ParentSlotElement
 import org.jetbrains.compose.swing.layout.SlotAttachment
 import org.jetbrains.compose.swing.layout.mayBeLeftOut
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.node.DeclaredSlot
 import java.awt.Container
 
 /**
  * The untyped parent-data protocol used by [layoutConstraint]. It accepts every [Container] by explicit
  * escape-hatch contract: callers are responsible for supplying a constraint their actual parent accepts.
  */
-internal val RawParentProtocol: ParentProtocol =
-    object : ParentProtocol {
+internal val RawParentProtocol: ParentProtocol<Container> =
+    object : ParentProtocol<Container> {
+        override val hostType: Class<Container> = Container::class.java
+
         override val description: String = "an untyped layout constraint"
 
         override fun accepts(parent: Container): Boolean = true
@@ -77,7 +80,8 @@ public fun SwingModifier.layoutConstraint(constraint: Any): SwingModifier =
  * contents without moving the component out of it. A node the host moves among its siblings keeps the
  * region it fills.
  *
- * @param parentProtocol the stable protocol identity for the host that owns this slot.
+ * @param parentProtocol the stable protocol identity for the host that owns this slot; its host type is what
+ *   [attachment] receives.
  * @param name which region of the host this fills, written exactly as the call that fills it -
  *   `"Viewport { }"`, `"SwingModifier.corner(UPPER_LEFT)"`. It identifies the region among
  *   the host's own, and it is what an error about that region prints, so a caller acts on that text by
@@ -88,17 +92,17 @@ public fun SwingModifier.layoutConstraint(constraint: Any): SwingModifier =
  *   attachment, since nothing would install it, and a claimed one with an attachment, which would never run.
  * @return this modifier with the region declared on it.
  */
-public fun SwingModifier.slot(
-    parentProtocol: ParentProtocol,
+public fun <H : Container> SwingModifier.slot(
+    parentProtocol: ParentProtocol<H>,
     name: String,
-    attachment: SlotAttachment? = null,
+    attachment: SlotAttachment<H>? = null,
 ): SwingModifier = this then SlotElement(parentProtocol, name, attachment)
 
 /** The layout constraint a caller names outright, through [layoutConstraint]. */
 internal data class LayoutConstraintElement(
     val constraint: Any,
 ) : ParentDataModifier {
-    override val parentProtocol: ParentProtocol get() = RawParentProtocol
+    override val parentProtocol: ParentProtocol<*> get() = RawParentProtocol
 
     override val name: String get() = "layoutConstraint"
 
@@ -121,17 +125,20 @@ internal data class LayoutConstraintElement(
  * itself is moved only where the [regionName] changes, since that is what names one region of a host among
  * the others.
  */
-internal class SlotElement(
-    override val parentProtocol: ParentProtocol,
+internal class SlotElement<H : Container>(
+    override val parentProtocol: ParentProtocol<H>,
     val regionName: String,
-    val attachment: SlotAttachment?,
+    val attachment: SlotAttachment<H>?,
 ) : ParentSlotElement {
     override val name: String get() = "slot"
 
     override val declaredValues: Map<String, Any?> get() = mapOf("region" to regionName)
 
+    /** The region this declaration names, as the node records it. */
+    fun declared(): DeclaredSlot<H> = DeclaredSlot(parentProtocol, attachment, regionName)
+
     override fun equals(other: Any?): Boolean =
-        other is SlotElement &&
+        other is SlotElement<*> &&
             parentProtocol === other.parentProtocol &&
             regionName == other.regionName &&
             attachment === other.attachment
@@ -160,7 +167,7 @@ internal fun checkOnePlacement(
         "A component filling a region of its host is laid out by that host's own setter rather than " +
             "measured by a layout manager, so there is nothing to measure it under the constraints " +
             "$declared asks for, and this modifier declares both that and " +
-            "${(slot as? SlotElement)?.regionName}. Put the " +
+            "${(slot as? SlotElement<*>)?.regionName}. Put the " +
             "component in a Box inside the region and declare the layout modifiers on the Box's child."
     }
 }

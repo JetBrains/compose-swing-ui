@@ -235,7 +235,7 @@ class RepaintedRegionsTest {
         return RegionHost(panel, applier, host)
     }
 
-    private fun regionHost(placement: ChildPlacement): RegionHost {
+    private fun regionHost(placement: ChildPlacement<Container>): RegionHost {
         val root = JPanel(null).apply { setSize(200, 40) }
         val panel =
             JPanel(null).apply {
@@ -288,7 +288,7 @@ private fun regionModifier(region: String): SwingModifier {
     return SwingModifier.slot(
         RawParentProtocol,
         region,
-        SlotAttachment { host, component, _ ->
+        SlotAttachment<Container> { host, component, _ ->
             component.setLocation(x, 0)
             host.add(component)
             return@SlotAttachment { host.remove(component) }
@@ -298,7 +298,7 @@ private fun regionModifier(region: String): SwingModifier {
 
 /** Adds a child at the position it is handed and removes it by identity, as an ordered region's attachment does. */
 private val AddedAtIndex =
-    SlotAttachment { host, component, index ->
+    SlotAttachment<Container> { host, component, index ->
         host.add(component, index)
         return@SlotAttachment { host.remove(component) }
     }

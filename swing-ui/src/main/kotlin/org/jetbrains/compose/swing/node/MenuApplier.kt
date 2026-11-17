@@ -32,7 +32,7 @@ import javax.swing.MenuSelectionManager
  */
 @PublishedApi
 internal class MenuApplier(
-    root: SwingNodeHolder<JComponent>,
+    root: SwingNodeHolder<out JComponent>,
 ) : AbstractApplier<SwingNodeHolder<*>>(root) {
     /** The bookkeeping for the batch of component updates in flight, read off the root like any node. */
     private val batch = root.requireOwner().updateBatch

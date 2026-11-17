@@ -11,22 +11,23 @@ import org.jetbrains.compose.swing.layout.parentProtocolOf
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.layout.slot
 import org.jetbrains.compose.swing.node.SwingNode
+import java.awt.Container
 import javax.swing.JLabel
 import javax.swing.JSplitPane
 
 /** The regions a split pane holds its children in. */
-private val slotPlacement: ChildPlacement = ChildPlacement.Slots("left", "right")
+private val slotPlacement: ChildPlacement<Container> = ChildPlacement.Slots("left", "right")
 
 /** A fresh attachment that installs a component as the left side of a split pane. */
-private fun leftAttachment(): SlotAttachment =
-    SlotAttachment { host, component, _ ->
+private fun leftAttachment(): SlotAttachment<JSplitPane> =
+    SlotAttachment<JSplitPane> { host, component, _ ->
         host.add(component, JSplitPane.LEFT)
         return@SlotAttachment { host.remove(component) }
     }
 
 /** A fresh attachment that installs a component as the right side of a split pane. */
-private fun rightAttachment(): SlotAttachment =
-    SlotAttachment { host, component, _ ->
+private fun rightAttachment(): SlotAttachment<JSplitPane> =
+    SlotAttachment<JSplitPane> { host, component, _ ->
         host.add(component, JSplitPane.RIGHT)
         return@SlotAttachment { host.remove(component) }
     }
@@ -40,16 +41,16 @@ private fun emptySplitPane(): JSplitPane =
 
 /** The parameters [SlotFixture] varies. */
 public data class SlotParameters(
-    val parentProtocol: ParentProtocol,
+    val parentProtocol: ParentProtocol<JSplitPane>,
     val name: String,
-    val attachment: SlotAttachment?,
+    val attachment: SlotAttachment<JSplitPane>?,
 )
 
 /** A [Label] filling a region of a split pane through [slot] against a raw [JSplitPane] holding the same label. */
 public object SlotFixture : ComposableFixture<SlotParameters, JSplitPane>(
     initial =
         SlotParameters(
-            parentProtocol = parentProtocolOf("split pane") { it is JSplitPane },
+            parentProtocol = parentProtocolOf<JSplitPane>("split pane"),
             name = "left",
             attachment = leftAttachment(),
         ),
@@ -57,27 +58,24 @@ public object SlotFixture : ComposableFixture<SlotParameters, JSplitPane>(
     override val alternatives: List<SlotParameters> =
         listOf(
             initial.copy(
-                parentProtocol = parentProtocolOf("alternate split pane") { it is JSplitPane },
+                parentProtocol = parentProtocolOf<JSplitPane>("alternate split pane"),
             ),
             initial.copy(name = "right", attachment = rightAttachment()),
             initial.copy(attachment = leftAttachment()),
         )
 
+    /** Composes a [Label] in a split pane, filling the region the parameters name through their attachment. */
     @Composable
-    override fun Content(parameters: SlotParameters): Unit =
-        Content(parameters.parentProtocol, parameters.name, parameters.attachment)
-
-    /** Composes a [Label] in a split pane, filling the region [name] of [parentProtocol] through [attachment]. */
-    @Composable
-    public fun Content(
-        parentProtocol: ParentProtocol,
-        name: String,
-        attachment: SlotAttachment?,
-    ) {
+    override fun Content(parameters: SlotParameters) {
         SwingNode(factory = { emptySplitPane() }, childPlacement = slotPlacement) {
             Label(
                 "Slotted",
-                modifier = SwingModifier.slot(parentProtocol = parentProtocol, name = name, attachment = attachment),
+                modifier =
+                    SwingModifier.slot(
+                        parentProtocol = parameters.parentProtocol,
+                        name = parameters.name,
+                        attachment = parameters.attachment,
+                    ),
             )
         }
     }

@@ -1,5 +1,5 @@
 // Copyright 2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
-package org.jetbrains.compose.swing
+package org.jetbrains.compose.swing.core
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionContext
@@ -328,7 +328,7 @@ private enum class Operation(
 }
 
 /** A placement that adds each component to [host] and removes it again on release. */
-internal fun addingTo(host: Container): SlotAttachment = SlotAttachment { _, component, _ ->
+internal fun addingTo(host: Container): SlotAttachment<Container> = SlotAttachment<Container> { _, component, _ ->
     host.add(component)
     ({ host.remove(component) })
 }

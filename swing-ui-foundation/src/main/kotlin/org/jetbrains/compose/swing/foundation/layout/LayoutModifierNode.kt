@@ -28,7 +28,7 @@ import java.util.function.BiConsumer
  */
 public abstract class LayoutModifierNodeElement<N : LayoutModifierNode> : ParentLayoutNodeElement<N>() {
     /** The capability a Foundation [Layout] must support to interpret this modifier. */
-    final override val parentProtocol: ParentProtocol get() = LayoutModifierParentProtocol
+    final override val parentProtocol: ParentProtocol<*> get() = LayoutModifierParentProtocol
 
     /** Layout modifiers wrap one another, so every declaration remains in order. */
     final override val additive: Boolean get() = true
@@ -49,7 +49,7 @@ public abstract class LayoutModifierNodeElement<N : LayoutModifierNode> : Parent
  */
 public abstract class LayoutModifierNode : ParentLayoutNode() {
     /** The capability of the element this node fills a slot for. */
-    final override val parentProtocol: ParentProtocol get() = LayoutModifierParentProtocol
+    final override val parentProtocol: ParentProtocol<*> get() = LayoutModifierParentProtocol
 
     /** Measures [measurable] under [constraints], and places it, with a layer or without one. */
     public abstract fun MeasureScope.measure(

@@ -130,7 +130,7 @@ internal fun weightPlacement(
 internal data class WeightElement(
     val placement: WeightPlacement,
 ) : ParentDataModifier {
-    override val parentProtocol: ParentProtocol get() = LinearParentDataProtocol
+    override val parentProtocol: ParentProtocol<*> get() = LinearParentDataProtocol
 
     override val key: Any get() = WeightElement::class
 
@@ -146,7 +146,7 @@ internal data class WeightElement(
 internal data class AlignElement(
     val alignment: CrossAxisAlignment,
 ) : ParentDataModifier {
-    override val parentProtocol: ParentProtocol get() = LinearParentDataProtocol
+    override val parentProtocol: ParentProtocol<*> get() = LinearParentDataProtocol
 
     override val key: Any get() = AlignElement::class
 

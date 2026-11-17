@@ -12,6 +12,7 @@ import org.jetbrains.compose.swing.layout.ParentLayoutElement
 import org.jetbrains.compose.swing.layout.ParentProtocol
 import org.jetbrains.compose.swing.layout.ParentSlotElement
 import org.jetbrains.compose.swing.layout.SlotAttachment
+import org.jetbrains.compose.swing.layout.acceptedHost
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.SwingModifierState
 import org.jetbrains.compose.swing.modifier.attachNodes
@@ -38,15 +39,34 @@ import javax.swing.SwingUtilities
  * before the applier has attached it there.
  *
  * @property parentProtocol the protocol identity for the host that owns this region.
- * @property attachment the host's method for installing a component into the region, or `null` for a
+ * @param attachment the host's method for installing a component into the region, or `null` for a
  *   component [ExistingSwingNode] claims, which its parent already holds there
  * @property name the region's name, such as `Viewport { }` or `corner(UPPER_LEFT)`
  */
-internal class DeclaredSlot(
-    val parentProtocol: ParentProtocol,
-    val attachment: SlotAttachment?,
+internal class DeclaredSlot<H : Container>(
+    val parentProtocol: ParentProtocol<H>,
+    private val attachment: SlotAttachment<H>?,
     val name: String,
-)
+) {
+    /** Whether a host installs a component into this region through its own attachment. */
+    val hasAttachment: Boolean get() = attachment != null
+
+    /** This region as [host] holds it, or `null` where the protocol refuses [host]. */
+    fun accept(host: Container): AcceptedSlot<H>? =
+        parentProtocol.acceptedHost(host)?.let { AcceptedSlot(it, attachment) }
+}
+
+/** A region and the host its protocol accepted for it, which installs through the region's own attachment. */
+internal class AcceptedSlot<H : Container>(
+    private val host: H,
+    private val attachment: SlotAttachment<H>?,
+) {
+    /** Installs [component] through the attachment, which the region has when its node is created. */
+    fun install(
+        component: Component,
+        index: Int,
+    ): () -> Unit = requireNotNull(attachment).install(host, component, index)
+}
 
 /**
  * How the applier holds a child's component in its host: what put the component there, and how it leaves.
@@ -193,7 +213,7 @@ internal sealed interface Installation {
  * composition owns the component or only borrows it.
  */
 @PublishedApi
-internal sealed class SwingNodeHolder<out T : Component> :
+internal sealed class SwingNodeHolder<T : Component> :
     SwingComponentNode<T>(),
     NodeHolder {
     abstract override val component: T
@@ -248,14 +268,14 @@ internal sealed class SwingNodeHolder<out T : Component> :
      * @param parentDeclarations the parent declarations the modifier keeps once each key has resolved.
      */
     internal abstract fun checkDeclaredPlacement(
-        slot: SlotElement?,
+        slot: SlotElement<*>?,
         parentDeclarations: List<ParentElement>,
     )
 
     /** The refusal of this node naming no region under [host], which holds each child in the regions of [placement]. */
     internal abstract fun noRegionRefusal(
         host: Container,
-        placement: ChildPlacement,
+        placement: ChildPlacement<*>,
     ): String
 
     /**
@@ -265,7 +285,7 @@ internal sealed class SwingNodeHolder<out T : Component> :
      * The modifier sets it before the applier attaches the component. It says where the composition
      * wants the component. [installation] says where the applier put it.
      */
-    internal var declaredSlot: DeclaredSlot? = null
+    internal var declaredSlot: DeclaredSlot<*>? = null
 
     /**
      * How the applier holds the component in its host, or `null` while it holds it nowhere: before the node is
@@ -343,7 +363,7 @@ internal sealed class SwingNodeHolder<out T : Component> :
      * therefore also records how the attached children were reached.
      */
     @PublishedApi
-    internal var childPlacement: ChildPlacement = ChildPlacement.Indexed
+    internal var childPlacement: ChildPlacement<T> = ChildPlacement.Indexed
 
     /**
      * What this node's composition owns and every node under it shares - see [SwingCompositionOwner],
@@ -593,7 +613,7 @@ private fun SwingNodeHolder<*>.reset(
  * names, or added by index.
  */
 @PublishedApi
-internal sealed class PlacingNodeHolder<out T : Component> : SwingNodeHolder<T>() {
+internal sealed class PlacingNodeHolder<T : Component> : SwingNodeHolder<T>() {
     /**
      * The composition puts the component into the container of [parent]'s host: installed into the region it
      * names, or added by index. Under a group whose declaration changed in this pass, the component waits for
@@ -617,7 +637,7 @@ internal sealed class PlacingNodeHolder<out T : Component> : SwingNodeHolder<T>(
 
     override fun noRegionRefusal(
         host: Container,
-        placement: ChildPlacement,
+        placement: ChildPlacement<*>,
     ): String =
         "A ${host.declaredName} holds each child in one of its own regions rather than as an indexed child, " +
             "so every child must declare which region it fills. The ${component.declaredName} declared here " +
@@ -625,7 +645,7 @@ internal sealed class PlacingNodeHolder<out T : Component> : SwingNodeHolder<T>(
 
     /** The composition installs the component into the region it names, so the region needs an attachment. */
     override fun checkDeclaredPlacement(
-        slot: SlotElement?,
+        slot: SlotElement<*>?,
         parentDeclarations: List<ParentElement>,
     ) {
         if (slot == null) return
@@ -640,7 +660,7 @@ internal sealed class PlacingNodeHolder<out T : Component> : SwingNodeHolder<T>(
 
 /** A node whose component its own factory built; the composition owns the component. */
 @PublishedApi
-internal class CreatedNodeHolder<out T : Component>
+internal class CreatedNodeHolder<T : Component>
     @PublishedApi
     internal constructor(
         override val component: T,
@@ -744,7 +764,7 @@ internal class CallerComponentNodeHolder(
  *   before the node's update runs
  */
 @PublishedApi
-internal class ExistingNodeHolder<P : Component, out T : Component>
+internal class ExistingNodeHolder<P : Component, T : Component>
     @PublishedApi
     internal constructor(
         private val parentType: Class<P>,
@@ -814,7 +834,7 @@ internal class ExistingNodeHolder<P : Component, out T : Component>
 
         override fun noRegionRefusal(
             host: Container,
-            placement: ChildPlacement,
+            placement: ChildPlacement<*>,
         ): String =
             "A ${component.declaredName} claimed by ExistingSwingNode names no region of the ${host.declaredName}, " +
                 "which holds each child in one. ${placement.throughRegionCalls("Name the region it stands in")}"
@@ -825,7 +845,7 @@ internal class ExistingNodeHolder<P : Component, out T : Component>
          * would read parent data for it.
          */
         override fun checkDeclaredPlacement(
-            slot: SlotElement?,
+            slot: SlotElement<*>?,
             parentDeclarations: List<ParentElement>,
         ) {
             if (slot != null) {

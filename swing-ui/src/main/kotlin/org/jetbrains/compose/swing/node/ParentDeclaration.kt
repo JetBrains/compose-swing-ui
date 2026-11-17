@@ -10,6 +10,7 @@ import org.jetbrains.compose.swing.layout.ParentLayoutNode
 import org.jetbrains.compose.swing.layout.ParentLayoutNodeElement
 import org.jetbrains.compose.swing.layout.ParentProtocol
 import org.jetbrains.compose.swing.layout.ParentSlotElement
+import org.jetbrains.compose.swing.layout.acceptedHost
 import org.jetbrains.compose.swing.layout.mayBeLeftOut
 import org.jetbrains.compose.swing.modifier.ModifierChanges
 import org.jetbrains.compose.swing.modifier.NodeRecord
@@ -70,7 +71,7 @@ internal class ParentDeclaration(
     val parentData: Any? get() = placementDeclaration.parentData
 
     /** The family that produced [parentData], or `null` without a parent-data declaration. */
-    val parentProtocol: ParentProtocol? get() = placementDeclaration.parentProtocol
+    val parentProtocol: ParentProtocol<*>? get() = placementDeclaration.parentProtocol
 
     /**
      * The declarations that a measuring parent interprets after parent-data declarations have folded: those of the
@@ -144,14 +145,13 @@ internal class ParentDeclaration(
         return next
     }
 
-    /** Checks [next] against [host], and returns the layout elements it checked, which [host] receives. */
+    /** Checks [next] against [host], and returns what [host] accepted of it: its layout elements and the region. */
     private fun checkedElements(
         next: MergedDeclaration,
         host: Container,
-    ): List<ParentLayoutElement> {
+    ): CheckedPlacement {
         val received = withStyleOverrides(next.elements, node)
-        next.checkAcceptedBy(host, node.declaredSlot, received)
-        return received
+        return CheckedPlacement(received, next.checkAcceptedBy(host, node.declaredSlot, received))
     }
 
     /** Withdraws detached nodes without merging declarations; returns the parent whose declaration changed. */
@@ -211,11 +211,18 @@ internal class ParentDeclaration(
      * the layout elements it checked, which [host] receives. A node that waits for [GroupDeclarationEffect] is checked
      * there and declares nothing here.
      */
-    fun checkAttachableUnder(host: Container): List<ParentLayoutElement> {
-        if (node.awaitsGroupEffect) return emptyList()
-        val received = checkedElements(own.mergedWith(groups), host)
-        node.checkLayoutElementsUnder(host, received)
-        return received
+    fun checkAttachableUnder(host: Container): List<ParentLayoutElement> = acceptedUnder(host).received
+
+    /**
+     * [checkAttachableUnder], which also returns the region the node names as [host] holds it.
+     *
+     * @param host the container receiving this declaration.
+     */
+    fun acceptedUnder(host: Container): CheckedPlacement {
+        if (node.awaitsGroupEffect) return CheckedPlacement(emptyList(), null)
+        val checked = checkedElements(own.mergedWith(groups), host)
+        node.checkLayoutElementsUnder(host, checked.received)
+        return checked
     }
 
     /**
@@ -230,15 +237,24 @@ internal class ParentDeclaration(
             return
         }
         val next = own.mergedWith(groups)
-        val received = publication.host?.let { checkedElements(next, it) }
+        val checked = publication.host?.let { checkedElements(next, it) }
         merged = next
-        publication.publish(parentData, received ?: parentLayoutElements)
+        publication.publish(parentData, checked?.received ?: parentLayoutElements)
     }
 
     /** The measuring parent the component is still attached to, or `null` without one. */
     internal val measuringParent: Container?
         get() = publication.host?.takeIf { component.parent === it && it.layout is MeasurementLayoutManager }
 }
+
+/**
+ * What a host accepted of a declaration: the layout elements it receives, and the region it holds the node in, where
+ * the node names one.
+ */
+internal class CheckedPlacement(
+    val received: List<ParentLayoutElement>,
+    val slot: AcceptedSlot<*>?,
+)
 
 /**
  * Hands the parent declaration the layout nodes the linear diff wrote in place: each retained element is replaced by
@@ -285,7 +301,7 @@ private fun ParentDeclaration.checkedHost(): Container? =
 internal class OwnDeclaration private constructor(
     declarations: List<ParentElement>,
     val parentData: Any?,
-    val parentProtocol: ParentProtocol?,
+    val parentProtocol: ParentProtocol<*>?,
     val layoutElements: List<ParentLayoutElement>,
     private val retainedNodes: List<RetainedLayoutDeclaration> = emptyList(),
 ) {
@@ -431,7 +447,7 @@ private class RetainedLayoutDeclaration(
     val index: Int,
     private val key: Any = record.element.key,
     private val additive: Boolean = record.element.additive,
-    private val protocol: ParentProtocol = record.element.parentProtocol,
+    private val protocol: ParentProtocol<*> = record.element.parentProtocol,
     private val inheritable: Boolean = record.element.inheritable,
 ) {
     fun atIndex(index: Int): RetainedLayoutDeclaration =
@@ -457,7 +473,7 @@ private class RetainedLayoutDeclaration(
 internal class MergedDeclaration(
     val groupElements: List<ParentLayoutElement>,
     val parentData: Any?,
-    val parentProtocol: ParentProtocol?,
+    val parentProtocol: ParentProtocol<*>?,
     val ownElements: List<ParentLayoutElement>,
 ) {
     /** [groupElements], then the node's own. */
@@ -470,21 +486,22 @@ internal class MergedDeclaration(
      * @param slot the slot declared alongside the merged parent declaration, or `null` for indexed placement.
      * @param received the layout elements [host] receives: [elements] with the style overrides applied, so an element
      *   a style replaces is not checked.
+     * @return the region [slot] names as [host] holds it, or `null` where [slot] is.
      */
     fun checkAcceptedBy(
         host: Container,
-        slot: DeclaredSlot?,
+        slot: DeclaredSlot<*>?,
         received: List<ParentLayoutElement>,
-    ) {
+    ): AcceptedSlot<*>? {
         val layoutHost = host.childHost
         parentProtocol?.let { protocol ->
-            check(protocol.accepts(layoutHost)) { wrongParentHost(layoutHost, ParentDataProtocolElement(protocol)) }
+            checkNotNull(protocol.acceptedHost(layoutHost)) {
+                wrongParentHost(layoutHost, ParentDataProtocolElement(protocol))
+            }
         }
         received.fastForEach { checkElementAccepted(it, layoutHost) }
-        slot?.let {
-            check(it.parentProtocol.accepts(host)) {
-                wrongParentHost(host, SlotParentElement(it.parentProtocol, it.name))
-            }
+        return slot?.let {
+            checkNotNull(it.accept(host)) { wrongParentHost(host, SlotParentElement(it.parentProtocol, it.name)) }
         }
     }
 
@@ -573,7 +590,7 @@ internal fun ParentLayoutElement.isLeftOutUnder(host: Container): Boolean =
 
 /** Represents folded parent data for the shared acceptance pass. */
 private class ParentDataProtocolElement(
-    override val parentProtocol: ParentProtocol,
+    override val parentProtocol: ParentProtocol<*>,
 ) : ParentLayoutElement {
     override val name: String get() = "parentData"
 
@@ -582,7 +599,7 @@ private class ParentDataProtocolElement(
 
 /** Represents a recorded slot for the shared acceptance pass. */
 private class SlotParentElement(
-    override val parentProtocol: ParentProtocol,
+    override val parentProtocol: ParentProtocol<*>,
     val slotName: String,
 ) : ParentSlotElement {
     override val name: String get() = "slot"
@@ -597,14 +614,16 @@ private fun wrongParentHost(
 ): String {
     val slotName =
         when (element) {
-            is SlotElement -> element.regionName
+            is SlotElement<*> -> element.regionName
             is SlotParentElement -> element.slotName
             else -> null
         }
     val namePrefix = if (slotName != null) "$slotName " else ""
     val description = element.parentProtocol.description
+    val hostName = element.parentProtocol.hostType.simpleName
+    val slotGuidance = if (slotName != null) " Declare it on a direct child of a $hostName." else ""
     return "$namePrefix$description can be declared only under a compatible parent, but the actual host is " +
-        host.declaredName + "."
+        host.declaredName + "." + slotGuidance
 }
 
 private fun checkElementAccepted(

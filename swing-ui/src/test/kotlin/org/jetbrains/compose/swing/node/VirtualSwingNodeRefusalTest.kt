@@ -12,7 +12,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.Snapshot
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.swing.Swing
-import org.jetbrains.compose.swing.OnDemandComposition
 import org.jetbrains.compose.swing.RecordingLayout
 import org.jetbrains.compose.swing.RecordingMeasurementLayout
 import org.jetbrains.compose.swing.captureParentContext
@@ -20,6 +19,7 @@ import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.composeMenu
+import org.jetbrains.compose.swing.core.OnDemandComposition
 import org.jetbrains.compose.swing.countTests
 import org.jetbrains.compose.swing.fixtures.node.VirtualSwingNodeFixture
 import org.jetbrains.compose.swing.layout.ChildPlacement
@@ -265,7 +265,7 @@ class VirtualSwingNodeRefusalTest {
     @Test
     fun aRefusedSecondGroupChildLeavesTheMeasuringHostUnchanged() {
         var inserted by mutableStateOf(false)
-        val refused = parentProtocolOf("another host") { false }
+        val refused = parentProtocolOf<Container>("another host") { false }
         assertComposingFails<IllegalStateException> {
             setContent {
                 SwingNode(factory = { MeasuringHost() }) {
@@ -420,8 +420,8 @@ class VirtualSwingNodeRefusalTest {
     @ValueSource(booleans = [true, false])
     fun twoInvalidGroupChangesFailInDeclarationOrder(protocolConflictFirst: Boolean) {
         runComposeSwingTest {
-            val otherMeasuringProtocol = parentProtocolOf("other measuring parent") { it is MeasuringHost }
-            val refusedProtocol = parentProtocolOf("border parent") { it.layout is BorderLayout }
+            val otherMeasuringProtocol = parentProtocolOf<Container>("other measuring parent") { it is MeasuringHost }
+            val refusedProtocol = parentProtocolOf<Container>("border parent") { it.layout is BorderLayout }
             var changed by mutableStateOf(false)
             setContent {
                 for (conflict in if (protocolConflictFirst) listOf(true, false) else listOf(false, true)) {
@@ -693,7 +693,7 @@ class VirtualSwingNodeRefusalTest {
                 Arguments.of(Named.of("a property", SwingModifier.testTag("x")), argument),
                 Arguments.of(Named.of("a listener", SwingModifier.containerListener {}), argument),
                 Arguments.of(
-                    Named.of("a slot", SwingModifier.slot(parentProtocolOf("slot parent") { true }, "region")),
+                    Named.of("a slot", SwingModifier.slot(parentProtocolOf<Container>("slot parent"), "region")),
                     argument,
                 ),
                 Arguments.of(Named.of("a parent-layout node", SwingModifier then NodeMark("x")), argument),
@@ -703,7 +703,7 @@ class VirtualSwingNodeRefusalTest {
                         "an additive inheritable element",
                         SwingModifier then
                             object : ParentLayoutElement {
-                                override val parentProtocol: ParentProtocol get() = MeasuringProtocol
+                                override val parentProtocol: ParentProtocol<*> get() = MeasuringProtocol
                                 override val additive: Boolean get() = true
                                 override val inheritable: Boolean get() = true
                             },
@@ -718,7 +718,7 @@ class VirtualSwingNodeRefusalTest {
         // beforehand is handed in.
         @Suppress("SwingNodeFactoryReusesComponent")
         private fun inSlots(
-            placement: ChildPlacement,
+            placement: ChildPlacement<Container>,
             group: @Composable () -> Unit,
         ): suspend ComposeSwingTest.(Container) -> Unit = { host ->
             setContent { SwingNode(factory = { host }, childPlacement = placement) { group() } }
@@ -730,7 +730,7 @@ class VirtualSwingNodeRefusalTest {
             OnDemandComposition(
                 captureParentContext(),
                 host,
-                SlotAttachment { parent, child, _ ->
+                SlotAttachment<Container> { parent, child, _ ->
                     parent.add(child)
                     return@SlotAttachment { parent.remove(child) }
                 },

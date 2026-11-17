@@ -68,7 +68,7 @@ import java.awt.Container
  */
 @PublishedApi
 internal class SwingApplier internal constructor(
-    private val rootHolder: SwingNodeHolder<Container>,
+    private val rootHolder: SwingNodeHolder<out Container>,
     rootSlotPolicy: RootSlotPolicy? = null,
 ) : AbstractApplier<NodeHolder>(rootHolder) {
     /** The bookkeeping for the batch of component updates in flight, read off the root like any node. */
@@ -96,7 +96,7 @@ internal class SwingApplier internal constructor(
     }
 
     init {
-        require(rootSlotPolicy == null || rootHolder.childPlacement.contentAttachment != null) {
+        require(rootSlotPolicy == null || rootHolder.childPlacement.hasContent) {
             "A root slot policy needs a root that installs its unnamed child as content."
         }
     }

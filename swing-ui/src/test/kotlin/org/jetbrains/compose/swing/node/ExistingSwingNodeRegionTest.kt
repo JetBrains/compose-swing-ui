@@ -29,6 +29,7 @@ import org.junit.jupiter.api.DynamicTest.dynamicTest
 import org.junit.jupiter.api.TestFactory
 import java.awt.BorderLayout
 import java.awt.Color
+import java.awt.Container
 import javax.swing.JLabel
 import javax.swing.JPanel
 import kotlin.test.Test
@@ -269,10 +270,10 @@ internal class FramedPanel : JPanel(BorderLayout()) {
     }
 }
 
-internal val FramedProtocol: ParentProtocol = parentProtocolOf("FramedPanel slot") { it is FramedPanel }
+internal val FramedProtocol: ParentProtocol<Container> = parentProtocolOf("FramedPanel slot") { it is FramedPanel }
 
 internal val BodyAttachment =
-    SlotAttachment { host, component, _ ->
+    SlotAttachment<Container> { host, component, _ ->
         host.add(component, BorderLayout.CENTER)
         return@SlotAttachment { host.remove(component) }
     }

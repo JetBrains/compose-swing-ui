@@ -17,6 +17,7 @@ import org.jetbrains.compose.swing.style.SwingComponentStyleScope
 import org.jetbrains.compose.swing.style.SwingStyle
 import org.jetbrains.compose.swing.style.nestingStyleKind
 import org.jetbrains.compose.swing.style.styleable
+import java.awt.Container
 import javax.swing.JTable
 import javax.swing.table.JTableHeader
 
@@ -71,7 +72,7 @@ public sealed interface TableContentScope {
  * The parts a [Table] holds as its children, which it declares on its own node so that a child declaring none
  * of them is refused there.
  */
-internal val TableRegions: ChildPlacement = ChildPlacement.Slots(HEADER_REGION)
+internal val TableRegions: ChildPlacement<Container> = ChildPlacement.Slots(HEADER_REGION)
 
 /** The [TableContentScope] one [Table] hands its content. */
 internal class TableContentScopeImpl : TableContentScope {
@@ -105,7 +106,7 @@ private val TableHeaderKind =
         applyNestedStyle(TableHeaders)
     }
 
-private val TableParentProtocol = parentProtocolOf("JTable slot") { it is JTable }
+private val TableParentProtocol = parentProtocolOf<JTable>("JTable slot")
 
 private val ReorderingAllowedProperty =
     ComponentPropertyDescriptor<JTableHeader, Boolean>(

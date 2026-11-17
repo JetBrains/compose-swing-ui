@@ -748,7 +748,7 @@ internal data class AnimatedContentChildData(
     val isTarget: Boolean,
     val isPendingTarget: Boolean,
 ) : ParentDataModifier {
-    override val parentProtocol: ParentProtocol get() = AnimatedContentParentDataProtocol
+    override val parentProtocol: ParentProtocol<*> get() = AnimatedContentParentDataProtocol
 
     override val key: Any get() = AnimatedContentChildData::class
 

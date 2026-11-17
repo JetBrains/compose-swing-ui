@@ -1005,7 +1005,7 @@ internal class Layout(
     private val visits: MutableList<List<String>>? = null,
     private val autoInvalidates: Boolean = true,
 ) : ParentLayoutNodeElement<LabelLayoutNode>() {
-    override val parentProtocol: ParentProtocol get() = TestMeasurementParentProtocol
+    override val parentProtocol: ParentProtocol<*> get() = TestMeasurementParentProtocol
 
     override val additive: Boolean get() = true
 
@@ -1027,7 +1027,7 @@ internal class Layout(
 internal class LabelLayoutNode(
     override var shouldAutoInvalidate: Boolean,
 ) : ParentLayoutNode() {
-    override val parentProtocol: ParentProtocol get() = TestMeasurementParentProtocol
+    override val parentProtocol: ParentProtocol<*> get() = TestMeasurementParentProtocol
 
     var label = ""
 

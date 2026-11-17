@@ -11,11 +11,12 @@ import org.jetbrains.compose.swing.modifier.DeclaredNodesListener
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.SwingComponentNode
 import java.awt.Component
+import java.awt.Container
 import java.awt.FlowLayout
 import javax.swing.JLabel
 
 /** Accepts only an [InsetLayout] parent. */
-internal val InsetProtocol: ParentProtocol = parentProtocolOf("inset parent") { it.layout is InsetLayout }
+internal val InsetProtocol: ParentProtocol<Container> = parentProtocolOf("inset parent") { it.layout is InsetLayout }
 
 internal val InsetProperty = stylePropertyOf<Int> { Inset(it) }
 
@@ -25,7 +26,7 @@ internal data class Inset(
     override val key: Any = Inset::class.java,
     val onWrite: (Int) -> Unit = {},
 ) : ParentLayoutNodeElement<InsetNode>() {
-    override val parentProtocol: ParentProtocol get() = InsetProtocol
+    override val parentProtocol: ParentProtocol<*> get() = InsetProtocol
 
     override val inheritable: Boolean get() = true
 
@@ -40,7 +41,7 @@ internal data class Inset(
 internal class InsetNode(
     var amount: Int,
 ) : ParentLayoutNode() {
-    override val parentProtocol: ParentProtocol get() = InsetProtocol
+    override val parentProtocol: ParentProtocol<*> get() = InsetProtocol
 
     override val inheritable: Boolean get() = true
 }
@@ -53,7 +54,7 @@ internal class InsetLayout : RecordingMeasurementLayout(FlowLayout()) {
 
 /** A declaration every measuring parent interprets. */
 internal data object MeasuredAnywhere : ParentLayoutElement {
-    override val parentProtocol: ParentProtocol = MeasuringParent
+    override val parentProtocol: ParentProtocol<*> = MeasuringParent
 }
 
 /** A measuring manager [InsetProtocol] refuses. */

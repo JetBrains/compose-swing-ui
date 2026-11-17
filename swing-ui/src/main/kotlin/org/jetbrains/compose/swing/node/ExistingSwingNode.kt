@@ -113,7 +113,7 @@ public inline fun <reified P : Component, R : Component, reified T : R> Existing
     modifier: SwingModifier = SwingModifier,
     crossinline update: @DisallowComposableCalls SwingNodeUpdater<T>.() -> Unit = {},
     declaringCall: String? = null,
-    childPlacement: ChildPlacement = ChildPlacement.Indexed,
+    childPlacement: ChildPlacement<T> = ChildPlacement.Indexed,
     crossinline content:
         @Composable @SwingComposable
         () -> Unit,

@@ -15,11 +15,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.Snapshot
 import org.jetbrains.compose.swing.LayoutDeclaration
 import org.jetbrains.compose.swing.NestedContentHost
-import org.jetbrains.compose.swing.OnDemandComposition
 import org.jetbrains.compose.swing.RecordingLayout
 import org.jetbrains.compose.swing.RecordingMeasurementLayout
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.core.OnDemandComposition
 import org.jetbrains.compose.swing.layout.MeasurementLayoutManager
 import org.jetbrains.compose.swing.layout.ParentLayoutElement
 import org.jetbrains.compose.swing.layout.ParentProtocol
@@ -174,7 +174,7 @@ class VirtualSwingNodeDeclarationChangeTest {
     @ParameterizedTest(name = "changed resolution property: {0}")
     @ValueSource(strings = ["key", "additive", "protocol", "inheritable"])
     fun updatingRetainedLayoutNodesResolvesTheirCurrentMetadata(property: String) = runComposeSwingTest {
-        val alternate = parentProtocolOf("alternate measuring parent") { it is MeasuringHost }
+        val alternate = parentProtocolOf<Container>("alternate measuring parent") { it is MeasuringHost }
         var version by mutableIntStateOf(0)
         var styled by mutableStateOf(false)
         var removed by mutableStateOf(false)
@@ -282,13 +282,13 @@ class VirtualSwingNodeDeclarationChangeTest {
 
     @Test
     fun movingAChildAcrossCompositionsPublishesItsDestinationProtocolAfterLayoutNodeTeardown() = runComposeSwingTest {
-        val p = parentProtocolOf("P") { it.layout is MeasurementLayoutManager }
-        val q = parentProtocolOf("Q") { it.layout is MeasurementLayoutManager }
+        val p = parentProtocolOf<Container>("P") { it.layout is MeasurementLayoutManager }
+        val q = parentProtocolOf<Container>("Q") { it.layout is MeasurementLayoutManager }
         var moved by mutableStateOf(false)
         setContent {
             val content =
                 remember {
-                    movableContentOf<ParentProtocol> { protocol ->
+                    movableContentOf<ParentProtocol<Container>> { protocol ->
                         Label("a", SwingModifier then NodeMark("own") then Data(protocol.description, 2, protocol))
                     }
                 }
@@ -434,10 +434,10 @@ class VirtualSwingNodeDeclarationChangeTest {
     @MethodSource("org.jetbrains.compose.swing.node.VirtualSwingNodeChangeCases#protocolDeactivationChildren")
     fun changingAGroupProtocolWhileDeactivatingAChildAllowsReactivation(
         case: String,
-        child: @Composable (ParentProtocol) -> Unit,
+        child: @Composable (ParentProtocol<*>) -> Unit,
     ) = runComposeSwingTest {
-        val p = parentProtocolOf("P") { it is MeasuringHost }
-        val q = parentProtocolOf("Q") { it is MeasuringHost }
+        val p = parentProtocolOf<Container>("P") { it is MeasuringHost }
+        val q = parentProtocolOf<Container>("Q") { it is MeasuringHost }
         var protocol by mutableStateOf(p)
         var active by mutableStateOf(true)
         setContent {
@@ -476,8 +476,8 @@ class VirtualSwingNodeDeclarationChangeTest {
         val firstTag = "A"
         val secondTag = "B"
         val tagB = if (sharedHost) firstTag else secondTag
-        val p = parentProtocolOf("P") { it is MeasuringHost }
-        val q = parentProtocolOf("Q") { it is MeasuringHost }
+        val p = parentProtocolOf<Container>("P") { it is MeasuringHost }
+        val q = parentProtocolOf<Container>("Q") { it is MeasuringHost }
         var protocol by mutableStateOf(p)
         var active by mutableStateOf(true)
         var version by mutableIntStateOf(1)
@@ -528,10 +528,10 @@ class VirtualSwingNodeDeclarationChangeTest {
     @MethodSource("org.jetbrains.compose.swing.node.VirtualSwingNodeChangeCases#layoutNodeReplacements")
     fun groupAndChildProtocolChangesPublishTogether(
         case: String,
-        childModifier: (ParentProtocol) -> SwingModifier,
+        childModifier: (ParentProtocol<*>) -> SwingModifier,
         change: ProtocolDeclarationChange,
     ) = runComposeSwingTest {
-        val initialProtocol = parentProtocolOf("P") { it is MeasuringHost }
+        val initialProtocol = parentProtocolOf<Container>("P") { it is MeasuringHost }
         var protocol by mutableStateOf(initialProtocol)
         setContent {
             SwingNode(factory = { MeasuringHost() }) {
@@ -550,7 +550,7 @@ class VirtualSwingNodeDeclarationChangeTest {
         host.recording.declarations.clear()
         host.recording.removals.clear()
 
-        protocol = parentProtocolOf("Q") { it is MeasuringHost }
+        protocol = parentProtocolOf<Container>("Q") { it is MeasuringHost }
         awaitIdle()
 
         assertEquals(listOf("a"), host.texts(), case)
@@ -723,8 +723,8 @@ internal object VirtualSwingNodeChangeCases {
     )
 
     private fun protocolAddition(): ChildChangeWithGroup {
-        val p = parentProtocolOf("P") { it is MeasuringHost }
-        val q = parentProtocolOf("Q") { it is MeasuringHost }
+        val p = parentProtocolOf<Container>("P") { it is MeasuringHost }
+        val q = parentProtocolOf<Container>("Q") { it is MeasuringHost }
         return ChildChangeWithGroup(
             null,
             content = { changed ->
@@ -771,8 +771,8 @@ internal object VirtualSwingNodeChangeCases {
     }
 
     private fun protocolRelease(): ChildChangeWithGroup {
-        val p = parentProtocolOf("P") { it is MeasuringHost }
-        val q = parentProtocolOf("Q") { it is MeasuringHost }
+        val p = parentProtocolOf<Container>("P") { it is MeasuringHost }
+        val q = parentProtocolOf<Container>("Q") { it is MeasuringHost }
         return ChildChangeWithGroup(
             null,
             content = { changed ->
@@ -837,10 +837,10 @@ internal object VirtualSwingNodeChangeCases {
 
     @JvmStatic
     fun protocolDeactivationChildren(): List<Arguments> {
-        val parentData: @Composable (ParentProtocol) -> Unit = { protocol ->
+        val parentData: @Composable (ParentProtocol<*>) -> Unit = { protocol ->
             Label("a", SwingModifier then Data("child-${protocol.description}", 2, protocol))
         }
-        val layoutNodeAndParentData: @Composable (ParentProtocol) -> Unit = { protocol ->
+        val layoutNodeAndParentData: @Composable (ParentProtocol<*>) -> Unit = { protocol ->
             Label(
                 "a",
                 SwingModifier then NodeMark("own") then Data("child-${protocol.description}", 2, protocol),
@@ -875,12 +875,12 @@ internal object VirtualSwingNodeChangeCases {
 
     @JvmStatic
     fun layoutNodeReplacements(): List<Arguments> {
-        val data: (ParentProtocol) -> SwingModifier = { SwingModifier }
-        val node: (ParentProtocol) -> SwingModifier = { SwingModifier then NodeMark(it.description) }
-        val removed: (ParentProtocol) -> SwingModifier = {
+        val data: (ParentProtocol<*>) -> SwingModifier = { SwingModifier }
+        val node: (ParentProtocol<*>) -> SwingModifier = { SwingModifier then NodeMark(it.description) }
+        val removed: (ParentProtocol<*>) -> SwingModifier = {
             if (it.description == "P") SwingModifier then NodeMark("old") else SwingModifier
         }
-        val replaced: (ParentProtocol) -> SwingModifier = {
+        val replaced: (ParentProtocol<*>) -> SwingModifier = {
             if (it.description == "P") SwingModifier then NodeMark("old") else SwingModifier.mark("new", slot = 3)
         }
         return listOf(
@@ -1143,7 +1143,7 @@ internal object VirtualSwingNodeChangeCases {
 
 private fun NodeMark.withChangedResolution(
     property: String,
-    alternate: ParentProtocol,
+    alternate: ParentProtocol<Container>,
 ): NodeMark = when (property) {
     "key" -> copy(key = 4)
     "additive" -> copy(additive = true)

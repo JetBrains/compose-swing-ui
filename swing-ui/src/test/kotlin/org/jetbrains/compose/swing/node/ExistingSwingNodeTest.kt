@@ -424,7 +424,7 @@ class ExistingSwingNodeTest {
                 setContent {
                     SwingNode(
                         factory = { PartsPanel() },
-                        childPlacement = ChildPlacement.Slots(content = ItemAttachment),
+                        childPlacement = ChildPlacement.Slots.withContent(content = ItemAttachment),
                     ) {
                         ExistingSwingNode(claim = PartsPanel::part)
                     }
@@ -612,10 +612,10 @@ internal fun Container.recordAddsAndRemovesOf(child: Component): List<String> {
     return events
 }
 
-private val StripProtocol: ParentProtocol = parentProtocolOf("LonePartPanel item") { it is LonePartPanel }
+private val StripProtocol: ParentProtocol<Container> = parentProtocolOf("LonePartPanel item") { it is LonePartPanel }
 
 private val ItemAttachment =
-    SlotAttachment { host, component, index ->
+    SlotAttachment<Container> { host, component, index ->
         host.add(component, index)
         return@SlotAttachment { host.remove(component) }
     }

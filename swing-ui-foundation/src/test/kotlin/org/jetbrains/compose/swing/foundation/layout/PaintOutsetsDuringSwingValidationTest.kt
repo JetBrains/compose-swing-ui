@@ -7,7 +7,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCompositionContext
 import androidx.compose.runtime.setValue
-import org.jetbrains.compose.swing.OnDemandComposition
+import org.jetbrains.compose.swing.core.OnDemandComposition
 import org.jetbrains.compose.swing.foundation.graphics.DecorationModifierNode
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag

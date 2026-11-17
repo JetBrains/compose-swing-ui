@@ -29,6 +29,7 @@ import org.jetbrains.compose.swing.test.SwingMatcher.Companion.hasTestTag
 import org.jetbrains.compose.swing.test.onAllNodesOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Component
+import java.awt.Container
 import java.awt.FlowLayout
 import javax.swing.JLabel
 import javax.swing.JPanel
@@ -51,18 +52,18 @@ internal data class Mark(
     override val tag: String,
     val slot: Any,
     override val inheritable: Boolean,
-    val protocol: ParentProtocol,
+    val protocol: ParentProtocol<Container>,
 ) : ParentLayoutElement,
     TaggedDeclaration {
-    override val parentProtocol: ParentProtocol get() = protocol
+    override val parentProtocol: ParentProtocol<*> get() = protocol
 
     override val key: Any get() = slot
 }
 
-internal val MeasuringProtocol: ParentProtocol = MeasurementLayoutManager.parentProtocol("measuring parent")
+internal val MeasuringProtocol: ParentProtocol<Container> = MeasurementLayoutManager.parentProtocol("measuring parent")
 
-internal fun protocolOf(owner: String): ParentProtocol =
-    parentProtocolOf("$owner parent") { (it as? MeasuringHost)?.protocolName == owner }
+internal fun protocolOf(owner: String): ParentProtocol<Container> =
+    parentProtocolOf<Container>("$owner parent") { (it as? MeasuringHost)?.protocolName == owner }
 
 /** A container whose layout records each child's declaration; [protocolName] names the protocol that accepts it. */
 internal class MeasuringHost(
@@ -88,7 +89,7 @@ internal fun MeasuringHost.assertLabels(
 internal data class Data(
     val tag: String,
     val slot: Int,
-    override val parentProtocol: ParentProtocol,
+    override val parentProtocol: ParentProtocol<*>,
 ) : ParentDataModifier {
     override val key: Any get() = slot
 
@@ -103,7 +104,7 @@ internal val LayoutDeclaration.tags: List<String> get() = elements.map { (it as 
 internal fun SwingModifier.mark(
     tag: String,
     slot: Int = 1,
-    protocol: ParentProtocol = MeasuringProtocol,
+    protocol: ParentProtocol<Container> = MeasuringProtocol,
 ): SwingModifier = this then Mark(tag, slot, inheritable = false, protocol)
 
 /** A group of two labels, `g1` and `g2`, declaring [tag]. */
@@ -120,7 +121,7 @@ internal data class NodeMark(
     override val key: Any = NodeMark::class.java,
     override val additive: Boolean = false,
     override val inheritable: Boolean = false,
-    override val parentProtocol: ParentProtocol = MeasuringProtocol,
+    override val parentProtocol: ParentProtocol<*> = MeasuringProtocol,
 ) : ParentLayoutNodeElement<NodeMarkNode>() {
     override fun create(): NodeMarkNode = NodeMarkNode(this)
 
@@ -134,7 +135,7 @@ internal class NodeMarkNode(
 ) : ParentLayoutNode(),
     TaggedDeclaration {
     override val tag: String get() = declaration.tag
-    override val parentProtocol: ParentProtocol get() = declaration.parentProtocol
+    override val parentProtocol: ParentProtocol<*> get() = declaration.parentProtocol
     override val inheritable: Boolean get() = declaration.inheritable
 }
 

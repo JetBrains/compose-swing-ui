@@ -222,7 +222,7 @@ private class FailOnceInset(
     private val amount: Int,
     private val armed: AtomicBoolean,
 ) : ParentLayoutNodeElement<InsetNode>() {
-    override val parentProtocol: ParentProtocol get() = Inset(amount).parentProtocol
+    override val parentProtocol: ParentProtocol<*> get() = Inset(amount).parentProtocol
 
     override val inheritable: Boolean get() = true
 

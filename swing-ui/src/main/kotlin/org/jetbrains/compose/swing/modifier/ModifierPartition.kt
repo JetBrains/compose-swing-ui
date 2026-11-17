@@ -78,7 +78,7 @@ internal class ModifierPartition(
         get() = resolved().parentData
 
     /** The family of [parentData], or `null` where no parent-data modifier is declared. */
-    val parentProtocol: ParentProtocol?
+    val parentProtocol: ParentProtocol<*>?
         get() = resolved().parentProtocol
 
     /** The retained parent-layout declarations a measuring parent still interprets after parent-data folding. */
@@ -86,7 +86,7 @@ internal class ModifierPartition(
         get() = resolved().elements
 
     /** The one retained built-in slot declaration, or `null` when none remains. */
-    val slot: SlotElement?
+    val slot: SlotElement<*>?
         get() = resolved().slot
 
     /**
@@ -243,7 +243,7 @@ internal fun resolveParentDeclarations(declarations: List<ParentElement>): Resol
     require(slotCount <= 1) {
         "A modifier can retain at most one parent slot declaration."
     }
-    require(slot == null || slot is SlotElement) {
+    require(slot == null || slot is SlotElement<*>) {
         "Parent slot declarations must be created with SwingModifier.slot()."
     }
     return ResolvedParentDeclarations(
@@ -251,13 +251,13 @@ internal fun resolveParentDeclarations(declarations: List<ParentElement>): Resol
         parentData = parentData,
         parentProtocol = parentProtocol,
         elements = elements,
-        slot = slot as? SlotElement,
+        slot = slot,
     )
 }
 
 /** Validates the entire parent-data family before any declaration folds its data. */
-private fun parentProtocol(declarations: List<ParentElement>): ParentProtocol? {
-    var parentProtocol: ParentProtocol? = null
+private fun parentProtocol(declarations: List<ParentElement>): ParentProtocol<*>? {
+    var parentProtocol: ParentProtocol<*>? = null
     var compatible = true
     declarations.fastForEach { element ->
         if (compatible && element is ParentDataModifier) {
@@ -303,9 +303,9 @@ internal fun retainedParentDeclarations(declarations: List<ParentElement>): List
 internal class ResolvedParentDeclarations(
     val declarations: List<ParentElement>,
     val parentData: Any?,
-    val parentProtocol: ParentProtocol?,
+    val parentProtocol: ParentProtocol<*>?,
     val elements: List<ParentLayoutElement>,
-    val slot: SlotElement?,
+    val slot: SlotElement<*>?,
 )
 
 /** What a list declaring no parent element resolves to. */

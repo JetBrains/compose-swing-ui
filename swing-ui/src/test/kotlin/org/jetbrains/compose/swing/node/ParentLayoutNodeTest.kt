@@ -9,10 +9,10 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.swing.KeyReadingElement
-import org.jetbrains.compose.swing.OnDemandComposition
 import org.jetbrains.compose.swing.RecordingMeasurementLayout
 import org.jetbrains.compose.swing.captureParentContext
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.core.OnDemandComposition
 import org.jetbrains.compose.swing.layout.ParentLayoutNode
 import org.jetbrains.compose.swing.layout.ParentLayoutNodeElement
 import org.jetbrains.compose.swing.layout.ParentProtocol
@@ -31,6 +31,7 @@ import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
 import org.junit.jupiter.params.provider.ValueSource
 import java.awt.Component
+import java.awt.Container
 import java.lang.ref.WeakReference
 import javax.swing.JButton
 import javax.swing.JPanel
@@ -164,7 +165,7 @@ class ParentLayoutNodeTest {
         val owner = TestCompositionOwner()
         val layout = RecordingMeasurementLayout()
         val root = JPanel(layout)
-        val child: SwingNodeHolder<Component> = CreatedNodeHolder(JButton("child")).attachedTo(owner)
+        val child: SwingNodeHolder<*> = CreatedNodeHolder(JButton("child")).attachedTo(owner)
         root.add(child.component)
         child.declaration.attachedUnder(root, child.declaration.checkAttachableUnder(root))
         val keyed = KeyReadingElement()
@@ -208,7 +209,7 @@ class ParentLayoutNodeTest {
 
             host.recording.declarations.clear()
             assertFailsWith<IllegalStateException> {
-                composition.recompose { protocol = parentProtocolOf("refusing parent") { false } }
+                composition.recompose { protocol = parentProtocolOf<Container>("refusing parent") { false } }
             }
             assertEquals(emptyList(), host.recording.declarations)
         } finally {
@@ -609,9 +610,9 @@ private class ChainComponentNode(
  * so a parent measuring with it reads no update of it.
  */
 private data class ProtocolLayoutNodeElement(
-    private val protocol: ParentProtocol,
+    private val protocol: ParentProtocol<Container>,
 ) : ParentLayoutNodeElement<ProtocolLayoutNode>() {
-    override val parentProtocol: ParentProtocol get() = protocol
+    override val parentProtocol: ParentProtocol<*> get() = protocol
 
     override val key: Any get() = "protocol"
 
@@ -623,9 +624,9 @@ private data class ProtocolLayoutNodeElement(
 }
 
 private class ProtocolLayoutNode(
-    var protocol: ParentProtocol,
+    var protocol: ParentProtocol<Container>,
 ) : ParentLayoutNode() {
-    override val parentProtocol: ParentProtocol get() = protocol
+    override val parentProtocol: ParentProtocol<*> get() = protocol
 
     override val shouldAutoInvalidate: Boolean get() = false
 }
@@ -634,7 +635,7 @@ private class ValuedLayoutNodeElement(
     override val key: Any,
     val value: String,
 ) : ParentLayoutNodeElement<ValuedLayoutNode>() {
-    override val parentProtocol: ParentProtocol get() = TestMeasurementParentProtocol
+    override val parentProtocol: ParentProtocol<*> get() = TestMeasurementParentProtocol
 
     override fun create(): ValuedLayoutNode = ValuedLayoutNode().also { it.value = value }
 
@@ -651,5 +652,5 @@ private class ValuedLayoutNodeElement(
 private class ValuedLayoutNode : ParentLayoutNode() {
     var value: String = ""
 
-    override val parentProtocol: ParentProtocol get() = TestMeasurementParentProtocol
+    override val parentProtocol: ParentProtocol<*> get() = TestMeasurementParentProtocol
 }

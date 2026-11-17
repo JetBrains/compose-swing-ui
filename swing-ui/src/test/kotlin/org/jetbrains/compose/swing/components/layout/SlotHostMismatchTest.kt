@@ -18,8 +18,8 @@ import kotlin.test.assertTrue
  * A child carrying one scope's placement modifier composed under a host built by a different scope: both
  * hosts hold their children in named regions of their own, so the applier's generic region check does not
  * catch the mismatch, and it surfaces only where the builder installs the child through its own host's
- * Swing setter. It is refused there by name, naming the builder and the host it actually arrived at,
- * rather than as a bare `ClassCastException`.
+ * Swing setter. It is refused before the setter runs, naming the builder, the host type it expects and the
+ * host it actually arrived at, and saying to declare it on a direct child of that host type.
  */
 class SlotHostMismatchTest {
     @Test
@@ -43,6 +43,10 @@ class SlotHostMismatchTest {
         )
         assertTrue("JScrollPane" in message, "the refusal should name the host type the builder expects: $message")
         assertTrue("JSplitPane" in message, "the refusal should name the host the child actually arrived at: $message")
+        assertTrue(
+            "Declare it on a direct child" in message,
+            "the refusal should say where the declaration belongs: $message",
+        )
     }
 
     @Test
@@ -65,6 +69,10 @@ class SlotHostMismatchTest {
         )
         assertTrue("JSplitPane" in message, "the refusal should name the host type the builder expects: $message")
         assertTrue("JScrollPane" in message, "the refusal should name the host the child actually arrived at: $message")
+        assertTrue(
+            "Declare it on a direct child" in message,
+            "the refusal should say where the declaration belongs: $message",
+        )
     }
 
     @Test
@@ -88,6 +96,10 @@ class SlotHostMismatchTest {
         assertTrue(TAB_SLOT_NAME in message, "the refusal should name the builder that would place the child: $message")
         assertTrue("JTabbedPane" in message, "the refusal should name the host type the builder expects: $message")
         assertTrue("JSplitPane" in message, "the refusal should name the host the child actually arrived at: $message")
+        assertTrue(
+            "Declare it on a direct child" in message,
+            "the refusal should say where the declaration belongs: $message",
+        )
     }
 
     @Test

@@ -521,7 +521,7 @@ private data class FailingLayoutElement(
     val attachFailure: IllegalArgumentException? = null,
     val updateFailure: IllegalArgumentException? = null,
 ) : ParentLayoutNodeElement<FailureLayoutNode>() {
-    override val parentProtocol: ParentProtocol get() = MeasuringParent
+    override val parentProtocol: ParentProtocol<*> get() = MeasuringParent
 
     override fun create(): FailureLayoutNode = FailureLayoutNode(amount, attachFailure)
 
@@ -534,7 +534,7 @@ private class FailureLayoutNode(
     val amount: Int,
     private val attachFailure: IllegalArgumentException? = null,
 ) : ParentLayoutNode() {
-    override val parentProtocol: ParentProtocol get() = MeasuringParent
+    override val parentProtocol: ParentProtocol<*> get() = MeasuringParent
 
     override fun onAttach() {
         attachFailure?.let { throw it }
@@ -545,7 +545,7 @@ private class FirstUpdateFailingLayout(
     private val events: MutableList<String>,
     private val failure: IllegalArgumentException,
 ) : ParentLayoutNodeElement<FirstUpdateFailingLayout.Node>() {
-    override val parentProtocol: ParentProtocol get() = MeasuringParent
+    override val parentProtocol: ParentProtocol<*> get() = MeasuringParent
 
     override fun create(): Node = Node(events)
 
@@ -561,7 +561,7 @@ private class FirstUpdateFailingLayout(
     class Node(
         private val events: MutableList<String>,
     ) : ParentLayoutNode() {
-        override val parentProtocol: ParentProtocol get() = MeasuringParent
+        override val parentProtocol: ParentProtocol<*> get() = MeasuringParent
 
         override fun onAttach() {
             events += "attach"

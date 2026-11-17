@@ -6,7 +6,6 @@ import androidx.compose.runtime.Recomposer
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.swing.Swing
-import org.jetbrains.compose.swing.OnDemandComposition
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.ModifierInfo
 import org.jetbrains.compose.swing.node.CreatedNodeHolder

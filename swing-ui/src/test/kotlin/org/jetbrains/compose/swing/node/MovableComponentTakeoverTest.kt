@@ -11,16 +11,16 @@ import androidx.compose.runtime.rememberCompositionContext
 import androidx.compose.runtime.setValue
 import kotlinx.coroutines.DisposableHandle
 import org.jetbrains.compose.swing.NestedContentHost
-import org.jetbrains.compose.swing.OnDemandComposition
 import org.jetbrains.compose.swing.RecordedRepaints
 import org.jetbrains.compose.swing.SwingTestScope
 import org.jetbrains.compose.swing.TestRecomposer
-import org.jetbrains.compose.swing.addingTo
 import org.jetbrains.compose.swing.annotations.SwingComposable
 import org.jetbrains.compose.swing.assertAskedForLayout
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.ScrollPane
+import org.jetbrains.compose.swing.core.OnDemandComposition
+import org.jetbrains.compose.swing.core.addingTo
 import org.jetbrains.compose.swing.layout.SlotAttachment
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.name
@@ -30,6 +30,7 @@ import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.withRecordedRepaints
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
+import java.awt.Container
 import javax.swing.JLabel
 import javax.swing.JPanel
 import javax.swing.JScrollPane
@@ -149,7 +150,7 @@ class MovableComponentTakeoverTest {
         val movable = movableComponentOf(field)
         var uninstalls = 0
         val attachment =
-            SlotAttachment { host, component, _ ->
+            SlotAttachment<Container> { host, component, _ ->
                 host.add(component)
                 (
                     {

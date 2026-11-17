@@ -1,14 +1,13 @@
 // Copyright 2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
-package org.jetbrains.compose.swing
+@file:JvmName("CoreKt")
+@file:JvmMultifileClass
+
+package org.jetbrains.compose.swing.core
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionContext
 import kotlinx.coroutines.DisposableHandle
 import org.jetbrains.compose.swing.annotations.SwingComposable
-import org.jetbrains.compose.swing.core.SwingContentComposition
-import org.jetbrains.compose.swing.core.checkEventDispatchThread
-import org.jetbrains.compose.swing.core.collectFailure
-import org.jetbrains.compose.swing.core.disposingOnFailure
 import org.jetbrains.compose.swing.layout.ChildPlacement
 import org.jetbrains.compose.swing.layout.SlotAttachment
 import org.jetbrains.compose.swing.node.CreatedNodeHolder
@@ -44,12 +43,12 @@ import javax.swing.SwingUtilities
  *
  * Must be constructed, recomposed, and disposed on the Event Dispatch Thread.
  */
-public class OnDemandComposition private constructor(
+public class OnDemandComposition internal constructor(
     parent: CompositionContext,
     /** The node of the composition's root, which receives its layout and repaint requests. */
     private val rootHolder: CreatedNodeHolder<Container>,
     /** Installs the top-level component and returns the action that removes it. */
-    private val placement: SlotAttachment,
+    private val placement: SlotAttachment<Container>,
     content:
         @Composable @SwingComposable
         () -> Unit,
@@ -69,34 +68,6 @@ public class OnDemandComposition private constructor(
             () -> Unit,
     ) : this(parent, CreatedNodeHolder(Container()), RemovingFromItsParent, content)
 
-    /**
-     * Creates a composition whose top-level component [placement] places.
-     *
-     * [placement] decides where the component goes, and [host] receives the composition's layout and repaint
-     * requests wherever [placement] puts it. [placement] is called each time a pass composes a new top-level
-     * component: the first pass on construction, a [recompose], or a pass that runs because state the content
-     * reads changed. The action it returns runs when that component leaves the composition, including on
-     * [dispose]. While [content] composes no component, none is placed. [placement] and the action it returns
-     * must not call [recompose] or [dispose] on this composition.
-     *
-     * A pass refuses what [OnDemandComposition] lists. A failure [placement] or the action it returns throws
-     * reaches the caller as thrown.
-     *
-     * @param parent the composition context this composition joins.
-     * @param host the container handed to [placement], which receives the composition's layout and repaint
-     *   requests.
-     * @param placement installs the top-level component and returns the action that removes it.
-     * @param content content composed on construction, by [recompose], and when state it reads changes.
-     */
-    public constructor(
-        parent: CompositionContext,
-        host: Container,
-        placement: SlotAttachment,
-        content:
-            @Composable @SwingComposable
-            () -> Unit,
-    ) : this(parent, CreatedNodeHolder(host), placement, content)
-
     // Releases each component installed and not yet released, in the order installed.
     private val installed = LinkedHashMap<Component, () -> Unit>()
 
@@ -109,14 +80,15 @@ public class OnDemandComposition private constructor(
     // Prevents recursive recomposition during applier flush.
     private var recomposing = false
 
-    // Both constructors install the root through this attachment.
-    private val rootAttachment = SlotAttachment { host, component, index -> installRoot(host, component, index) }
+    // Both entry points install the root through this attachment.
+    private val rootAttachment =
+        SlotAttachment<Container> { host, component, index -> installRoot(host, component, index) }
 
     private val composition: SwingContentComposition
 
     init {
         checkEventDispatchThread()
-        rootHolder.childPlacement = ChildPlacement.Slots(content = rootAttachment)
+        rootHolder.childPlacement = ChildPlacement.Slots.withContent(content = rootAttachment)
         composition =
             SwingContentComposition(parent, rootHolder, compositionDataHost = null) {
                 SwingApplier(rootHolder, rootSlotPolicy = RootSlotPolicy { requireOneTopLevelComponent() })
@@ -283,4 +255,42 @@ public class OnDemandComposition private constructor(
  * The placement of a composition with no host: the component stays with the caller, and a release removes it
  * from the container it is in.
  */
-private val RemovingFromItsParent = SlotAttachment { _, component, _ -> { component.parent?.remove(component) } }
+private val RemovingFromItsParent =
+    SlotAttachment<Container> { _, component, _ -> { component.parent?.remove(component) } }
+
+/**
+ * Creates a composition whose top-level component [placement] places into [host].
+ *
+ * [placement] decides where the component goes, and [host] receives the composition's layout and repaint
+ * requests wherever [placement] puts it. [placement] is called each time a pass composes a new top-level
+ * component: the first pass on construction, a [OnDemandComposition.recompose], or a pass that runs because
+ * state the content reads changed. The action it returns runs when that component leaves the composition,
+ * including on [OnDemandComposition.dispose]. While [content] composes no component, none is placed.
+ * [placement] and the action it returns must not call [OnDemandComposition.recompose] or
+ * [OnDemandComposition.dispose] on this composition.
+ *
+ * A pass refuses what [OnDemandComposition] lists. A failure [placement] or the action it returns throws
+ * reaches the caller as thrown.
+ *
+ * @param parent the composition context this composition joins.
+ * @param host the container handed to [placement], which receives the composition's layout and repaint
+ *   requests.
+ * @param placement installs the top-level component into [host], typed as [host] is, and returns the action
+ *   that removes it.
+ * @param content content composed on construction, by [OnDemandComposition.recompose], and when state it reads
+ *   changes.
+ */
+public fun <H : Container> OnDemandComposition(
+    parent: CompositionContext,
+    host: H,
+    placement: SlotAttachment<H>,
+    content:
+        @Composable @SwingComposable
+        () -> Unit,
+): OnDemandComposition =
+    OnDemandComposition(
+        parent,
+        CreatedNodeHolder<Container>(host),
+        { _, component, index -> placement.install(host, component, index) },
+        content,
+    )

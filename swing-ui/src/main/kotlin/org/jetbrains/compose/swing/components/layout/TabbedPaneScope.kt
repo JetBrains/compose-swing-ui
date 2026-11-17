@@ -7,7 +7,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCompositionContext
 import androidx.compose.runtime.rememberUpdatedState
 import org.jetbrains.annotations.Nls
-import org.jetbrains.compose.swing.OnDemandComposition
+import org.jetbrains.compose.swing.core.OnDemandComposition
 import org.jetbrains.compose.swing.layout.LayoutScopeMarker
 import org.jetbrains.compose.swing.layout.SlotAttachment
 import org.jetbrains.compose.swing.layout.parentProtocolOf
@@ -15,7 +15,6 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.composed
 import org.jetbrains.compose.swing.modifier.layout.slot
 import org.jetbrains.compose.swing.node.MirrorState
-import org.jetbrains.compose.swing.node.wrongSlotHost
 import java.awt.Color
 import java.awt.Component
 import java.awt.Container
@@ -157,7 +156,7 @@ internal class TabbedPaneScopeImpl(
         composed {
             val parentContext = rememberCompositionContext()
             val currentHeader = rememberUpdatedState(header)
-            val attachment = remember(parentContext) { TabHeaderAttachment() }
+            val attachment = remember { TabHeaderAttachment() }
             DisposableEffect(attachment, parentContext) {
                 // The pass running this effect has installed the page, which records its pane. A page moved to
                 // another pane keeps this composition, so its host stays the pane of the first install and
@@ -184,7 +183,7 @@ internal class TabbedPaneScopeImpl(
  */
 internal const val TAB_SLOT_NAME: String = "SwingModifier.tab(title)"
 
-private val TabbedPaneParentProtocol = parentProtocolOf("JTabbedPane slot") { it is JTabbedPane }
+private val TabbedPaneParentProtocol = parentProtocolOf<JTabbedPane>("JTabbedPane slot")
 
 /** The key code a `JTabbedPane` tab carries while no key selects it. */
 private const val NO_MNEMONIC: Int = -1
@@ -247,19 +246,18 @@ private class TabAttachment(
     val metadata: TabMetadata,
     val header: TabHeaderAttachment?,
     val mirror: MirrorState<Int>,
-) : SlotAttachment {
+) : SlotAttachment<JTabbedPane> {
     override fun install(
-        host: Container,
+        host: JTabbedPane,
         component: Component,
         index: Int,
     ): () -> Unit {
-        val pane = tabHost(host)
         mirror.write {
-            pane.insertTab(metadata.title, metadata.icon, component, metadata.tooltip, index)
-            metadata.applyTo(pane, pane.indexOfComponent(component))
+            host.insertTab(metadata.title, metadata.icon, component, metadata.tooltip, index)
+            metadata.applyTo(host, host.indexOfComponent(component))
         }
-        header?.attachTo(pane, component)
-        return { mirror.write { pane.remove(component) } }
+        header?.attachTo(host, component)
+        return { mirror.write { host.remove(component) } }
     }
 }
 
@@ -305,7 +303,7 @@ private class TabNode : SwingModifier.ComponentNode<Component>() {
  * Places a header's top-level component in its page's tab, and again whenever the page arrives in a tab.
  * The header composition owns the component; this only decides where it goes.
  */
-private class TabHeaderAttachment : SlotAttachment {
+private class TabHeaderAttachment : SlotAttachment<Container> {
     /** The pane the page is in; `null` until the page's tab attachment has run. */
     var pane: JTabbedPane? = null
         private set
@@ -355,13 +353,3 @@ private class TabHeaderAttachment : SlotAttachment {
         if (index >= 0 && pane.getTabComponentAt(index) === component) pane.setTabComponentAt(index, null)
     }
 }
-
-/**
- * The pane a tab is a page of, taken from the container the declaring child is held by.
- *
- * A tab belongs to the pane whose content declares it, so a child that reaches [TabbedPaneScope.tab] from
- * further down - a container of its own stands between it and the pane - names a tab of something that has
- * no tabs, and is stopped here rather than left half-installed.
- */
-private fun tabHost(host: Container): JTabbedPane =
-    host as? JTabbedPane ?: error(wrongSlotHost(host, JTabbedPane::class.java, TAB_SLOT_NAME))

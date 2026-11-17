@@ -17,7 +17,6 @@ import androidx.compose.runtime.tooling.CompositionData
 import androidx.compose.runtime.tooling.CompositionGroup
 import kotlinx.coroutines.DisposableHandle
 import org.jetbrains.compose.swing.NestedContentHost
-import org.jetbrains.compose.swing.OnDemandComposition
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.button.CheckBox
@@ -25,6 +24,7 @@ import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.menu.MenuItem
 import org.jetbrains.compose.swing.composeMenu
+import org.jetbrains.compose.swing.core.OnDemandComposition
 import org.jetbrains.compose.swing.layout.SlotAttachment
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
@@ -36,6 +36,7 @@ import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.onChild
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Component
+import java.awt.Container
 import java.io.PrintWriter
 import java.io.StringWriter
 import javax.swing.JComponent
@@ -236,7 +237,7 @@ class ComponentInspectionTest {
         val host = onNodeWithTag(NESTED_HOST_TAG).fetch<JPanel>()
         val published = assertNotNull(host.findCompositionData(), "the host's own composition publishes")
         val placement =
-            SlotAttachment { container, component, _ ->
+            SlotAttachment<Container> { container, component, _ ->
                 container.add(component)
                 return@SlotAttachment { container.remove(component) }
             }

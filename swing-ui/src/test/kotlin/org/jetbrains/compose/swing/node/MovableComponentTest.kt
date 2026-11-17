@@ -14,13 +14,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCompositionContext
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.NestedContentHost
-import org.jetbrains.compose.swing.OnDemandComposition
 import org.jetbrains.compose.swing.TestRecomposer
-import org.jetbrains.compose.swing.addingTo
 import org.jetbrains.compose.swing.annotations.SwingComposable
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.ScrollPane
 import org.jetbrains.compose.swing.components.layout.ScrollPaneScope
+import org.jetbrains.compose.swing.core.OnDemandComposition
+import org.jetbrains.compose.swing.core.addingTo
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.name
 import org.jetbrains.compose.swing.runSwingTest

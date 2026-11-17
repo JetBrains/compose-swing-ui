@@ -37,7 +37,7 @@ public interface MeasurementLayoutManager : LayoutManager2 {
          * Foundation and custom policies can keep this opaque token without depending on a concrete
          * manager implementation; the runtime checks the actual parent uniformly before mutation.
          */
-        public fun parentProtocol(description: String): ParentProtocol =
+        public fun parentProtocol(description: String): ParentProtocol<Container> =
             parentProtocolOf(description) { parent: Container -> parent.layout is MeasurementLayoutManager }
     }
 }

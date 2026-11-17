@@ -169,7 +169,7 @@ class ParentDeclarationTest {
         val root = JPanel(layout)
         val owner = TestCompositionOwner()
         val applier = SwingApplier(CreatedNodeHolder(root).attachedTo(owner))
-        val child: SwingNodeHolder<Component> = CreatedNodeHolder(JButton("child"))
+        val child: SwingNodeHolder<*> = CreatedNodeHolder(JButton("child"))
         val padding = TestParentLayoutElement("padding")
         child.applyModifierDiff(SwingModifier.layoutConstraint("constraint") then padding)
 
@@ -287,11 +287,8 @@ class ParentDeclarationTest {
         val root = JPanel(FlowLayout())
         val owner = TestCompositionOwner()
         val applier = SwingApplier(CreatedNodeHolder(root).attachedTo(owner))
-        val child = CreatedNodeHolder(JButton("child"))
-        child.declaration.applyComponentLayout(
-            resolvedDeclaration("region", BorderOnlyParentData, emptyList()),
-            emptyList(),
-        )
+        val child: SwingNodeHolder<*> = CreatedNodeHolder(JButton("child"))
+        child.applyModifierDiff(SwingModifier then Data("region", 1, BorderOnlyParentData))
 
         try {
             applier.onBeginChanges()
@@ -314,12 +311,12 @@ class ParentDeclarationTest {
         val child = CreatedNodeHolder(JButton("child"))
         val install = mockk<() -> Unit>(relaxed = true)
         val uninstall: () -> Unit = {}
-        val scrollPaneSlot = parentProtocolOf("JScrollPane slot") { it is JScrollPane }
+        val scrollPaneSlot = parentProtocolOf<Container>("JScrollPane slot") { it is JScrollPane }
         child.applyModifierDiff(
             SwingModifier.slot(
                 scrollPaneSlot,
                 "viewport",
-                SlotAttachment { _, _, _ ->
+                { _, _, _ ->
                     install()
                     uninstall
                 },
@@ -335,6 +332,107 @@ class ParentDeclarationTest {
             applier.up()
 
             verify(exactly = 0) { install() }
+            assertEquals(0, root.componentCount)
+        } finally {
+            owner.dispose()
+        }
+    }
+
+    @Test
+    fun aNamedSlotInstallsIntoTheHostItsProtocolAccepted() {
+        val root = JPanel()
+        val owner = TestCompositionOwner()
+        val rootHolder = CreatedNodeHolder(root).attachedTo(owner)
+        val applier = SwingApplier(rootHolder)
+        val child = CreatedNodeHolder(JButton("child"))
+        val hostsInstalledInto = mutableListOf<JPanel>()
+        val panelSlot =
+            parentProtocolOf<JPanel>("JPanel slot") { true }
+        child.applyModifierDiff(
+            SwingModifier.slot(
+                panelSlot,
+                "viewport",
+                SlotAttachment<JPanel> { host, _, _ ->
+                    hostsInstalledInto += host
+                    return@SlotAttachment {}
+                },
+            ),
+        )
+        rootHolder.childPlacement = ChildPlacement.Slots("viewport")
+
+        try {
+            applier.onBeginChanges()
+            applier.insertTopDown(0, child)
+            applier.down(applier.root)
+            applier.insertBottomUp(0, child)
+            applier.up()
+
+            assertEquals(listOf<Container>(root), hostsInstalledInto, "the attachment should receive the accepted host")
+            assertSame(root, hostsInstalledInto.single())
+        } finally {
+            owner.dispose()
+        }
+    }
+
+    @Test
+    fun aCustomProtocolAcceptingAHostOfTheWrongClassIsRefusedBeforeItsAttachmentRuns() {
+        val root = JPanel()
+        val owner = TestCompositionOwner()
+        val rootHolder = CreatedNodeHolder(root).attachedTo(owner)
+        val applier = SwingApplier(rootHolder)
+        val child = CreatedNodeHolder(JButton("child"))
+        var attachmentCalls = 0
+        child.applyModifierDiff(
+            SwingModifier.slot(
+                AcceptsEveryParentAsAScrollPane,
+                "viewport",
+                SlotAttachment<JScrollPane> { _, _, _ ->
+                    attachmentCalls++
+                    return@SlotAttachment {}
+                },
+            ),
+        )
+        rootHolder.childPlacement = ChildPlacement.Slots("viewport")
+
+        try {
+            applier.onBeginChanges()
+            applier.insertTopDown(0, child)
+            applier.down(applier.root)
+            val refusal = assertFailsWith<IllegalStateException> { applier.insertBottomUp(0, child) }
+            applier.up()
+
+            assertTrue(
+                "viewport a scroll pane that accepts every parent can be declared only under a compatible parent" in
+                    refusal.message.orEmpty(),
+                "the refusal should be the direct-child diagnostic: ${refusal.message}",
+            )
+            assertEquals(0, attachmentCalls, "the attachment should not run for a host of the wrong class")
+            assertEquals(0, root.componentCount)
+        } finally {
+            owner.dispose()
+        }
+    }
+
+    @Test
+    fun aCustomProtocolAcceptingAHostOfTheWrongClassRefusesParentDataAsASlotIs() {
+        val root = JPanel()
+        val owner = TestCompositionOwner()
+        val applier = SwingApplier(CreatedNodeHolder(root).attachedTo(owner))
+        val child: SwingNodeHolder<*> = CreatedNodeHolder(JButton("child"))
+        child.applyModifierDiff(SwingModifier then Data("region", 1, AcceptsEveryParentAsAScrollPane))
+
+        try {
+            applier.onBeginChanges()
+            applier.insertTopDown(0, child)
+            applier.down(applier.root)
+            val refusal = assertFailsWith<IllegalStateException> { applier.insertBottomUp(0, child) }
+            applier.up()
+
+            assertTrue(
+                "a scroll pane that accepts every parent can be declared only under a compatible parent" in
+                    refusal.message.orEmpty(),
+                "the refusal should be the wrong-parent diagnostic: ${refusal.message}",
+            )
             assertEquals(0, root.componentCount)
         } finally {
             owner.dispose()
@@ -430,7 +528,7 @@ class ParentDeclarationTest {
 
     private fun resolvedDeclaration(
         data: Any?,
-        protocol: ParentProtocol?,
+        protocol: ParentProtocol<*>?,
         elements: List<ParentLayoutElement>,
     ): ResolvedParentDeclarations = resolveParentDeclarations(
         buildList {
@@ -441,7 +539,7 @@ class ParentDeclarationTest {
 
     private data class TestParentData(
         val data: Any?,
-        override val parentProtocol: ParentProtocol,
+        override val parentProtocol: ParentProtocol<*>,
     ) : ParentDataModifier {
         override fun modifyParentData(parentData: Any?): Any? = data
     }
@@ -474,7 +572,7 @@ internal class RecordingLayoutNodeElement(
     override val key: Any = value,
     private val onAttach: (RecordingLayoutNode) -> Unit = {},
 ) : ParentLayoutNodeElement<RecordingLayoutNode>() {
-    override val parentProtocol: ParentProtocol get() = TestMeasurementParentProtocol
+    override val parentProtocol: ParentProtocol<*> get() = TestMeasurementParentProtocol
 
     override fun create(): RecordingLayoutNode {
         events += "create($value)"
@@ -494,7 +592,7 @@ internal class RecordingLayoutNode(
     private val events: MutableList<String>,
     private val onAttachHook: (RecordingLayoutNode) -> Unit,
 ) : ParentLayoutNode() {
-    override val parentProtocol: ParentProtocol get() = TestMeasurementParentProtocol
+    override val parentProtocol: ParentProtocol<*> get() = TestMeasurementParentProtocol
 
     override fun onAttach() {
         events += "onAttach"
@@ -516,7 +614,7 @@ internal class ChainLayoutNodeElement(
     private val chain: MutableList<SwingModifier.Node>,
     private val sightings: MutableList<String>,
 ) : ParentLayoutNodeElement<ChainLayoutNode>() {
-    override val parentProtocol: ParentProtocol get() = TestMeasurementParentProtocol
+    override val parentProtocol: ParentProtocol<*> get() = TestMeasurementParentProtocol
 
     /** Keyed by label, so two declared together hold two slots. */
     override val key: Any get() = label
@@ -535,7 +633,7 @@ internal class ChainLayoutNode(
     private val chain: List<SwingModifier.Node>,
     private val sightings: MutableList<String>,
 ) : ParentLayoutNode() {
-    override val parentProtocol: ParentProtocol get() = TestMeasurementParentProtocol
+    override val parentProtocol: ParentProtocol<*> get() = TestMeasurementParentProtocol
 
     override fun onAttach() = sight("onAttach")
 
@@ -552,7 +650,7 @@ internal class ChainLayoutNode(
 private data object AnyHostLayoutNodeElement : ParentLayoutNodeElement<AnyHostLayoutNode>() {
     override val name: String get() = "anyHostLayout"
 
-    override val parentProtocol: ParentProtocol = parentProtocolOf("any host") { true }
+    override val parentProtocol: ParentProtocol<*> = parentProtocolOf<Container>("any host") { true }
 
     override fun create(): AnyHostLayoutNode = AnyHostLayoutNode()
 
@@ -560,20 +658,31 @@ private data object AnyHostLayoutNodeElement : ParentLayoutNodeElement<AnyHostLa
 }
 
 private class AnyHostLayoutNode : ParentLayoutNode() {
-    override val parentProtocol: ParentProtocol get() = AnyHostLayoutNodeElement.parentProtocol
+    override val parentProtocol: ParentProtocol<*> get() = AnyHostLayoutNodeElement.parentProtocol
 }
 
 internal data class TestParentLayoutElement(
     override val name: String,
 ) : ParentLayoutElement {
-    override val parentProtocol: ParentProtocol get() = TestMeasurementParentProtocol
+    override val parentProtocol: ParentProtocol<*> get() = TestMeasurementParentProtocol
 
     override val key: Any get() = name
 }
 
 internal val TestMeasurementParentProtocol = MeasurementLayoutManager.parentProtocol("test measurement parent")
 
-private data object BorderOnlyParentData : ParentProtocol {
+/** A custom protocol for scroll panes whose `accepts` answers true for every parent, whatever its class. */
+private data object AcceptsEveryParentAsAScrollPane : ParentProtocol<JScrollPane> {
+    override val hostType: Class<JScrollPane> = JScrollPane::class.java
+
+    override val description: String = "a scroll pane that accepts every parent"
+
+    override fun accepts(parent: Container): Boolean = true
+}
+
+private data object BorderOnlyParentData : ParentProtocol<Container> {
+    override val hostType: Class<Container> get() = Container::class.java
+
     override val description: String get() = "BorderLayout parent data"
 
     override fun accepts(parent: Container): Boolean = parent.layout is BorderLayout

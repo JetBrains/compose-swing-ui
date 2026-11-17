@@ -5,6 +5,7 @@ import org.jetbrains.compose.swing.core.SwingCompositionDiagnostics
 import org.jetbrains.compose.swing.layout.ChildPlacement
 import org.jetbrains.compose.swing.layout.SlotAttachment
 import org.jetbrains.compose.swing.modifier.layout.RawParentProtocol
+import java.awt.Container
 import javax.swing.JLabel
 import javax.swing.JPanel
 import kotlin.test.Test
@@ -18,7 +19,7 @@ import kotlin.test.assertTrue
  * `checkChildIndexSpace()` directly on its outermost holder, standing in for the applier's own root.
  */
 class ChildIndexSpaceCheckTest {
-    private val attachment = SlotAttachment { _, _, _ -> {} }
+    private val attachment = SlotAttachment<Container> { _, _, _ -> {} }
 
     /** Attaches [child] as [host]'s only real, composed child: on both its children list and its Swing container. */
     private fun attachIndexed(
@@ -125,7 +126,11 @@ class ChildIndexSpaceCheckTest {
 
     @Test
     fun aHostWithContentRefusesASecondUnnamedChild() {
-        val root = CreatedNodeHolder(JPanel()).apply { childPlacement = ChildPlacement.Slots(content = attachment) }
+        val root =
+            CreatedNodeHolder(JPanel()).apply {
+                childPlacement =
+                    ChildPlacement.Slots.withContent(content = attachment)
+            }
         for (text in listOf("1", "2")) {
             root.children += CreatedNodeHolder(JLabel(text)).apply { installation = Installation.Region(null) {} }
         }

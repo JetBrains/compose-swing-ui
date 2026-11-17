@@ -107,7 +107,7 @@ public inline fun <reified T : Component> SwingNode(
     modifier: SwingModifier = SwingModifier,
     crossinline update: @DisallowComposableCalls SwingNodeUpdater<T>.() -> Unit = {},
     noinline onRelease: (T.() -> Unit)? = null,
-    childPlacement: ChildPlacement = ChildPlacement.Indexed,
+    childPlacement: ChildPlacement<T> = ChildPlacement.Indexed,
 )
 ```
 
@@ -123,7 +123,7 @@ public inline fun <reified T : Component> SwingNode(
     modifier: SwingModifier = SwingModifier,
     crossinline update: @DisallowComposableCalls SwingNodeUpdater<T>.() -> Unit = {},
     noinline onRelease: (T.() -> Unit)? = null,
-    childPlacement: ChildPlacement = ChildPlacement.Indexed,
+    childPlacement: ChildPlacement<T> = ChildPlacement.Indexed,
     crossinline content: @Composable @SwingComposable () -> Unit,
 )
 ```
@@ -132,11 +132,11 @@ public inline fun <reified T : Component> SwingNode(
 
 `childPlacement` says how the component holds the children `content` emits. The default, `ChildPlacement.Indexed`, adds them to the container by index and lets its layout manager place them. A component that instead shows one child per region of its own - a `JScrollPane`'s row header, column header and corners, reached through `setRowHeaderView` and friends rather than through `Container.add` - declares `ChildPlacement.Slots("SwingModifier.rowHeader()", ...)`; one that holds any number of them in order, as a `JTabbedPane` holds pages, declares `ChildPlacement.OrderedSlots("SwingModifier.tab(title)")`. Each name is the call that fills the region, written exactly as a caller of your container writes it, because a refusal prints those names and a caller acts on them by typing them. Under either placement every child names the region it fills, through `SwingModifier.slot(parentProtocol, name, attachment)` - and a child that names none, or one that names a region of a container that has none, is refused as it arrives, naming the component and the calls that would place it.
 
-`ChildPlacement.Slots` can also declare a main child that needs no name, the way `JLayer` holds its view: `ChildPlacement.Slots("GlassPane { }", content = viewAttachment)`, where `viewAttachment` is a `SlotAttachment` of your own. A `SlotAttachment` passed as `content` installs the one created child that names no region, and the host shows at most one such child; a second one, or a component claimed with `ExistingSwingNode` that names no region, is refused. Without `content`, a child naming no region is refused. A `Slots` declaration names at least one region or declares `content`. Declare the attachment once, as a `val`, since it is compared by identity.
+`ChildPlacement.Slots` can also declare a main child that needs no name, the way `JLayer` holds its view: `ChildPlacement.Slots.withContent("GlassPane { }", content = viewAttachment)`, where `viewAttachment` is a `SlotAttachment<JLayer<Component>>` of your own, typed by the host it installs into. `withContent` keeps that host type in the result, so a node whose component is not a `JLayer` cannot declare it, and the attachment receives the host typed. A `SlotAttachment` passed as `content` installs the one created child that names no region, and the host shows at most one such child; a second one, or a component claimed with `ExistingSwingNode` that names no region, is refused. Without `content`, a child naming no region is refused. A `Slots` declaration names at least one region or declares `content` through `withContent`. Declare the attachment once, as a `val`, since it is compared by identity.
 
 ### Writing a `SlotAttachment`
 
-A `SlotAttachment` installs one child into one region and returns the action that removes it again. It takes the host container, the child, and the child's position among the host's slot children - `0` for a region holding a single child. Give the caller a modifier builder per region rather than the region's name, so the name stays yours to change:
+A `SlotAttachment` installs one child into one region and returns the action that removes it again. It takes the host, typed as the `ParentProtocol` passed to `slot` declares it, the child, and the child's position among the host's slot children - `0` for a region holding a single child. Give the caller a modifier builder per region rather than the region's name, so the name stays yours to change:
 
 <!--- INCLUDE .*custom-01.*
 import androidx.compose.runtime.Composable
@@ -160,10 +160,10 @@ public class BannerPanel : JPanel(BorderLayout())
 private const val HEADER_REGION: String = "SwingModifier.header()"
 private const val BODY_REGION: String = "SwingModifier.body()"
 
-private val BannerProtocol: ParentProtocol = parentProtocolOf("BannerPanel slot") { it is BannerPanel }
+private val BannerProtocol: ParentProtocol<BannerPanel> = parentProtocolOf("BannerPanel slot")
 
 private fun edgeAttachment(edge: String) =
-    SlotAttachment { host, component, _ ->
+    SlotAttachment<BannerPanel> { host, component, _ ->
         host.add(component, edge)
         return@SlotAttachment { host.remove(component) }
     }
@@ -193,11 +193,11 @@ public fun Banner(
 
 <!--- KNIT example-custom-01.kt -->
 
-The uninstall action must remove the child **by identity** - the positions of a host's children shift as siblings come and go, so an index captured at install time can name another child by the time uninstall runs. The `ParentProtocol` passed to `slot` names the containers the region belongs to: a component declaring your region under any other container is refused before your attachment runs, with a message naming the region and the protocol's `description`. See [Parent data and layout modifiers](CUSTOM-CONTAINERS.md#parent-data-and-layout-modifiers) for protocols.
+The uninstall action must remove the child **by identity** - the positions of a host's children shift as siblings come and go, so an index captured at install time can name another child by the time uninstall runs. The `ParentProtocol` passed to `slot` names the containers the region belongs to: a component declaring your region under any other container is refused before your attachment runs, with a message naming the region and the protocol's `description` and telling the caller to declare it on a direct child of the host type. The attachment receives the host already of that type, so it needs no cast. See [Parent data and layout modifiers](CUSTOM-CONTAINERS.md#parent-data-and-layout-modifiers) for protocols.
 
 Uninstall is also where a region gives back the space it took. `setRowHeaderView(null)` on a scroll pane leaves an empty header viewport still claiming layout space, so the library's own row-header attachment clears the whole header instead - `if (pane.rowHeader?.view === component) pane.setRowHeader(null)`, identity-checked so a child already replaced by another does not clear the new one.
 
-A `SlotAttachment` also places a nested composition's top-level component: pass it to `OnDemandComposition(parent, host, placement) { ... }`. It installs the component into `host` and returns the action that takes it out. See [Hosting nested compositions](CUSTOM-CONTAINERS.md#hosting-nested-compositions).
+A `SlotAttachment` also places a nested composition's top-level component: pass it to `OnDemandComposition(parent, host, placement) { ... }`, where `placement` is a `SlotAttachment` of the host's own type. It installs the component into `host` and returns the action that takes it out. See [Hosting nested compositions](CUSTOM-CONTAINERS.md#hosting-nested-compositions).
 
 ### `@SwingComposable`: keeping Swing and `compose.ui` apart
 

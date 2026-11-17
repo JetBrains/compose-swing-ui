@@ -10,6 +10,7 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyDeclaredModifier
 import org.jetbrains.compose.swing.modifier.applyModifierDiff
 import org.jetbrains.compose.swing.modifier.visitDeclaredNodes
+import java.awt.Container
 import javax.swing.JButton
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -364,7 +365,7 @@ private fun SwingNodeHolder<*>.layoutNodes(): List<ParentLayoutNode> =
 
 /** Inheritable parent data for a parent no component stands under. */
 private data object RefusedInheritableParentData : ParentDataModifier {
-    override val parentProtocol: ParentProtocol = parentProtocolOf("refusing parent") { false }
+    override val parentProtocol: ParentProtocol<*> = parentProtocolOf<Container>("refusing parent") { false }
 
     override val inheritable: Boolean get() = true
 
@@ -375,7 +376,7 @@ private data object RefusedInheritableParentData : ParentDataModifier {
 private data class InheritableByInstanceElement(
     override val inheritable: Boolean,
 ) : ParentLayoutNodeElement<RecordingLayoutNode>() {
-    override val parentProtocol: ParentProtocol get() = TestMeasurementParentProtocol
+    override val parentProtocol: ParentProtocol<*> get() = TestMeasurementParentProtocol
 
     override fun create(): RecordingLayoutNode = RecordingLayoutNode(mutableListOf()) {}
 
@@ -386,7 +387,7 @@ private data class InheritableByInstanceElement(
 private data class AdditiveByInstanceElement(
     override val additive: Boolean,
 ) : ParentLayoutNodeElement<InheritableLayoutNode>() {
-    override val parentProtocol: ParentProtocol get() = TestMeasurementParentProtocol
+    override val parentProtocol: ParentProtocol<*> get() = TestMeasurementParentProtocol
 
     override val inheritable: Boolean get() = true
 
@@ -396,7 +397,7 @@ private data class AdditiveByInstanceElement(
 }
 
 private class InheritableLayoutNode : ParentLayoutNode() {
-    override val parentProtocol: ParentProtocol get() = TestMeasurementParentProtocol
+    override val parentProtocol: ParentProtocol<*> get() = TestMeasurementParentProtocol
 
     override val inheritable: Boolean get() = true
 }
@@ -406,7 +407,7 @@ private class ValueLayoutNodeElement(
     private val value: String,
     private val events: MutableList<String>,
 ) : ParentLayoutNodeElement<RecordingLayoutNode>() {
-    override val parentProtocol: ParentProtocol get() = TestMeasurementParentProtocol
+    override val parentProtocol: ParentProtocol<*> get() = TestMeasurementParentProtocol
 
     override fun create(): RecordingLayoutNode {
         events += "create($value)"
@@ -429,7 +430,7 @@ private class FailingUpdateOnceLayoutNodeElement(
 ) : ParentLayoutNodeElement<RecordingLayoutNode>() {
     private var failed = false
 
-    override val parentProtocol: ParentProtocol get() = TestMeasurementParentProtocol
+    override val parentProtocol: ParentProtocol<*> get() = TestMeasurementParentProtocol
 
     override fun create(): RecordingLayoutNode {
         events += "create(failing once)"
@@ -451,7 +452,7 @@ private class FailingUpdateOnceLayoutNodeElement(
 
 /** A layout node element whose node cannot be created. */
 private object FailingLayoutNodeElement : ParentLayoutNodeElement<RecordingLayoutNode>() {
-    override val parentProtocol: ParentProtocol get() = TestMeasurementParentProtocol
+    override val parentProtocol: ParentProtocol<*> get() = TestMeasurementParentProtocol
 
     override fun create(): RecordingLayoutNode = error("create() fails")
 
@@ -468,7 +469,7 @@ private class FailingOnceLayoutNodeElement(
 ) : ParentLayoutNodeElement<RecordingLayoutNode>() {
     private var failed = false
 
-    override val parentProtocol: ParentProtocol get() = TestMeasurementParentProtocol
+    override val parentProtocol: ParentProtocol<*> get() = TestMeasurementParentProtocol
 
     override fun create(): RecordingLayoutNode {
         if (!failed) {
@@ -492,7 +493,7 @@ private class FailingOnceLayoutNodeElement(
 private class FailingUpdateLayoutNodeElement(
     private val events: MutableList<String>,
 ) : ParentLayoutNodeElement<RecordingLayoutNode>() {
-    override val parentProtocol: ParentProtocol get() = TestMeasurementParentProtocol
+    override val parentProtocol: ParentProtocol<*> get() = TestMeasurementParentProtocol
 
     override fun create(): RecordingLayoutNode {
         events += "create(failing)"

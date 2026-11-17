@@ -1,11 +1,3 @@
-public final class org/jetbrains/compose/swing/OnDemandComposition : kotlinx/coroutines/DisposableHandle {
-	public static final field $stable I
-	public fun <init> (Landroidx/compose/runtime/CompositionContext;Ljava/awt/Container;Lorg/jetbrains/compose/swing/layout/SlotAttachment;Lkotlin/jvm/functions/Function2;)V
-	public fun <init> (Landroidx/compose/runtime/CompositionContext;Lkotlin/jvm/functions/Function2;)V
-	public fun dispose ()V
-	public final fun recompose (Lkotlin/jvm/functions/Function0;)Ljava/awt/Component;
-}
-
 public final class org/jetbrains/compose/swing/SetContentKt {
 	public static final fun setContent (Ljava/awt/Window;Lkotlin/jvm/functions/Function2;)Lkotlinx/coroutines/DisposableHandle;
 	public static final fun setContent (Ljavax/swing/JComponent;Landroidx/compose/runtime/CompositionContext;Lkotlin/jvm/functions/Function2;)Lkotlinx/coroutines/DisposableHandle;
@@ -763,7 +755,8 @@ public final class org/jetbrains/compose/swing/components/text/TextComponentsKt 
 	public static final fun rememberFormattedValueState (Ljava/lang/Object;Landroidx/compose/runtime/Composer;II)Lorg/jetbrains/compose/swing/components/text/FormattedValueState;
 }
 
-public final class org/jetbrains/compose/swing/core/ComponentRecomposerKt {
+public final class org/jetbrains/compose/swing/core/CoreKt {
+	public static final fun OnDemandComposition (Landroidx/compose/runtime/CompositionContext;Ljava/awt/Container;Lorg/jetbrains/compose/swing/layout/SlotAttachment;Lkotlin/jvm/functions/Function2;)Lorg/jetbrains/compose/swing/core/OnDemandComposition;
 	public static final fun findRecomposer (Ljava/awt/Component;)Landroidx/compose/runtime/Recomposer;
 }
 
@@ -799,7 +792,15 @@ public final class org/jetbrains/compose/swing/core/MotionDurationScale$DefaultI
 public final class org/jetbrains/compose/swing/core/MotionDurationScale$Key : kotlin/coroutines/CoroutineContext$Key {
 }
 
-public abstract interface class org/jetbrains/compose/swing/layout/ChildPlacement {
+public final class org/jetbrains/compose/swing/core/OnDemandComposition : kotlinx/coroutines/DisposableHandle {
+	public static final field $stable I
+	public fun <init> (Landroidx/compose/runtime/CompositionContext;Lkotlin/jvm/functions/Function2;)V
+	public fun dispose ()V
+	public final fun recompose (Lkotlin/jvm/functions/Function0;)Ljava/awt/Component;
+}
+
+public abstract class org/jetbrains/compose/swing/layout/ChildPlacement {
+	public static final field $stable I
 }
 
 public final class org/jetbrains/compose/swing/layout/ChildPlacement$Indexed : org/jetbrains/compose/swing/layout/ChildPlacement {
@@ -821,15 +822,17 @@ public final class org/jetbrains/compose/swing/layout/ChildPlacement$OrderedSlot
 
 public final class org/jetbrains/compose/swing/layout/ChildPlacement$Slots : org/jetbrains/compose/swing/layout/ChildPlacement {
 	public static final field $stable I
-	public fun <init> (Ljava/util/List;Lorg/jetbrains/compose/swing/layout/SlotAttachment;)V
-	public synthetic fun <init> (Ljava/util/List;Lorg/jetbrains/compose/swing/layout/SlotAttachment;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public fun <init> ([Ljava/lang/String;Lorg/jetbrains/compose/swing/layout/SlotAttachment;)V
-	public synthetic fun <init> ([Ljava/lang/String;Lorg/jetbrains/compose/swing/layout/SlotAttachment;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public static final field Companion Lorg/jetbrains/compose/swing/layout/ChildPlacement$Slots$Companion;
 	public fun equals (Ljava/lang/Object;)Z
-	public final fun getContent ()Lorg/jetbrains/compose/swing/layout/SlotAttachment;
 	public final fun getNames ()Ljava/util/List;
 	public fun hashCode ()I
+	public synthetic fun installContent$org_jetbrains_compose_swing_swing_ui (Ljava/awt/Component;Ljava/awt/Component;I)Lkotlin/jvm/functions/Function0;
 	public fun toString ()Ljava/lang/String;
+}
+
+public final class org/jetbrains/compose/swing/layout/ChildPlacement$Slots$Companion {
+	public final fun invoke ([Ljava/lang/String;)Lorg/jetbrains/compose/swing/layout/ChildPlacement$Slots;
+	public final fun withContent ([Ljava/lang/String;Lorg/jetbrains/compose/swing/layout/SlotAttachment;)Lorg/jetbrains/compose/swing/layout/ChildPlacement$Slots;
 }
 
 public abstract interface annotation class org/jetbrains/compose/swing/layout/LayoutScopeMarker : java/lang/annotation/Annotation {
@@ -876,10 +879,11 @@ public abstract class org/jetbrains/compose/swing/layout/ParentLayoutNodeElement
 public abstract interface class org/jetbrains/compose/swing/layout/ParentProtocol {
 	public abstract fun accepts (Ljava/awt/Container;)Z
 	public abstract fun getDescription ()Ljava/lang/String;
+	public abstract fun getHostType ()Ljava/lang/Class;
 }
 
 public final class org/jetbrains/compose/swing/layout/ParentProtocolKt {
-	public static final fun parentProtocolOf (Ljava/lang/String;Lkotlin/jvm/functions/Function1;)Lorg/jetbrains/compose/swing/layout/ParentProtocol;
+	public static final fun parentProtocolOf (Ljava/lang/Class;Ljava/lang/String;Lkotlin/jvm/functions/Function1;)Lorg/jetbrains/compose/swing/layout/ParentProtocol;
 }
 
 public abstract interface class org/jetbrains/compose/swing/layout/ParentSlotElement : org/jetbrains/compose/swing/layout/ParentElement {

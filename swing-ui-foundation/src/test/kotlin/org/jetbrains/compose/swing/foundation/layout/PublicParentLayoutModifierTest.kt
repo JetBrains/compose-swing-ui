@@ -338,7 +338,7 @@ class PublicParentLayoutModifierTest {
 
     private data class AppendParentData(
         private val value: String,
-        override val parentProtocol: ParentProtocol,
+        override val parentProtocol: ParentProtocol<*>,
     ) : ParentDataModifier {
         override val key: Any get() = value
 
@@ -350,7 +350,7 @@ class PublicParentLayoutModifierTest {
     }
 
     private data class StackParentData(
-        override val parentProtocol: ParentProtocol,
+        override val parentProtocol: ParentProtocol<*>,
     ) : ParentDataModifier {
         override val name: String get() = "stackParentData"
 

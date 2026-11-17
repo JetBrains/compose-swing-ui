@@ -25,7 +25,10 @@ tasks.withType<Detekt>().configureEach {
 
 kotlin {
     explicitApi()
-    compilerOptions.optIn.add("org.jetbrains.compose.swing.animation.ExperimentalAnimationApi")
+    compilerOptions.optIn.addAll(
+        "org.jetbrains.compose.swing.animation.ExperimentalAnimationApi",
+        "org.jetbrains.compose.swing.annotations.SwingComponentLibraryApi",
+    )
 
     @OptIn(ExperimentalAbiValidation::class)
     abiValidation {}
@@ -74,7 +77,6 @@ tasks.named<KotlinCompile>("compileTestKotlin") {
         "org.jetbrains.compose.swing.animation.core.ExperimentalTransitionApi",
         "org.jetbrains.compose.swing.animation.core.ExperimentalAnimationSpecApi",
         "org.jetbrains.compose.swing.animation.core.InternalAnimationApi",
-        "org.jetbrains.compose.swing.annotations.SwingComponentLibraryApi",
     )
 }
 

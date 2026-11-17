@@ -349,11 +349,11 @@ class CompositionLocalConsumerModifierNodeTest {
 private class StaticReadingLayoutNode :
     ParentLayoutNode(),
     CompositionLocalConsumerModifierNode {
-    override val parentProtocol: ParentProtocol get() = TestMeasurementParentProtocol
+    override val parentProtocol: ParentProtocol<*> get() = TestMeasurementParentProtocol
 }
 
 private object StaticReadingLayoutElement : ParentLayoutNodeElement<StaticReadingLayoutNode>() {
-    override val parentProtocol: ParentProtocol get() = TestMeasurementParentProtocol
+    override val parentProtocol: ParentProtocol<*> get() = TestMeasurementParentProtocol
 
     override fun create(): StaticReadingLayoutNode = StaticReadingLayoutNode()
 

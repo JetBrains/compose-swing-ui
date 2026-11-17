@@ -1,5 +1,5 @@
 // Copyright 2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
-package org.jetbrains.compose.swing
+package org.jetbrains.compose.swing.core
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionContext
@@ -9,6 +9,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCompositionContext
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.annotations.SwingComposable
+import org.jetbrains.compose.swing.assertAskedForLayout
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.layout.SlotAttachment
@@ -23,8 +24,10 @@ import org.jetbrains.compose.swing.node.Framed
 import org.jetbrains.compose.swing.node.FramedHeader
 import org.jetbrains.compose.swing.node.FramedPanel
 import org.jetbrains.compose.swing.node.FramedProtocol
+import org.jetbrains.compose.swing.node.TitledPanel
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.jetbrains.compose.swing.withRecordedRepaints
 import org.junit.jupiter.api.DynamicTest
 import org.junit.jupiter.api.DynamicTest.dynamicTest
 import org.junit.jupiter.api.TestFactory
@@ -68,6 +71,26 @@ class OnDemandCompositionPlacementTest {
         } finally {
             composition.dispose()
         }
+    }
+
+    @Test
+    fun aPlacementTypedByTheHostReceivesTheHostWithoutACast() = runComposeSwingTest {
+        lateinit var parentContext: CompositionContext
+        setContent { parentContext = rememberCompositionContext() }
+
+        val host = TitledPanel()
+        val placement =
+            SlotAttachment<TitledPanel> { panel, component, _ ->
+                panel.body = component
+                return@SlotAttachment { panel.body = null }
+            }
+        val composition = OnDemandComposition(parentContext, host, placement) { Label("placed") }
+        try {
+            assertSame(composition.recompose {}, host.body, "the typed placement installed the component as the body")
+        } finally {
+            composition.dispose()
+        }
+        assertNull(host.body, "disposal runs the action the typed placement returned")
     }
 
     @Test
@@ -249,7 +272,7 @@ class OnDemandCompositionPlacementTest {
             dynamicTest(pass.name) {
                 runComposeSwingTest {
                     val host = JPanel()
-                    val tabsOnly = parentProtocolOf("tabs only") { it is JTabbedPane }
+                    val tabsOnly = parentProtocolOf<Container>("tabs only") { it is JTabbedPane }
                     var composition: OnDemandComposition? = null
                     lateinit var parentContext: CompositionContext
                     setContent { parentContext = rememberCompositionContext() }
@@ -294,7 +317,7 @@ class OnDemandCompositionPlacementTest {
                     val released = twice.failures()
                     val toThrow = released.toMutableList()
                     val placement =
-                        SlotAttachment { _, component, _ ->
+                        SlotAttachment<Container> { _, component, _ ->
                             host.add(component)
                             (
                                 {
@@ -328,7 +351,7 @@ class OnDemandCompositionPlacementTest {
                     val host = JPanel()
                     val failure = TestFailure()
                     val placement =
-                        SlotAttachment { _, component, _ ->
+                        SlotAttachment<Container> { _, component, _ ->
                             if (component is JButton) throw failure
                             host.add(component)
                             (
@@ -389,7 +412,7 @@ class OnDemandCompositionPlacementTest {
         val unrelated = JLabel("unrelated")
         host.add(unrelated)
         val placement =
-            SlotAttachment { _, component, _ ->
+            SlotAttachment<Container> { _, component, _ ->
                 host.add(component)
                 (
                     {
@@ -412,7 +435,7 @@ class OnDemandCompositionPlacementTest {
 
         val host = JPanel()
         val placement =
-            SlotAttachment { _, component, _ ->
+            SlotAttachment<Container> { _, component, _ ->
                 host.add(component)
                 ({ host.remove(host.getComponentZOrder(component)) })
             }
@@ -475,7 +498,7 @@ class OnDemandCompositionPlacementTest {
 private suspend fun ComposeSwingTest.failureOf(
     pass: Pass,
     host: Container,
-    placement: SlotAttachment,
+    placement: SlotAttachment<Container>,
     content:
         @Composable @SwingComposable
         (failing: Boolean) -> Unit,
@@ -528,9 +551,9 @@ private suspend fun ComposeSwingTest.failureOf(
 /** A failure thrown by the test's own placement or content. */
 private class TestFailure : RuntimeException()
 
-private val AnyContainer = parentProtocolOf("any container") { true }
+private val AnyContainer = parentProtocolOf<Container>("any container") { true }
 
-private val NoRegion = SlotAttachment { _, _, _ -> {} }
+private val NoRegion = SlotAttachment<Container> { _, _, _ -> {} }
 
 /** The failures two releases throw: one instance twice, or an instance each. */
 private enum class Twice(
@@ -545,14 +568,14 @@ private enum class Twice(
 private enum class Step(
     val passes: List<Pass>,
     val shown: (failing: Boolean) -> Boolean,
-    val placement: (host: Container) -> SlotAttachment,
+    val placement: (host: Container) -> SlotAttachment<Container>,
 ) {
-    Install(Pass.entries, { failing -> failing }, { SlotAttachment { _, _, _ -> throw TestFailure() } }),
+    Install(Pass.entries, { failing -> failing }, { SlotAttachment<Container> { _, _, _ -> throw TestFailure() } }),
     Release(
         Pass.entries - Pass.OnConstruction,
         { failing -> !failing },
         { host ->
-            SlotAttachment { _, component, _ ->
+            SlotAttachment<Container> { _, component, _ ->
                 host.add(component)
                 (
                     {
@@ -591,10 +614,10 @@ private enum class Refusal(
 /** Where a placement puts the component, and the area in the host's coordinates that leaving it frees. */
 private enum class Put(
     val area: Rectangle,
-    val placement: (host: JPanel) -> SlotAttachment,
+    val placement: (host: JPanel) -> SlotAttachment<Container>,
 ) {
     InTheHost(Rectangle(5, 6, 40, 10), { host ->
-        SlotAttachment { _, component, _ ->
+        SlotAttachment<Container> { _, component, _ ->
             component.bounds = Rectangle(5, 6, 40, 10)
             host.add(component)
             ({ host.remove(component) })
@@ -604,7 +627,7 @@ private enum class Put(
         val inner = JPanel(null)
         inner.bounds = Rectangle(10, 10, 100, 100)
         host.add(inner)
-        SlotAttachment { _, component, _ ->
+        SlotAttachment<Container> { _, component, _ ->
             component.bounds = Rectangle(5, 6, 40, 10)
             inner.add(component)
             ({ inner.remove(component) })
@@ -613,7 +636,7 @@ private enum class Put(
     InAWrapperTheReleaseDetaches(Rectangle(15, 16, 40, 10), { host ->
         val wrapper = JPanel(null)
         wrapper.bounds = Rectangle(10, 10, 100, 100)
-        SlotAttachment { _, component, _ ->
+        SlotAttachment<Container> { _, component, _ ->
             component.bounds = Rectangle(5, 6, 40, 10)
             wrapper.add(component)
             host.add(wrapper)

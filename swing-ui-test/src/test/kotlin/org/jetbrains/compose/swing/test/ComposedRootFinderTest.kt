@@ -3,9 +3,9 @@ package org.jetbrains.compose.swing.test
 
 import androidx.compose.runtime.CompositionContext
 import androidx.compose.runtime.rememberCompositionContext
-import org.jetbrains.compose.swing.OnDemandComposition
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.menu.MenuItem
+import org.jetbrains.compose.swing.core.OnDemandComposition
 import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.window.Window
 import org.junit.jupiter.api.Assumptions.assumeFalse

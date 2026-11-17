@@ -361,8 +361,8 @@ class PaintOutsetsDeclarationTest {
 
 /** A declaration only an [OwnElementsLayout] parent reads. */
 private data object OwnElement : ParentLayoutElement {
-    override val parentProtocol: ParentProtocol =
-        parentProtocolOf("own elements parent") { it.layout is OwnElementsLayout }
+    override val parentProtocol: ParentProtocol<*> =
+        parentProtocolOf<Container>("own elements parent") { it.layout is OwnElementsLayout }
 }
 
 /**

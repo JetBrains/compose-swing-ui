@@ -7,7 +7,6 @@ import org.jetbrains.compose.swing.layout.SlotAttachment
 import org.jetbrains.compose.swing.layout.parentProtocolOf
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.layout.slot
-import org.jetbrains.compose.swing.node.wrongSlotHost
 import java.awt.Component
 import java.awt.Container
 import javax.swing.JSplitPane
@@ -69,13 +68,17 @@ internal object SplitPaneScopeImpl : SplitPaneScope {
         this.slot(SplitPaneParentProtocol, SplitSide.Second.label, SecondSideAttachment)
 }
 
-private val SplitPaneParentProtocol = parentProtocolOf("JSplitPane slot") { it is JSplitPane }
+private val SplitPaneParentProtocol = parentProtocolOf<JSplitPane>("JSplitPane slot")
 
 /**
  * The two sides a [SplitPane] holds its children on, named as the [SplitPaneScope] builders that fill
  * them, so a child refused a side is told the call that would place it.
  */
-internal val SplitPaneSides: ChildPlacement = ChildPlacement.Slots(SplitSide.First.label, SplitSide.Second.label)
+internal val SplitPaneSides: ChildPlacement<Container> =
+    ChildPlacement.Slots(
+        SplitSide.First.label,
+        SplitSide.Second.label,
+    )
 
 /**
  * Whether a side is the leading (`setLeftComponent`) or trailing (`setRightComponent`) one. The [label]
@@ -107,17 +110,6 @@ private fun JSplitPane.holdOn(
 }
 
 /**
- * The pane a side-filling child is hosted by. [SplitPaneScope.first] and [SplitPaneScope.second] install
- * through a `JSplitPane` setter, so a child carrying one under another container's host - a scroll pane's
- * `Viewport { }`, say, composed under a split pane - is refused here, naming the side's own builder and the
- * host that actually holds it, rather than failing later as a bare `ClassCastException`.
- */
-private fun splitPaneHost(
-    host: Container,
-    side: SplitSide,
-): JSplitPane = host as? JSplitPane ?: error(wrongSlotHost(host, JSplitPane::class.java, side.label))
-
-/**
  * Installs a child into [side] of the host `JSplitPane`; uninstall releases that side.
  *
  * The side is released for the child that installed it, which is what it holds unless a replacement has
@@ -125,9 +117,8 @@ private fun splitPaneHost(
  * first, and the child arriving is the one the pane keeps. Whether a side ends the pass holding what one
  * child declared is answered once the pass has settled, by the [ChildPlacement.Slots] the pane declares.
  */
-private fun splitSideAttachment(side: SplitSide): SlotAttachment =
-    SlotAttachment { host, component, _ ->
-        val pane = splitPaneHost(host, side)
+private fun splitSideAttachment(side: SplitSide): SlotAttachment<JSplitPane> =
+    SlotAttachment { pane, component, _ ->
         pane.holdOn(side, component)
         return@SlotAttachment {
             if (pane.componentOn(side) === component) pane.holdOn(side, null)
@@ -135,7 +126,7 @@ private fun splitSideAttachment(side: SplitSide): SlotAttachment =
     }
 
 /** The attachment installing a child into the leading side; it captures nothing, so one serves every pane. */
-private val FirstSideAttachment: SlotAttachment = splitSideAttachment(SplitSide.First)
+private val FirstSideAttachment: SlotAttachment<JSplitPane> = splitSideAttachment(SplitSide.First)
 
 /** The attachment installing a child into the trailing side; it captures nothing, so one serves every pane. */
-private val SecondSideAttachment: SlotAttachment = splitSideAttachment(SplitSide.Second)
+private val SecondSideAttachment: SlotAttachment<JSplitPane> = splitSideAttachment(SplitSide.Second)

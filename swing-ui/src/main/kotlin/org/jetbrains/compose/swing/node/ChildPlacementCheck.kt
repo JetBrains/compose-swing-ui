@@ -4,7 +4,6 @@ package org.jetbrains.compose.swing.node
 import org.jetbrains.compose.swing.layout.ChildPlacement
 import org.jetbrains.compose.swing.layout.MeasurementLayoutManager
 import org.jetbrains.compose.swing.layout.ParentLayoutElement
-import org.jetbrains.compose.swing.layout.SlotAttachment
 import org.jetbrains.compose.swing.util.fastFirstOrNull
 import org.jetbrains.compose.swing.util.fastForEachIndexed
 import java.awt.Component
@@ -12,7 +11,7 @@ import java.awt.Container
 import java.lang.reflect.Modifier
 
 /** Whether a node declaring this placement holds its children in named regions rather than by index. */
-internal val ChildPlacement.holdsRegions: Boolean
+internal val ChildPlacement<*>.holdsRegions: Boolean
     get() = this != ChildPlacement.Indexed
 
 /**
@@ -23,7 +22,7 @@ internal val ChildPlacement.holdsRegions: Boolean
 internal fun fillsRegion(
     host: SwingNodeHolder<*>,
     child: SwingNodeHolder<*>,
-): Boolean = child.declaredSlot != null || host.childPlacement.contentAttachment != null
+): Boolean = child.declaredSlot != null || host.childPlacement.hasContent
 
 /**
  * Holds a child arriving at this host to the placement the host declares, to the constraint the host's
@@ -166,46 +165,24 @@ private fun contentFilledTwice(
         "${first.declaredName} and a ${second.declaredName}. Keep one, or wrap several in a container of " +
         "their own."
 
-/** The attachment a host with this placement installs its children naming no region through, if any. */
-internal val ChildPlacement.contentAttachment: SlotAttachment?
-    get() =
-        when (this) {
-            is ChildPlacement.Slots -> content
-            ChildPlacement.Indexed, is ChildPlacement.OrderedSlots -> null
-        }
-
 /** [request] followed by the calls that name this placement's regions, which it must have. */
-internal fun ChildPlacement.throughRegionCalls(request: String): String {
+internal fun ChildPlacement<*>.throughRegionCalls(request: String): String {
     val calls = regionNames
     return "$request through ${if (calls.size == 1) calls.single() else "one of: ${calls.joinToString()}"}."
 }
 
 /** The regions a host with this placement offers, as the calls that name them. */
-internal val ChildPlacement.regionNames: List<String>
+internal val ChildPlacement<*>.regionNames: List<String>
     get() =
         when (this) {
             ChildPlacement.Indexed -> emptyList()
-            is ChildPlacement.Slots -> names
+            is ChildPlacement.Slots<*> -> names
             is ChildPlacement.OrderedSlots -> listOf(name)
         }
 
 /** The region this node's modifier names, as an error refers to it. */
 private fun SwingNodeHolder<*>.namedRegion(): String =
     declaredSlot?.name?.let { "the region $it" } ?: "a region of its own"
-
-/**
- * A builder that installs a child through one host type's own setter, reaching a component held by a
- * host of another type - a child carrying one scope's placement modifier composed under a different
- * container's host, such as a scroll pane's `corner()` under a split pane.
- */
-internal fun wrongSlotHost(
-    host: Container,
-    hostType: Class<*>,
-    builder: String,
-): String =
-    "$builder installs its child through a ${hostType.simpleName}'s own setter, so the component " +
-        "declaring it must be a direct child of one, but the component declaring it here is held by a " +
-        "'${host.declaredName}'."
 
 /**
  * The name an error calls this component by: the first class in its hierarchy a caller can name. The

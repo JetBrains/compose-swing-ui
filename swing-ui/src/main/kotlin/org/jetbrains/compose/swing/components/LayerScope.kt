@@ -13,7 +13,6 @@ import org.jetbrains.compose.swing.modifier.layout.slot
 import org.jetbrains.compose.swing.style.ContainerStyleScope
 import org.jetbrains.compose.swing.style.SwingStyle
 import java.awt.Component
-import java.awt.Container
 import javax.swing.JLayer
 
 /**
@@ -116,7 +115,7 @@ internal class LayerScopeImpl : LayerScope {
     ) = glassPane.GlassPane(layout, modifier.slot(LayerParentProtocol, GLASS_PANE_DECLARATION), style, content)
 }
 
-private val LayerParentProtocol = parentProtocolOf("JLayer slot") { it is JLayer<*> }
+private val LayerParentProtocol = parentProtocolOf<JLayer<*>>("JLayer slot")
 
 /**
  * Installs a child as the layer's view via `setView`, as `new JLayer(view)` holds it; uninstall clears the
@@ -126,19 +125,15 @@ private val LayerParentProtocol = parentProtocolOf("JLayer slot") { it is JLayer
  * not override `remove(int)`, so removing by index would detach the component while the layer went on
  * reporting it as its view.
  */
-private object ViewAttachment : SlotAttachment {
+private object ViewAttachment : SlotAttachment<JLayer<Component>> {
     override fun install(
-        host: Container,
+        host: JLayer<Component>,
         component: Component,
         index: Int,
     ): () -> Unit {
-        // Only a layer declares LayerRegions, and a layer erases its view type, so the cast reaches setView
-        // with the component the composition holds for the layer's view.
-        @Suppress("UNCHECKED_CAST")
-        val layer = host as JLayer<Component>
-        layer.view = component
+        host.view = component
         return {
-            if (layer.view === component) layer.view = null
+            if (host.view === component) host.view = null
         }
     }
 }
@@ -148,7 +143,11 @@ private object ViewAttachment : SlotAttachment {
  * as the composable that fills it since that is how a caller reaches it, and the view, which is the child
  * that names no region.
  */
-internal val LayerRegions: ChildPlacement = ChildPlacement.Slots(GLASS_PANE_DECLARATION, content = ViewAttachment)
+internal val LayerRegions: ChildPlacement<JLayer<Component>> =
+    ChildPlacement.Slots.withContent(
+        GLASS_PANE_DECLARATION,
+        content = ViewAttachment,
+    )
 
 /** A glass pane's declaration as a caller writes it, which an error about the pane prints. */
 internal const val GLASS_PANE_DECLARATION: String = "GlassPane { }"

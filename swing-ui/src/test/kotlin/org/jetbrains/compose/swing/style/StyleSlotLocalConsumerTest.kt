@@ -164,11 +164,11 @@ class StyleSlotLocalConsumerTest {
 private class LocalReadingLayoutNode :
     ParentLayoutNode(),
     CompositionLocalConsumerModifierNode {
-    override val parentProtocol: ParentProtocol get() = MeasuringParent
+    override val parentProtocol: ParentProtocol<*> get() = MeasuringParent
 }
 
 private object LocalReadingLayoutElement : ParentLayoutNodeElement<LocalReadingLayoutNode>() {
-    override val parentProtocol: ParentProtocol get() = MeasuringParent
+    override val parentProtocol: ParentProtocol<*> get() = MeasuringParent
 
     override fun create(): LocalReadingLayoutNode = LocalReadingLayoutNode()
 

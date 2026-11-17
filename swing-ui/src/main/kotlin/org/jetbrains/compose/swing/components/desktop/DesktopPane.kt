@@ -23,7 +23,6 @@ import org.jetbrains.compose.swing.modifier.listener.componentListener
 import org.jetbrains.compose.swing.modifier.listener.hierarchyListener
 import org.jetbrains.compose.swing.modifier.listener.propertyChangeListener
 import org.jetbrains.compose.swing.node.SwingNode
-import org.jetbrains.compose.swing.node.wrongSlotHost
 import org.jetbrains.compose.swing.style.ContainerStyleScope
 import org.jetbrains.compose.swing.style.NestedStyleProviderScope
 import org.jetbrains.compose.swing.style.SwingStyle
@@ -425,7 +424,7 @@ private inline fun FrameNode(
  */
 private const val FRAME_REGION: String = "InternalFrame(...)"
 
-private val DesktopPaneParentProtocol = parentProtocolOf("JDesktopPane slot") { it is JDesktopPane }
+private val DesktopPaneParentProtocol = parentProtocolOf<JDesktopPane>("JDesktopPane slot")
 
 /**
  * Hosts one [JInternalFrame] on the host [JDesktopPane]: adds it on install, at the position among the
@@ -441,9 +440,7 @@ private val DesktopPaneParentProtocol = parentProtocolOf("JDesktopPane slot") { 
  * leaves its icon behind.
  */
 private val InternalFrameAttachment =
-    SlotAttachment { host, component, index ->
-        val desktop =
-            host as? JDesktopPane ?: error(wrongSlotHost(host, JDesktopPane::class.java, FRAME_REGION))
+    SlotAttachment<JDesktopPane> { desktop, component, index ->
         val frame = component as JInternalFrame
         desktop.add(frame)
         desktop.setPosition(frame, index.coerceAtMost(desktop.getIndexOf(frame)))

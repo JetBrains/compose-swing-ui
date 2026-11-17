@@ -34,6 +34,7 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
 import org.junit.jupiter.params.provider.ValueSource
+import java.awt.Container
 import java.awt.GridBagConstraints
 import java.awt.GridBagLayout
 import javax.swing.JFrame
@@ -204,7 +205,7 @@ class VirtualSwingNodeDeclarationTest {
         var keyReads = 0
         val counted =
             object : ParentLayoutElement {
-                override val parentProtocol: ParentProtocol get() = MeasuringProtocol
+                override val parentProtocol: ParentProtocol<*> get() = MeasuringProtocol
                 override val key: Any
                     get() {
                         keyReads++
@@ -257,10 +258,10 @@ internal class GroupDeclarationData(
 internal object VirtualSwingNodeDeclarationCases {
     @JvmStatic
     fun parentDataReplacements(): List<Arguments> {
-        val protocol = parentProtocolOf("Q") { it is MeasuringHost }
+        val protocol = parentProtocolOf<Container>("Q") { it is MeasuringHost }
         val childReplacement: @Composable () -> Unit = {
             VirtualSwingNode(
-                SwingModifier then Data("group-P", 1, parentProtocolOf("P") { it is MeasuringHost }) then
+                SwingModifier then Data("group-P", 1, parentProtocolOf<Container>("P") { it is MeasuringHost }) then
                     Data("group-Q", 2, protocol),
             ) {
                 Label("a", SwingModifier then Data("child-Q", 1, protocol))
@@ -268,7 +269,7 @@ internal object VirtualSwingNodeDeclarationCases {
         }
         val innerReplacement: @Composable () -> Unit = {
             VirtualSwingNode(
-                SwingModifier then Data("group-P", 1, parentProtocolOf("P") { it is MeasuringHost }) then
+                SwingModifier then Data("group-P", 1, parentProtocolOf<Container>("P") { it is MeasuringHost }) then
                     Data("group-Q", 2, protocol),
             ) {
                 VirtualSwingNode(SwingModifier then Data("inner-Q", 1, protocol)) { Label("a") }

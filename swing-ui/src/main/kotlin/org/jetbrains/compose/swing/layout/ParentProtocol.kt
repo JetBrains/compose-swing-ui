@@ -1,6 +1,7 @@
 // Copyright 2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.jetbrains.compose.swing.layout
 
+import org.jetbrains.compose.swing.annotations.SwingComponentLibraryApi
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import java.awt.Container
 
@@ -16,7 +17,7 @@ public interface ParentElement :
     SwingModifier.Element,
     SwingModifier.InspectableElement {
     /** The stable protocol identity that interprets this declaration. */
-    public val parentProtocol: ParentProtocol
+    public val parentProtocol: ParentProtocol<*>
 
     /** Identifies the declaration this element replaces, unless [additive] is true. */
     public val key: Any get() = javaClass
@@ -60,15 +61,22 @@ internal fun ParentLayoutElement.requireInheritableIsNotAdditive() {
 }
 
 /** A parent declaration that installs a child through one of the host's dedicated slots. */
+@SwingComponentLibraryApi
 public interface ParentSlotElement : ParentElement
 
 /**
- * An opaque protocol identity for an immediate parent.
+ * An opaque protocol identity for an immediate parent of type [H].
  *
  * Protocols are compared by identity (`===`), not [equals]. Keep one instance per parent protocol and
  * reuse it for every declaration that belongs to it.
+ *
+ * [H] is the host type a parent must have for this protocol to interpret a declaration.
  */
-public interface ParentProtocol {
+@SwingComponentLibraryApi
+public interface ParentProtocol<H : Container> {
+    /** The host type [accepts] requires of a parent. */
+    public val hostType: Class<H>
+
     /** A readable name used when this protocol is declared under the wrong parent. */
     public val description: String
 
@@ -76,15 +84,41 @@ public interface ParentProtocol {
     public fun accepts(parent: Container): Boolean
 }
 
-/** Creates one stable [ParentProtocol] identity. */
-public fun parentProtocolOf(
+/**
+ * Creates one stable [ParentProtocol] identity for hosts of type [H].
+ *
+ * @param description a readable name used when the protocol is declared under the wrong parent.
+ * @param accepts whether an [H] parent implements the protocol; every [H] by default. A parent that is not an
+ *   [H] is refused without asking it.
+ */
+public inline fun <reified H : Container> parentProtocolOf(
     description: String,
-    accepts: (Container) -> Boolean,
-): ParentProtocol {
-    require(description.isNotEmpty()) { "A parent protocol needs a non-empty description." }
-    return object : ParentProtocol {
-        override val description: String = description
+    noinline accepts: (H) -> Boolean = { true },
+): ParentProtocol<H> = parentProtocolOf(H::class.java, description, accepts)
 
-        override fun accepts(parent: Container): Boolean = accepts(parent)
-    }
+/** The [ParentProtocol] [parentProtocolOf] creates, for hosts of [hostType]. */
+@PublishedApi
+internal fun <H : Container> parentProtocolOf(
+    hostType: Class<H>,
+    description: String,
+    accepts: (H) -> Boolean,
+): ParentProtocol<H> {
+    require(description.isNotEmpty()) { "A parent protocol needs a non-empty description." }
+    return PredicateProtocol(hostType, description, accepts)
 }
+
+/** The protocol [parentProtocolOf] creates: hosts of [hostType] that satisfy [predicate]. */
+private class PredicateProtocol<H : Container>(
+    override val hostType: Class<H>,
+    override val description: String,
+    val predicate: (H) -> Boolean,
+) : ParentProtocol<H> {
+    override fun accepts(parent: Container): Boolean = hostType.isInstance(parent) && predicate(hostType.cast(parent))
+}
+
+/**
+ * [parent] as the [H] this protocol interprets, or `null` where it refuses it: a parent that is not a [hostType], or
+ * one [accepts] refuses. The class is checked and cast once.
+ */
+internal fun <H : Container> ParentProtocol<H>.acceptedHost(parent: Container): H? =
+    if (hostType.isInstance(parent) && accepts(parent)) hostType.cast(parent) else null

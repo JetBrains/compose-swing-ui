@@ -76,11 +76,11 @@ class ModifierChainFailureTest {
         val node = ProbeNode()
         val layoutNode =
             object : ParentLayoutNode() {
-                override val parentProtocol: ParentProtocol get() = TestMeasurementParentProtocol
+                override val parentProtocol: ParentProtocol<*> get() = TestMeasurementParentProtocol
             }
         val element =
             object : ParentLayoutNodeElement<ParentLayoutNode>() {
-                override val parentProtocol: ParentProtocol get() = TestMeasurementParentProtocol
+                override val parentProtocol: ParentProtocol<*> get() = TestMeasurementParentProtocol
 
                 override fun create(): ParentLayoutNode = layoutNode
 

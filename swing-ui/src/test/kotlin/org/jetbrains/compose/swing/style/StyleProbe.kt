@@ -16,6 +16,7 @@ import org.jetbrains.compose.swing.test.interaction.SwingNodeInteraction
 import org.jetbrains.compose.swing.test.interaction.assertIsOfType
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import java.awt.Component
+import java.awt.Container
 import javax.swing.JComponent
 import javax.swing.JLabel
 import javax.swing.JPanel
@@ -132,7 +133,7 @@ internal fun ProbeLeaf(
     )
 }
 
-internal val MeasuringParent: ParentProtocol = MeasurementLayoutManager.parentProtocol("measuring parent")
+internal val MeasuringParent: ParentProtocol<Container> = MeasurementLayoutManager.parentProtocol("measuring parent")
 
 internal class ObservingElement(
     private val read: () -> Int,
@@ -173,7 +174,7 @@ internal class ObservingLayoutElement(
     private val onDetach: () -> Unit,
     private val onChange: () -> Unit,
 ) : ParentLayoutNodeElement<ObservingLayoutElement.Node>() {
-    override val parentProtocol: ParentProtocol get() = MeasuringParent
+    override val parentProtocol: ParentProtocol<*> get() = MeasuringParent
 
     override fun create(): Node = Node(read, onDetach, onChange)
 
@@ -189,7 +190,7 @@ internal class ObservingLayoutElement(
         private val onChange: () -> Unit,
     ) : ParentLayoutNode(),
         ObserverModifierNode {
-        override val parentProtocol: ParentProtocol get() = MeasuringParent
+        override val parentProtocol: ParentProtocol<*> get() = MeasuringParent
 
         override fun onAttach() = observe()
 

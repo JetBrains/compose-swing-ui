@@ -125,7 +125,7 @@ public fun ComponentStyleScope.paintOutsets(outsets: PaintOutsets) {
 private data class PaintOutsetsElement(
     val outsets: PaintOutsets,
 ) : ParentLayoutNodeElement<PaintOutsetsNode>() {
-    override val parentProtocol: ParentProtocol get() = LayoutModifierParentProtocol
+    override val parentProtocol: ParentProtocol<*> get() = LayoutModifierParentProtocol
 
     override val inheritable: Boolean get() = true
 

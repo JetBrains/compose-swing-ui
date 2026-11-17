@@ -142,13 +142,13 @@ class SwingApplierRegionTest {
     private fun slotHolder(
         component: Component,
         name: String = VIEWPORT_CALL,
-        attachment: SlotAttachment = HoldsNothing,
-    ): SwingNodeHolder<Component> = CreatedNodeHolder(component).apply {
+        attachment: SlotAttachment<Container> = HoldsNothing,
+    ): SwingNodeHolder<*> = CreatedNodeHolder(component).apply {
         applyModifierDiff(SwingModifier.slot(RawParentProtocol, name, attachment))
     }
 
     /** A `JSplitPane` holding its children on the two sides it offers, with neither side taken. */
-    private fun splitHost(pane: JSplitPane): SwingNodeHolder<Component> =
+    private fun splitHost(pane: JSplitPane): SwingNodeHolder<*> =
         CreatedNodeHolder(pane).apply { childPlacement = SplitSides }
 
     @Test
@@ -470,7 +470,7 @@ class SwingApplierRegionTest {
         val host = splitHost(pane)
         val indices = mutableListOf<Int>()
         val recording =
-            SlotAttachment { container, component, index ->
+            SlotAttachment<Container> { container, component, index ->
                 indices += index
                 SecondSideAttachment.install(container, component, index)
             }
@@ -559,7 +559,7 @@ private const val FIRST_SIDE_CALL: String = "SwingModifier.first()"
 private const val SECOND_SIDE_CALL: String = "SwingModifier.second()"
 
 /** The two sides a `JSplitPane` holds its children on, each showing a single component. */
-private val SplitSides: ChildPlacement = ChildPlacement.Slots(FIRST_SIDE_CALL, SECOND_SIDE_CALL)
+private val SplitSides: ChildPlacement<Container> = ChildPlacement.Slots(FIRST_SIDE_CALL, SECOND_SIDE_CALL)
 
 /**
  * Installs a child on the leading side of the host `JSplitPane`, and releases that side for the child
@@ -567,7 +567,7 @@ private val SplitSides: ChildPlacement = ChildPlacement.Slots(FIRST_SIDE_CALL, S
  * has already taken over is left to that sibling.
  */
 private val FirstSideAttachment =
-    SlotAttachment { host, component, _ ->
+    SlotAttachment<Container> { host, component, _ ->
         val pane = host as JSplitPane
         pane.leftComponent = component
         return@SlotAttachment { if (pane.leftComponent === component) pane.leftComponent = null }
@@ -575,11 +575,11 @@ private val FirstSideAttachment =
 
 /** Installs a child on the trailing side of the host `JSplitPane`, releasing it as [FirstSideAttachment] does. */
 private val SecondSideAttachment =
-    SlotAttachment { host, component, _ ->
+    SlotAttachment<Container> { host, component, _ ->
         val pane = host as JSplitPane
         pane.rightComponent = component
         return@SlotAttachment { if (pane.rightComponent === component) pane.rightComponent = null }
     }
 
 /** An attachment for a host of no consequence to a test: it installs nothing and releases nothing. */
-private val HoldsNothing = SlotAttachment { _, _, _ -> {} }
+private val HoldsNothing = SlotAttachment<Container> { _, _, _ -> {} }

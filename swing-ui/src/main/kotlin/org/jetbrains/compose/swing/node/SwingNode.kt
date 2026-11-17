@@ -56,7 +56,7 @@ public inline fun <reified T : Component> SwingNode(
     modifier: SwingModifier = SwingModifier,
     crossinline update: @DisallowComposableCalls SwingNodeUpdater<T>.() -> Unit = {},
     noinline onRelease: (T.() -> Unit)? = null,
-    childPlacement: ChildPlacement = ChildPlacement.Indexed,
+    childPlacement: ChildPlacement<T> = ChildPlacement.Indexed,
 ) {
     val materialized = currentComposer.materialize(modifier)
     val localMap = currentComposer.currentCompositionLocalMap
@@ -123,7 +123,7 @@ public inline fun <reified T : Component> SwingNode(
     modifier: SwingModifier = SwingModifier,
     crossinline update: @DisallowComposableCalls SwingNodeUpdater<T>.() -> Unit = {},
     noinline onRelease: (T.() -> Unit)? = null,
-    childPlacement: ChildPlacement = ChildPlacement.Indexed,
+    childPlacement: ChildPlacement<T> = ChildPlacement.Indexed,
     crossinline content:
         @Composable @SwingComposable
         () -> Unit,

@@ -97,20 +97,25 @@ internal class ChildRegions(
      * @param child the created component node to attach.
      * @param index the child's index in [SwingNodeHolder.flattenedChildren].
      */
-    fun SwingNodeHolder<*>.attachCreated(
+    fun <T : Component> SwingNodeHolder<T>.attachCreated(
         container: Container,
         child: PlacingNodeHolder<*>,
         index: Int,
     ) {
         // A child naming no region keeps the attachment its host installed it through.
-        val attachment = child.declaredSlot?.attachment ?: childPlacement.contentAttachment
-        if (attachment != null) {
+        val slot = child.declaredSlot?.takeIf { it.hasAttachment }
+        if (slot != null || childPlacement.hasContent) {
             checkNoConstraintInRegion(container, child)
             val slotIndex = slotIndexOf(container, index)
-            val received = child.declaration.checkAttachableUnder(container)
-            child.installation =
-                Installation.Region(child.declaredSlot?.name, attachment.install(container, child.component, slotIndex))
-            child.declaration.attachedUnder(container, received)
+            val checked = child.declaration.acceptedUnder(container)
+            val uninstall =
+                if (slot != null) {
+                    checkNotNull(checked.slot).install(child.component, slotIndex)
+                } else {
+                    childPlacement.installContent(component, child.component, slotIndex)
+                }
+            child.installation = Installation.Region(child.declaredSlot?.name, uninstall)
+            child.declaration.attachedUnder(container, checked.received)
             changes.recordSlotFilled(this)
             batch.markSlotChanged(container, child)
         } else {
@@ -151,7 +156,7 @@ internal class ChildRegions(
                 "was relocated under ${if (parent == newParent) "another" else "a"} $newParent, which did not " +
                 "place it. Keep the claim under the node whose component holds the part, or key it on the part there."
         }
-        check(child.declaredSlot != null || childPlacement.contentAttachment == null) {
+        check(child.declaredSlot != null || !childPlacement.hasContent) {
             val claimed = "A ${child.component.declaredName} claimed by ExistingSwingNode cannot be"
             when {
                 this === root -> {
@@ -473,7 +478,7 @@ internal class ChangeRecord {
      * [ChildPlacement.Slots] host is recorded, since it is the one held to one child per region.
      */
     fun recordSlotFilled(host: SwingNodeHolder<*>) {
-        if (host.childPlacement is ChildPlacement.Slots) filledSlotHosts += host
+        if (host.childPlacement is ChildPlacement.Slots<*>) filledSlotHosts += host
     }
 
     fun forget() {
@@ -661,7 +666,7 @@ private fun SwingNodeHolder<*>.depthOn(pane: JLayeredPane): Int =
 private fun SwingNodeHolder<*>.slotIndexOf(
     host: Container,
     index: Int,
-): Int = if (childPlacement is ChildPlacement.Slots) 0 else standingSiblingsBefore(host, index)
+): Int = if (childPlacement is ChildPlacement.Slots<*>) 0 else standingSiblingsBefore(host, index)
 
 /**
  * Records [host] as changed over the area [child]'s component covers, in [host]'s coordinates, wherever

@@ -28,6 +28,7 @@ import org.junit.jupiter.api.DynamicTest
 import org.junit.jupiter.api.TestFactory
 import java.awt.BorderLayout
 import java.awt.Component
+import java.awt.Container
 import javax.swing.JLabel
 import javax.swing.JPanel
 import javax.swing.JSeparator
@@ -154,7 +155,7 @@ class ContentRegionTest {
     fun aChildThatStopsNamingItsRegionBecomesTheContent() = runComposeSwingTest {
         var named by mutableStateOf(true)
         val footer =
-            SlotAttachment { host, component, _ ->
+            SlotAttachment<Container> { host, component, _ ->
                 host.add(component, BorderLayout.SOUTH)
                 return@SlotAttachment { host.remove(component) }
             }
@@ -207,6 +208,28 @@ class ContentRegionTest {
     }
 
     @Test
+    fun aContainerAttachmentInstallsTheContentOfAMoreSpecificHost() = runComposeSwingTest {
+        val containerContent =
+            SlotAttachment<Container> { container, component, _ ->
+                container.add(component, BorderLayout.CENTER)
+                return@SlotAttachment { container.remove(component) }
+            }
+        setContent {
+            SwingNode(
+                factory = { TitledPanel() },
+                childPlacement = ChildPlacement.Slots.withContent(content = containerContent),
+            ) {
+                Label("body")
+            }
+        }
+
+        val host = onNodeOfType<TitledPanel>().fetch()
+        onNodeWithText("body").assertProperty(true, "installed as the content") {
+            this === host.borderLayout.getLayoutComponent(BorderLayout.CENTER)
+        }
+    }
+
+    @Test
     fun aMeasuringHostReceivesTheNewDeclarationOfItsContentChild() = runComposeSwingTest {
         var wide by mutableStateOf(false)
         val layout = RecordingMeasurementLayout()
@@ -214,9 +237,9 @@ class ContentRegionTest {
             SwingNode(
                 factory = { JPanel(layout) },
                 childPlacement =
-                    ChildPlacement.Slots(
+                    ChildPlacement.Slots.withContent(
                         content =
-                            SlotAttachment { host, component, _ ->
+                            SlotAttachment<Container> { host, component, _ ->
                                 host.add(component)
                                 return@SlotAttachment { host.remove(component) }
                             },
@@ -259,7 +282,9 @@ class ContentRegionTest {
 private const val TITLE_REGION = "TitledTitle()"
 
 /** A panel with a claimed title above a body installed through a setter of its own. */
-internal class TitledPanel : JPanel(BorderLayout()) {
+internal class TitledPanel(
+    val borderLayout: BorderLayout = BorderLayout(),
+) : JPanel(borderLayout) {
     val title: JLabel = JLabel("title")
 
     var body: Component? = null
@@ -274,23 +299,22 @@ internal class TitledPanel : JPanel(BorderLayout()) {
     }
 }
 
-private val TitledProtocol: ParentProtocol = parentProtocolOf("TitledPanel slot") { it is TitledPanel }
+private val TitledProtocol: ParentProtocol<Container> = parentProtocolOf("TitledPanel slot") { it is TitledPanel }
 
 private val BodyContent =
-    SlotAttachment { host, component, _ ->
-        val panel = host as TitledPanel
+    SlotAttachment<TitledPanel> { panel, component, _ ->
         panel.body = component
         return@SlotAttachment { if (panel.body === component) panel.body = null }
     }
 
-private val TitledPlacement = ChildPlacement.Slots(TITLE_REGION, content = BodyContent)
+private val TitledPlacement = ChildPlacement.Slots.withContent(TITLE_REGION, content = BodyContent)
 
 private data object Narrow : ParentLayoutElement {
-    override val parentProtocol: ParentProtocol get() = MeasuringProtocol
+    override val parentProtocol: ParentProtocol<*> get() = MeasuringProtocol
 }
 
 private data object Wide : ParentLayoutElement {
-    override val parentProtocol: ParentProtocol get() = MeasuringProtocol
+    override val parentProtocol: ParentProtocol<*> get() = MeasuringProtocol
 }
 
 @Composable

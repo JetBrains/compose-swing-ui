@@ -227,15 +227,15 @@ class MovedSubtreeTest {
     @ParameterizedTest(name = "destination region: {0}")
     @ValueSource(strings = ["left", "right"])
     fun relocatingWithinTheSameHostRefusesANewSlotProtocol(destination: String) = runComposeSwingTest {
-        val accepted = parentProtocolOf("split pane") { it is JSplitPane }
-        val refused = parentProtocolOf("scroll pane") { it is JScrollPane }
+        val accepted = parentProtocolOf<Container>("split pane") { it is JSplitPane }
+        val refused = parentProtocolOf<Container>("scroll pane") { it is JScrollPane }
         val left = regionAttachment { host, component -> (host as JSplitPane).leftComponent = component }
         val right = regionAttachment { host, component -> (host as JSplitPane).rightComponent = component }
         var moved by mutableStateOf(false)
         setContent {
             val content =
                 remember {
-                    movableContentOf<ParentProtocol> { protocol ->
+                    movableContentOf<ParentProtocol<Container>> { protocol ->
                         SwingNode(
                             factory = { JLabel("moved") },
                             modifier =
@@ -786,10 +786,11 @@ class MovedSubtreeTest {
         }
     }
 
-    private fun regionAttachment(place: (Container, Component?) -> Unit) = SlotAttachment { host, component, _ ->
-        place(host, component)
-        return@SlotAttachment { place(host, null) }
-    }
+    private fun regionAttachment(place: (Container, Component?) -> Unit) =
+        SlotAttachment<Container> { host, component, _ ->
+            place(host, component)
+            return@SlotAttachment { place(host, null) }
+        }
 
     companion object {
         @JvmStatic

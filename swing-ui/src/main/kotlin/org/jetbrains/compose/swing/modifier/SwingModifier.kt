@@ -41,7 +41,6 @@ import org.jetbrains.compose.swing.layout.ParentLayoutNodeElement
 import org.jetbrains.compose.swing.layout.requireInheritableIsNotAdditive
 import org.jetbrains.compose.swing.modifier.layout.checkOnePlacement
 import org.jetbrains.compose.swing.node.CompositionLocalConsumerModifierNode
-import org.jetbrains.compose.swing.node.DeclaredSlot
 import org.jetbrains.compose.swing.node.SwingCompositionOwner
 import org.jetbrains.compose.swing.node.SwingNodeHolder
 import org.jetbrains.compose.swing.node.SwingNodeUpdater
@@ -1636,7 +1635,7 @@ internal fun SwingNodeUpdater<out Component>.applyModifier(modifier: SwingModifi
  *   [DeclaredNodesListener] needs; the diff reuses that record and hands the nodes over.
  * @param diffLayoutChange the layout declaration change from nodes the linear diff already updated.
  */
-internal fun SwingNodeHolder<Component>.applyModifierDiff(
+internal fun SwingNodeHolder<*>.applyModifierDiff(
     modifier: SwingModifier,
     needsDeclaredNodes: Boolean = false,
     diffLayoutChange: ModifierChanges = ModifierChanges.None,
@@ -1662,7 +1661,7 @@ internal fun SwingNodeHolder<Component>.applyModifierDiff(
     notifyDeclaredNodes(chainChanged, handedNodes)
 }
 
-private fun SwingNodeHolder<Component>.reconcileModifierChain(
+private fun SwingNodeHolder<*>.reconcileModifierChain(
     state: SwingModifierState,
     incoming: ModifierPartition,
     mode: WriteMode,
@@ -1724,7 +1723,7 @@ private fun SwingNodeHolder<Component>.reconcileModifierChain(
  * Folds [modifier] into a partition sized for the records of [state], checks its placement, and records the declared
  * slot on this holder.
  */
-private fun SwingNodeHolder<Component>.partitionModifier(
+private fun SwingNodeHolder<*>.partitionModifier(
     modifier: SwingModifier,
     state: SwingModifierState,
 ): ModifierPartition {
@@ -1758,7 +1757,7 @@ private fun SwingNodeHolder<Component>.partitionModifier(
     checkOnePlacement(slot, parentDeclarations)
     checkDeclaredPlacement(slot, parentDeclarations)
     declaration.checkParentElementsAccepted(parentDeclarations)
-    declaredSlot = slot?.let { DeclaredSlot(it.parentProtocol, it.attachment, it.regionName) }
+    declaredSlot = slot?.declared()
     return incoming
 }
 
@@ -1766,7 +1765,7 @@ private fun SwingNodeHolder<Component>.partitionModifier(
  * Updates the layout nodes of [incoming] and publishes the declaration the parent reads, even if an update throws.
  * Returns whether a node joined, left or needs handing over.
  */
-private fun SwingNodeHolder<Component>.applyLayoutNodes(
+private fun SwingNodeHolder<*>.applyLayoutNodes(
     state: SwingModifierState,
     incoming: ModifierPartition,
     marked: MarkedChain?,

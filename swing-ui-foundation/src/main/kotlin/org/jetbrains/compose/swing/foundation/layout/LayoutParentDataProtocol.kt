@@ -17,7 +17,9 @@ import java.awt.Container
  */
 public open class LayoutParentDataProtocol internal constructor(
     final override val description: String,
-) : ParentProtocol {
+) : ParentProtocol<Container> {
+    final override val hostType: Class<Container> = Container::class.java
+
     final override fun accepts(parent: Container): Boolean = parent.acceptsParentProtocol(this)
 
     /**
@@ -43,8 +45,10 @@ public fun layoutParentDataProtocol(description: String): LayoutParentDataProtoc
     object : LayoutParentDataProtocol(description) {}
 
 /** The capability every Foundation [LayoutModifierNodeElement] uses. */
-public val LayoutModifierParentProtocol: ParentProtocol =
-    object : ParentProtocol {
+public val LayoutModifierParentProtocol: ParentProtocol<Container> =
+    object : ParentProtocol<Container> {
+        override val hostType: Class<Container> = Container::class.java
+
         override val description: String = "Foundation layout modifiers"
 
         override fun accepts(parent: Container): Boolean = parent.acceptsParentProtocol(this)

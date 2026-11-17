@@ -95,7 +95,7 @@ Every declaration is a `ParentElement`:
 - `ParentLayoutNodeElement` - a `ParentLayoutElement` backed by a stateful `ParentLayoutNode`, such as the `LayoutModifierNodeElement` of `swing-ui-foundation`.
 - a host slot, declared with `slot(parentProtocol, name, attachment)` - see [Writing a `SlotAttachment`](CUSTOM-COMPONENTS.md#writing-a-slotattachment).
 
-**Every declaration names a `ParentProtocol`**, the identity of the family of parents that interprets it. Protocols compare by `===`, so keep one instance per family and use it in every declaration of that family. `parentProtocolOf(description) { parent -> ... }` creates one from a test of the parent, and `MeasurementLayoutManager.parentProtocol(description)` creates one that accepts a parent whose layout manager is a `MeasurementLayoutManager`. The protocol is checked against the actual parent before the parent is changed: a declaration under a parent its protocol does not accept is refused with an error naming the protocol's `description`. The parent data a modifier retains must all name the same protocol instance.
+**Every declaration names a `ParentProtocol`**, the identity of the family of parents that interprets it. Protocols compare by `===`, so keep one instance per family and use it in every declaration of that family. `parentProtocolOf<Host>(description) { host -> ... }` creates a `ParentProtocol<Host>` for parents of that type, with an optional test of the host (every `Host` by default), and `MeasurementLayoutManager.parentProtocol(description)` creates one that accepts a parent whose layout manager is a `MeasurementLayoutManager`. The protocol is checked against the actual parent before the parent is changed: a declaration under a parent its protocol does not accept is refused with an error naming the protocol's `description`. The parent data a modifier retains must all name the same protocol instance.
 
 **Keys.** A declaration has a `key`, its class by default; an `additive` declaration stands beside every other, in declaration order. A modifier declares either a host slot or other parent declarations, and one declaring both is refused, unless each of the other declarations is inheritable and folds no parent data.
 
@@ -409,7 +409,7 @@ import androidx.compose.runtime.CompositionContext
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import org.jetbrains.compose.swing.OnDemandComposition
+import org.jetbrains.compose.swing.core.OnDemandComposition
 import org.jetbrains.compose.swing.components.Label
 import java.awt.Component
 -->

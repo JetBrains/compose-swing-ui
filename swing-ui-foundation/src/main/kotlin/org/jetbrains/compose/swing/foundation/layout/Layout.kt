@@ -118,7 +118,7 @@ private val SetMeasurePolicy: ConstrainedPanel.(MeasurePolicy) -> Unit = {
 }
 
 /** Whether this is a Foundation container whose policy layout understands [protocol] for a composed child. */
-internal fun Container.acceptsParentProtocol(protocol: ParentProtocol): Boolean {
+internal fun Container.acceptsParentProtocol(protocol: ParentProtocol<*>): Boolean {
     val layout = layout as? MeasurePolicyLayout ?: return false
     return protocol === layout.parentDataProtocol || protocol === LayoutModifierParentProtocol
 }

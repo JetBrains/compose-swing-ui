@@ -22,7 +22,7 @@ internal data class BoxConstraint(
 internal data class BoxAlignElement(
     val alignment: Alignment,
 ) : ParentDataModifier {
-    override val parentProtocol: ParentProtocol get() = BoxParentDataProtocol
+    override val parentProtocol: ParentProtocol<*> get() = BoxParentDataProtocol
 
     override val key: Any get() = BoxAlignElement::class
 
@@ -35,7 +35,7 @@ internal data class BoxAlignElement(
 }
 
 internal data object BoxMatchParentSizeElement : ParentDataModifier {
-    override val parentProtocol: ParentProtocol get() = BoxParentDataProtocol
+    override val parentProtocol: ParentProtocol<*> get() = BoxParentDataProtocol
 
     override val key: Any get() = BoxMatchParentSizeElement::class
 
