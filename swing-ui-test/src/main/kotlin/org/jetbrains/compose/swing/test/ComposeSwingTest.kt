@@ -190,18 +190,16 @@ public interface ComposeSwingTest {
      * machine speed, while a condition gated on external timing (e.g. a native window-system event)
      * keeps being polled until the wall-clock deadline.
      *
-     * Frames are sent only while [MainTestClock.autoAdvance] is on. With it off the test owns the
-     * frames, so this gate sends none and consumes none of its cap: each poll dispatches queued
-     * event-dispatch-thread work - leaving a coroutine parked in `withFrameNanos` exactly where it is -
-     * until the condition holds or the deadline passes. Either way, a poll validates the tree only once
-     * that queue is drained.
+     * The wait checks [condition] after each pass of the event dispatch queue. It advances the clock only
+     * when the queue is drained and [MainTestClock.autoAdvance] is on. With it off, a coroutine parked in
+     * `withFrameNanos` stays parked until the test advances the clock. The wait validates the tree only once
+     * the queue is drained.
      *
      * Its bounds aside, it fails the same way [awaitIdle] does, and such a failure is thrown as itself, never
      * as a [ComposeTimeoutException].
      *
      * @param timeout the wall-clock deadline after which an unmet condition fails the test.
-     * @param condition the predicate to await; evaluated on the EDT, each time after the events already queued are
-     * dispatched.
+     * @param condition the predicate to await, evaluated on the EDT.
      * @throws ComposeTimeoutException if [condition] is not met after [timeout] (in wall clock time) or the
      * frame cap.
      */
@@ -731,7 +729,7 @@ internal class ComposeSwingTestImpl(
         // number of frames, while a condition waiting on external timing is polled until the deadline.
         val deadline = System.nanoTime() + timeout.inWholeNanoseconds
         var frames = 0
-        drainQueue(layOut = true)
+        var drained = drainQueue(layOut = true)
         while (true) {
             val done = condition()
             throwUncaughtFailure()
@@ -743,9 +741,10 @@ internal class ComposeSwingTestImpl(
                         compositionFailureNote(),
                 )
             }
-            val frame = if (mainClock.autoAdvance) FRAME_INTERVAL_NANOS else null
+            // An effect can queue more work before it registers for the next frame.
+            val frame = if (drained && mainClock.autoAdvance) FRAME_INTERVAL_NANOS else null
             if (frame != null && (clock.hasAwaiters || recomposer.hasPendingWork)) frames++
-            step(frame)
+            drained = step(frame)
         }
     }
 

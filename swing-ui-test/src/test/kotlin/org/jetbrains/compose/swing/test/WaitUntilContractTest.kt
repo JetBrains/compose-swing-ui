@@ -6,6 +6,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.yield
 import org.jetbrains.compose.swing.components.Label
 import javax.swing.SwingUtilities
 import kotlin.test.Test
@@ -68,6 +72,45 @@ class WaitUntilContractTest {
         // would never see the condition met.
         start = true
         waitUntil { frameGated }
+    }
+
+    @Test
+    fun waitUntilDeliversEveryFrameWhileTheEffectYieldsBetweenFrames() = runComposeSwingTest {
+        var consumed = 0
+        mainClock.autoAdvance = false
+        setContent {
+            Label(text = "host")
+            LaunchedEffect(Unit) {
+                repeat(AWAITED_FRAMES) {
+                    withFrameNanos { consumed++ }
+                    yield()
+                    yield()
+                }
+            }
+        }
+
+        val start = mainClock.currentTime
+        mainClock.autoAdvance = true
+        waitUntil { consumed == AWAITED_FRAMES }
+
+        assertEquals(mainClock.frameDuration * AWAITED_FRAMES, mainClock.currentTime - start)
+    }
+
+    @Test
+    fun waitUntilObservesASatisfiedConditionWhileEventsKeepArriving() = runComposeSwingTest {
+        withBusyEventQueue { deliveries ->
+            waitUntil { deliveries() > 1 }
+        }
+    }
+
+    @Test
+    fun waitUntilTimesOutWhileEventsKeepArriving() = runComposeSwingTest {
+        withBusyEventQueue { deliveries ->
+            assertFailsWith<ComposeTimeoutException> {
+                waitUntil(timeout = WAIT_TIMEOUT) { false }
+            }
+            assertTrue(deliveries() > 0)
+        }
     }
 
     @Test
@@ -135,6 +178,25 @@ class WaitUntilContractTest {
         assertFailsWith<IllegalStateException> { setContent { Label(text = "second") } }
         onNodeWithText("first").assertExists()
         onNodeWithText("second").assertDoesNotExist()
+    }
+
+    private suspend fun ComposeSwingTest.withBusyEventQueue(test: suspend (() -> Int) -> Unit): Unit = coroutineScope {
+        setContent { Label(text = "host") }
+        mainClock.autoAdvance = false
+        var deliveries = 0
+        val work =
+            launch {
+                while (isActive) {
+                    deliveries++
+                    yield()
+                }
+            }
+
+        try {
+            test { deliveries }
+        } finally {
+            work.cancel()
+        }
     }
 
     private companion object {
