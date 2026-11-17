@@ -5,8 +5,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionContext
 import kotlinx.coroutines.DisposableHandle
 import org.jetbrains.compose.swing.annotations.SwingMenuComposable
+import org.jetbrains.compose.swing.node.runReportingUncaught
 import org.jetbrains.compose.swing.setContent
-import org.jetbrains.compose.swing.util.DeferredAction
 import javax.swing.JPopupMenu
 import javax.swing.event.PopupMenuEvent
 import javax.swing.event.PopupMenuListener
@@ -15,30 +15,26 @@ import javax.swing.event.PopupMenuListener
  * A [JPopupMenu] whose items are a composition of their own, nested in the composition that declared
  * them, so the menu sees the same state and composition locals as its declaration site.
  *
- * The menu composition is released when the popup closes, so nothing that declared a menu keeps one
- * alive: [onClosed] reports the popup closing on its own, handing over the menu that closed, and the
- * release follows on the next turn of the event queue; [close] takes the menu away without reporting
- * anything and releases at once.
+ * The menu composition outlives the popup's close: the look and feel clears the selection path and then
+ * clicks the item within one event dispatch, so a close may still have a click to come. [onClosed]
+ * reports the popup closing on its own and leaves the composition in place; the owner ends it with
+ * [release], which hides the popup if it is still up and reports nothing.
  */
 internal class MenuPopup(
     parentContext: CompositionContext,
     content:
         @Composable @SwingMenuComposable
         () -> Unit,
-    onClosed: (MenuPopup) -> Unit,
+    onClosed: () -> Unit = {},
 ) {
     val popup: JPopupMenu = JPopupMenu()
 
     private val contentHandle: DisposableHandle
 
-    // Whether the menu has closed, by close() or by the popup closing itself. Hiding the popup here
+    // Whether the menu has closed, by release() or by the popup closing itself. Hiding the popup there
     // still fires the listener, so this flag stops that from being reported as a close of its own.
     private var closed = false
-
-    // The look and feel clears the selection path and then clicks the item, both within one event
-    // dispatch, so a close the popup publishes may still have a click to come. Releasing on that close
-    // would take the item off the popup and its listeners with it, and the click would reach nothing.
-    private val deferredRelease = DeferredAction { contentHandle.dispose() }
+    private var released = false
 
     private val closeListener =
         object : PopupMenuListener {
@@ -48,8 +44,7 @@ internal class MenuPopup(
                 if (closed) return
                 closed = true
                 popup.removePopupMenuListener(this)
-                deferredRelease.schedule()
-                onClosed(this@MenuPopup)
+                onClosed()
             }
 
             override fun popupMenuCanceled(event: PopupMenuEvent) = Unit
@@ -61,15 +56,23 @@ internal class MenuPopup(
     }
 
     /**
-     * Hides the popup and releases its menu composition, reporting nothing. Idempotent.
+     * Hides the popup if it is still up and ends its menu composition. Idempotent.
      *
      * The menu counts as closed before the popup is hidden, so the close Swing publishes on the way
-     * out finds the listener already accounted for, not reported as the popup closing on its own.
+     * out finds the listener already accounted for, not reported as the popup closing on its own. A popup
+     * the user already dismissed is no longer the caller's menu, so a failure ending its composition goes
+     * to the current thread's uncaught-exception handler and the caller carries on; the composition of a
+     * popup still up throws its failure to the caller.
      */
-    fun close() {
-        if (closed) return
-        closed = true
-        popup.isVisible = false
-        contentHandle.dispose()
+    fun release() {
+        if (released) return
+        released = true
+        if (closed) {
+            runReportingUncaught { contentHandle.dispose() }
+        } else {
+            closed = true
+            popup.isVisible = false
+            contentHandle.dispose()
+        }
     }
 }

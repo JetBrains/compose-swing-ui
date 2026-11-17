@@ -123,7 +123,7 @@ class TrayMenuHostLifecycleTest {
     }
 
     @Test
-    fun closeMenuAfterANaturalDismissalDisposesNothingAgain() = runComposeSwingTest {
+    fun closeMenuAfterANaturalDismissalDisposesTheMenuOnceOnly() = runComposeSwingTest {
         var captured: JPopupMenu? = null
         var disposals = 0
         val host =
@@ -141,15 +141,42 @@ class TrayMenuHostLifecycleTest {
         val popup = captured ?: error("showMenu did not build a popup")
 
         publishClose(popup)
-        // A dismissed menu is released on the next turn.
         awaitIdle()
-        assertEquals(1, disposals, "a natural dismissal must dispose the shown menu composition")
+        assertEquals(0, disposals, "a dismissed menu is released by the next menu or by closeMenu, not at once")
 
         host.closeMenu()
-        assertEquals(
-            1,
-            disposals,
-            "a close after a natural dismissal must not dispose the menu composition again",
-        )
+        assertEquals(1, disposals, "closeMenu must dispose the dismissed menu composition")
+
+        host.closeMenu()
+        assertEquals(1, disposals, "a second closeMenu must not dispose the menu composition again")
+    }
+
+    @Test
+    fun showMenuAfterANaturalDismissalReleasesTheDismissedMenuOnce() = runComposeSwingTest {
+        val captured = mutableListOf<JPopupMenu>()
+        var disposals = 0
+        val host =
+            TrayMenuHost(
+                parentContext = captureParentContext(),
+                display = { popup, _, _ -> captured += popup },
+                menu = {
+                    MenuItem("Open", onClick = { })
+                    DisposableEffect(Unit) { onDispose { disposals++ } }
+                },
+            )
+
+        host.showMenu(0, 0)
+        awaitIdle()
+        publishClose(captured.singleOrNull() ?: error("showMenu did not build a popup"))
+        awaitIdle()
+        assertEquals(0, disposals, "a dismissed menu stays composed until the next menu replaces it")
+
+        host.showMenu(0, 0)
+        awaitIdle()
+        assertEquals(2, captured.distinct().size, "the next showMenu must build a popup of its own")
+        assertEquals(1, disposals, "the next menu releases the dismissed one, once")
+
+        host.closeMenu()
+        assertEquals(2, disposals, "closeMenu releases the menu showing, and only that one")
     }
 }

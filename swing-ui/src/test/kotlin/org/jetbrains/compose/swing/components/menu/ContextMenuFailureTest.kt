@@ -1,6 +1,7 @@
 // Copyright 2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.jetbrains.compose.swing.components.menu
 
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -10,8 +11,14 @@ import org.jetbrains.compose.swing.core.labelTexts
 import org.jetbrains.compose.swing.core.realizedFrame
 import org.jetbrains.compose.swing.core.swingRecomposerOrNull
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.publishClose
 import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.setContent
+import org.jetbrains.compose.swing.test.interaction.assertProperty
+import org.jetbrains.compose.swing.test.interaction.performContextClick
+import org.jetbrains.compose.swing.test.onNodeOfType
+import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.Assumptions.assumeFalse
 import java.awt.GraphicsEnvironment
 import javax.swing.JLabel
@@ -74,5 +81,68 @@ class ContextMenuFailureTest {
         } finally {
             frame.dispose()
         }
+    }
+
+    @Test
+    fun aDismissedMenuWhoseContentThrowsOnDisposeIsReportedAndTheNextGestureStillOpens() = runComposeSwingTest {
+        val captured = mutableListOf<JPopupMenu>()
+        var thrown = false
+        setContent {
+            val anchor = rememberPopupAnchor()
+            Label("target", modifier = SwingModifier.popupAnchor(anchor))
+            ContextMenu(
+                anchor,
+                display = { popup, _, _, _ -> captured += popup },
+            ) {
+                DisposableEffect(Unit) {
+                    onDispose {
+                        // Only the dismissed menu fails, so ending the test's own composition stays quiet.
+                        if (!thrown) {
+                            thrown = true
+                            error("dispose")
+                        }
+                    }
+                }
+                MenuItem("Cut", onClick = { })
+            }
+        }
+
+        onNodeWithText("target").performContextClick()
+        publishClose(captured.single())
+        val failure = assertFailsWith<IllegalStateException> { onNodeWithText("target").performContextClick() }
+        assertEquals(2, captured.size, "the next gesture opens its menu though the dismissed one failed to release")
+        assertEquals("dispose", failure.message, "the release failure is reported uncaught")
+    }
+
+    @Test
+    fun aDismissedMenuWhoseContentThrowsOnDisposeDoesNotStopTheAnchorFromUnbinding() = runComposeSwingTest {
+        val captured = mutableListOf<JPopupMenu>()
+        val original = JPopupMenu()
+        var anchored by mutableStateOf(false)
+        setContent {
+            val anchor = rememberPopupAnchor()
+            SwingNode(
+                factory = { JLabel("target").apply { componentPopupMenu = original } },
+                modifier = if (anchored) SwingModifier.popupAnchor(anchor) else SwingModifier,
+            )
+            ContextMenu(
+                anchor,
+                display = { popup, _, _, _ -> captured += popup },
+            ) {
+                DisposableEffect(Unit) { onDispose { error("dispose") } }
+                MenuItem("Cut", onClick = { })
+            }
+        }
+        anchored = true
+        awaitIdle()
+
+        onNodeWithText("target").performContextClick()
+        publishClose(captured.single())
+        anchored = false
+
+        val failure = assertFailsWith<IllegalStateException> { awaitIdle() }
+        assertEquals("dispose", failure.message, "the release failure is reported uncaught")
+        onNodeOfType<JLabel>()
+            .assertProperty(true, "the original popup menu is back") { componentPopupMenu === original }
     }
 }

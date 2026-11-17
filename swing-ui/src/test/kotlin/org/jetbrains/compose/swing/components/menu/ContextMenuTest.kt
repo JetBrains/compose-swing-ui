@@ -176,8 +176,9 @@ class ContextMenuTest {
     }
 
     @Test
-    fun aMenuOpenedAgainBeforeTheDismissedOneIsReleasedKeepsWorking() = runComposeSwingTest {
+    fun aMenuOpenedAgainAfterTheDismissedOneKeepsWorking() = runComposeSwingTest {
         var captured: JPopupMenu? = null
+        var released = 0
         setContent {
             var lastAction by remember { mutableStateOf("none") }
             val anchor = rememberPopupAnchor()
@@ -186,6 +187,7 @@ class ContextMenuTest {
                 anchor,
                 display = { popup, _, _, _ -> captured = popup },
             ) {
+                DisposableEffect(Unit) { onDispose { released++ } }
                 MenuItem("Cut", onClick = { lastAction = "Cut" })
             }
             Label("Last action: $lastAction")
@@ -196,14 +198,16 @@ class ContextMenuTest {
         val dismissed = captured ?: error("popup-trigger event did not build a popup")
         publishClose(dismissed)
         captured = null
+        awaitIdle()
+        assertEquals(0, released, "a dismissed menu stays composed while nothing replaces it")
 
-        // Still the same turn the dismissal arrived on, so the dismissed menu's release has not run.
         target.dispatchEvent(popupTrigger(target))
         val reopened = captured ?: error("the second gesture did not build a popup")
         assertNotSame(dismissed, reopened, "each showing builds a menu of its own")
 
-        // Let the dismissed menu's release take its turn, then use the menu that is actually open.
+        // Let any teardown of the reopened menu take its turn, then use the menu that is actually open.
         awaitIdle()
+        assertEquals(1, released, "the next menu releases the dismissed one, once")
         assertIs<JMenuItem>(reopened.getComponent(0)).doClick()
         awaitIdle()
 
@@ -566,37 +570,7 @@ class ContextMenuTest {
     }
 
     @Test
-    fun aDismissedMenuReportsClosedOnce() = runComposeSwingTest {
-        var captured: JPopupMenu? = null
-        var closes = 0
-        var released = 0
-        setContent {
-            val anchor = rememberPopupAnchor()
-            Label("target", modifier = SwingModifier.popupAnchor(anchor))
-            ContextMenu(
-                anchor,
-                onClose = { closes++ },
-                display = { popup, _, _, _ -> captured = popup },
-            ) {
-                DisposableEffect(Unit) { onDispose { released++ } }
-                MenuItem("Cut", onClick = { })
-            }
-        }
-        onNodeWithText("target").performContextClick()
-        val popup = captured ?: error("popup-trigger event did not build a popup")
-
-        // A menu dismissed by clicking away goes invisible, and its close is published as it goes; the
-        // menu it took away is gone for good, however many times that close is published.
-        publishClose(popup)
-        publishClose(popup)
-        awaitIdle()
-
-        assertEquals(1, closes, "one menu the user dismissed is one close")
-        assertEquals(1, released, "and its composition is released with it, once")
-    }
-
-    @Test
-    fun aCloseCallbackThatThrowsIsReportedAndTheMenuStillReleasesAndOpensAgain() = runComposeSwingTest {
+    fun aCloseCallbackThatThrowsIsReportedAndTheMenuStillOpensAgain() = runComposeSwingTest {
         val failures = mutableListOf<Throwable>()
         var closes = 0
         var released = 0
@@ -620,7 +594,6 @@ class ContextMenuTest {
         }
 
         repeat(2) {
-            val releasedBefore = released
             failures.clear()
             onNodeWithText("target").performContextClick()
             publishClose(captured.last())
@@ -628,10 +601,9 @@ class ContextMenuTest {
             assertEquals(failures, listOf(failure) + failure.suppressed, "the close failure is reported, not thrown")
             assertEquals(1, failures.size, "and it is reported once")
             awaitIdle()
-            assertEquals(1, released - releasedBefore, "the closed menu's composition is released all the same")
         }
         assertEquals(2, closes, "a menu opened after the throw reports its close again")
-        assertEquals(2, released, "and each of the two menus released its composition")
+        assertEquals(1, released, "and the second menu released the first on opening")
     }
 
     @Test

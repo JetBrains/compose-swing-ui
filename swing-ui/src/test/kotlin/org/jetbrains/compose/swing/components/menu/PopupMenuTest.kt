@@ -6,6 +6,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -369,6 +370,41 @@ class PopupMenuTest {
         publishClose(popup)
         assertEquals(0, dismissals, "the close of a menu already taken away must report nothing")
         assertEquals(1, released, "and must not release its composition twice")
+    }
+
+    @Test
+    fun aDismissedMenuStaysComposedUntilTheNextMenuOrTheDeclarationReleasesIt() = runComposeSwingTest {
+        val captured = mutableListOf<JPopupMenu>()
+        var generation by mutableIntStateOf(0)
+        var declared by mutableStateOf(true)
+        var released = 0
+        setWindowContent(WINDOW_TITLE) {
+            val anchor = rememberPopupAnchor()
+            key(generation) { Label("target", modifier = SwingModifier.popupAnchor(anchor)) }
+            // The declaration stays open: the caller hears the dismissal and leaves its state alone.
+            if (declared) {
+                PopupMenu(anchor, expanded = true, display = { popup, _, _, _ -> captured += popup }, onDismiss = {}) {
+                    DisposableEffect(Unit) { onDispose { released++ } }
+                    MenuItem("Cut", onClick = { })
+                }
+            }
+        }
+        publishClose(captured.singleOrNull() ?: error("the menu did not open"))
+        awaitIdle()
+        assertEquals(0, released, "a dismissed menu stays composed while nothing replaces it")
+
+        generation++
+        awaitIdle()
+        assertEquals(2, captured.distinct().size, "the declaration still held open shows its next menu")
+        assertEquals(1, released, "the next menu releases the dismissed one, once")
+
+        publishClose(captured.last())
+        awaitIdle()
+        assertEquals(1, released, "a dismissed menu stays composed while its declaration stands")
+
+        declared = false
+        awaitIdle()
+        assertEquals(2, released, "and goes with the declaration, once")
     }
 
     @Test

@@ -130,7 +130,7 @@ public fun Tray(
 /**
  * Builds and presents the popup menu of a [Tray]. On each [showMenu] call it composes [menu] fresh into
  * a [JPopupMenu] nested in [parentContext], so the menu reflects the current composition state, then
- * hands the populated popup to [display]. The menu composition is disposed when the popup closes, when
+ * hands the populated popup to [display]. The menu composition is disposed when
  * a newer [showMenu] call replaces it, or when [closeMenu] closes it.
  *
  * @param parentContext the composition context the popup menu nests into.
@@ -161,9 +161,7 @@ internal class TrayMenuHost(
     ) {
         closeMenu()
 
-        // Only the menu still tracked clears the field: a close can land here for one already replaced.
-        // See ContextMenuElement.Node.onMenuClosed.
-        val shown = MenuPopup(parentContext, menu) { closing -> if (open === closing) open = null }
+        val shown = MenuPopup(parentContext, menu)
         open = shown
         display(shown.popup, x, y)
     }
@@ -173,7 +171,7 @@ internal class TrayMenuHost(
      * A no-op when no menu is open, so it is safe to call repeatedly.
      */
     fun closeMenu() {
-        open?.close()
+        open?.release()
         open = null
     }
 }

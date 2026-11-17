@@ -7,6 +7,7 @@ package org.jetbrains.compose.swing.components.menu
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionContext
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.RememberObserver
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCompositionContext
@@ -36,7 +37,8 @@ import javax.swing.JPopupMenu
  *
  * The menu's items are a composition of their own, nested in this one, so they see the same state and
  * [androidx.compose.runtime.CompositionLocal]s as this call. They are composed when the menu opens and
- * released when it closes, and a menu on screen follows the state its items read.
+ * released when the next one opens, the declaration closes it or this call leaves the composition, and a
+ * menu on screen follows the state its items read.
  *
  * A menu declared open against an anchor that is not bound yet - or bound to a component not yet on
  * screen - waits and opens once there is somewhere to anchor to.
@@ -110,7 +112,8 @@ internal fun PopupMenu(
 private class PopupMenuHost(
     private val parentContext: CompositionContext,
     private val onDismiss: DeclaredCallback<() -> Unit>,
-) : AnchorAttachment {
+) : AnchorAttachment,
+    RememberObserver {
     var display: (popup: JPopupMenu, invoker: Component, x: Int, y: Int) -> Unit = JPopupMenu::show
     var content:
         @Composable @SwingMenuComposable
@@ -158,23 +161,26 @@ private class PopupMenuHost(
     }
 
     private fun present(invoker: Component) {
-        val menu = MenuPopup(parentContext, content, onClosed = ::onMenuClosed)
+        open?.release()
+        val menu = MenuPopup(parentContext, content, onClosed = { onDismiss.report { it() } })
         open = menu
         // Anchored under the component: a menu opened from a control belongs below it, the way a
         // drop-down button's menu does.
         display(menu.popup, invoker, 0, invoker.height)
     }
 
-    private fun onMenuClosed(menu: MenuPopup) {
-        // Only the menu this host still tracks clears the field - see ContextMenuHost.onMenuClosed for
-        // the close that lands here for a menu already gone.
-        if (open === menu) open = null
-        onDismiss.report { it() }
-    }
-
     private fun close() {
         awaitingShowing = false
-        open?.close()
+        open?.release()
         open = null
     }
+
+    override fun onRemembered() = Unit
+
+    override fun onForgotten() {
+        open?.release()
+        open = null
+    }
+
+    override fun onAbandoned(): Unit = onForgotten()
 }

@@ -7,6 +7,7 @@ package org.jetbrains.compose.swing.components.menu
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionContext
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.RememberObserver
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCompositionContext
 import org.jetbrains.compose.swing.annotations.SwingComponentLibraryApi
@@ -25,7 +26,8 @@ import javax.swing.JPopupMenu
  *
  * The menu's items are a composition of their own, nested in this one, so they see the same state and
  * [androidx.compose.runtime.CompositionLocal]s as this call. They are composed when the gesture opens
- * the menu and released when it closes, and a menu on screen follows the state its items read.
+ * the menu and released when the next one opens or this call leaves the composition, and a menu on
+ * screen follows the state its items read.
  *
  * ```
  * val anchor = rememberPopupAnchor()
@@ -114,7 +116,8 @@ private class ContextMenuHost(
     private val parentContext: CompositionContext,
     private val onOpen: DeclaredCallback<() -> Unit>,
     private val onClose: DeclaredCallback<() -> Unit>,
-) : AnchorAttachment {
+) : AnchorAttachment,
+    RememberObserver {
     override val exclusive: Boolean get() = true
 
     var display: (popup: JPopupMenu, invoker: Component, x: Int, y: Int) -> Unit = JPopupMenu::show
@@ -122,16 +125,16 @@ private class ContextMenuHost(
         @Composable @SwingMenuComposable
         () -> Unit = {}
 
-    // The menu currently on screen, if any, so withdrawal can take it away: a menu the composition stops
-    // declaring must not keep running, even though nothing dismissed it.
+    // The latest menu this host showed, on screen or closed: its composition lives until the next menu
+    // replaces it or the declaration goes, so a menu the composition stops declaring does not keep running.
     private var open: MenuPopup? = null
     private var original: JPopupMenu? = null
 
     // The bound component's popup menu: the one menu every gesture reaches, so one report of an open and
     // of a close covers every gesture. The pointer gesture reaches it through the listener below, and the
     // keyboard gesture through the binding the look and feel gives it. It stands for the menu across
-    // gestures; the menu a gesture puts on screen is a composition of its own, released when that menu
-    // closes.
+    // gestures; the menu a gesture puts on screen is a composition of its own, released when the next
+    // one replaces it.
     private val popup =
         object : JPopupMenu() {
             override fun show(
@@ -146,24 +149,13 @@ private class ContextMenuHost(
         x: Int,
         y: Int,
     ) {
-        // A predecessor still held here never reached the screen - the display below may decline this one
-        // too - so it is taken down rather than left running unreachable.
-        open?.close()
-        val menu = MenuPopup(parentContext, content, onClosed = ::onMenuClosed)
+        open?.release()
+        val menu = MenuPopup(parentContext, content, onClosed = { onClose.report { it() } })
         open = menu
         // The open is reported once the presentation has put the menu on screen, so a presentation that
         // refuses the menu reports no open.
         display(menu.popup, invoker, x, y)
         onOpen.current()
-    }
-
-    private fun onMenuClosed(menu: MenuPopup) {
-        // Only the menu this host still tracks clears the field. Putting a popup on screen hides whatever
-        // popup the toolkit's selection path already held, in the same call and before it returns, so a
-        // close landing here can be one for a menu already replaced. Clearing the field then would leave
-        // the replacement running when the declaration withdraws.
-        if (open === menu) open = null
-        onClose.report { it() }
     }
 
     private val listener =
@@ -201,8 +193,17 @@ private class ContextMenuHost(
         component.addMouseListener(listener)
     }
 
+    override fun onRemembered() = Unit
+
+    override fun onForgotten() {
+        open?.release()
+        open = null
+    }
+
+    override fun onAbandoned(): Unit = onForgotten()
+
     override fun onUnbound(component: Component) {
-        open?.close()
+        open?.release()
         open = null
         component.removeMouseListener(listener)
         (component as? JComponent)?.componentPopupMenu = original

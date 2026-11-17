@@ -19,6 +19,7 @@ import javax.swing.JLabel
 import javax.swing.JPopupMenu
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertSame
@@ -243,5 +244,62 @@ class ContextMenuDetachTest {
 
         assertEquals(2, released, "the replacement menu's composition must be released when the declaration leaves")
         assertEquals(0, closes, "taking the replacement away raises no close of its own")
+    }
+
+    // How long a dismissed menu stays composed is ContextMenuTest's; this pins ContextMenu's onClose.
+    @Test
+    fun aDismissedMenuReportsOneCloseHoweverOftenItsCloseIsPublished() = runComposeSwingTest {
+        val captured = mutableListOf<JPopupMenu>()
+        var closes = 0
+        setContent {
+            val anchor = rememberPopupAnchor()
+            Label("target", modifier = SwingModifier.popupAnchor(anchor))
+            ContextMenu(
+                anchor,
+                onClose = { closes++ },
+                display = { popup, _, _, _ -> captured += popup },
+            ) {
+                MenuItem("Cut", onClick = { })
+            }
+        }
+        onNodeWithText("target").performContextClick()
+        val dismissed = captured.lastOrNull() ?: error("popup-trigger event did not build a popup")
+
+        publishClose(dismissed)
+        publishClose(dismissed)
+        awaitIdle()
+
+        assertEquals(1, closes, "one menu the user dismissed is one close")
+    }
+
+    @Test
+    fun aMenuWhoseCloseCallbackThrewIsReleasedOnceWhenTheDeclarationLeavesTheComposition() = runComposeSwingTest {
+        var captured: JPopupMenu? = null
+        var released = 0
+        var declared by mutableStateOf(true)
+        setContent {
+            val anchor = rememberPopupAnchor()
+            Label("target", modifier = SwingModifier.popupAnchor(anchor))
+            if (declared) {
+                ContextMenu(
+                    anchor,
+                    onClose = { error("close") },
+                    display = { popup, _, _, _ -> captured = popup },
+                ) {
+                    DisposableEffect(Unit) { onDispose { released++ } }
+                    MenuItem("Cut", onClick = { })
+                }
+            }
+        }
+        onNodeWithText("target").performContextClick()
+        publishClose(captured ?: error("popup-trigger event did not build a popup"))
+        assertFailsWith<IllegalStateException> { awaitIdle() }
+        awaitIdle()
+        assertEquals(0, released, "a menu whose close threw stays composed while its declaration stands")
+
+        declared = false
+        awaitIdle()
+
+        assertEquals(1, released, "and is released once with the declaration")
     }
 }
