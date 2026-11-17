@@ -31,9 +31,6 @@ import org.jetbrains.compose.swing.animation.core.InternalAnimationApi
 import org.jetbrains.compose.swing.animation.core.MutableTransitionState
 import org.jetbrains.compose.swing.animation.core.Transition
 import org.jetbrains.compose.swing.animation.core.createChildTransition
-import org.jetbrains.compose.swing.animation.core.internal.fastForEach
-import org.jetbrains.compose.swing.animation.core.internal.fastMap
-import org.jetbrains.compose.swing.animation.core.internal.fastMaxOfOrDefault
 import org.jetbrains.compose.swing.animation.core.rememberTransition
 import org.jetbrains.compose.swing.animation.core.updateTransition
 import org.jetbrains.compose.swing.foundation.graphics.RectangleShape
@@ -50,6 +47,9 @@ import org.jetbrains.compose.swing.foundation.layout.MeasureResult
 import org.jetbrains.compose.swing.foundation.layout.MeasureScope
 import org.jetbrains.compose.swing.foundation.layout.RowScope
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.util.fastForEach
+import org.jetbrains.compose.swing.util.fastMap
+import org.jetbrains.compose.swing.util.fastMaxOfOrDefault
 import java.awt.Dimension
 import kotlin.math.max
 

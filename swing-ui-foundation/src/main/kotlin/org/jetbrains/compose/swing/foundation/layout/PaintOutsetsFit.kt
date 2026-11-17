@@ -9,10 +9,10 @@ import org.jetbrains.compose.swing.foundation.graphics.clippedPaintBounds
 import org.jetbrains.compose.swing.foundation.graphics.layoutHeight
 import org.jetbrains.compose.swing.foundation.graphics.layoutWidth
 import org.jetbrains.compose.swing.foundation.graphics.movesContent
-import org.jetbrains.compose.swing.foundation.util.fastAny
-import org.jetbrains.compose.swing.foundation.util.fastForEach
 import org.jetbrains.compose.swing.node.SwingComponentNode
 import org.jetbrains.compose.swing.node.invalidateLayout
+import org.jetbrains.compose.swing.util.fastAny
+import org.jetbrains.compose.swing.util.fastForEach
 import java.awt.Component
 import java.awt.Container
 import java.awt.Insets

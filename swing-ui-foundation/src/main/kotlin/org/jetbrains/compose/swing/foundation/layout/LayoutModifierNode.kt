@@ -7,12 +7,12 @@ import org.jetbrains.compose.swing.foundation.graphics.Decorator
 import org.jetbrains.compose.swing.foundation.graphics.declaredNodes
 import org.jetbrains.compose.swing.foundation.graphics.publishDecoration
 import org.jetbrains.compose.swing.foundation.graphics.requireNotDecorationNode
-import org.jetbrains.compose.swing.foundation.util.fastForEach
 import org.jetbrains.compose.swing.layout.ParentLayoutNode
 import org.jetbrains.compose.swing.layout.ParentLayoutNodeElement
 import org.jetbrains.compose.swing.layout.ParentProtocol
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.requestAfterValidation
+import org.jetbrains.compose.swing.util.fastForEach
 import java.awt.Dimension
 import java.awt.Rectangle
 import java.util.function.BiConsumer

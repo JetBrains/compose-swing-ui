@@ -7,12 +7,12 @@ import org.jetbrains.compose.swing.foundation.graphics.Decoration
 import org.jetbrains.compose.swing.foundation.graphics.NoPaintOutsets
 import org.jetbrains.compose.swing.foundation.graphics.layoutHeight
 import org.jetbrains.compose.swing.foundation.graphics.layoutWidth
-import org.jetbrains.compose.swing.foundation.util.fastAny
-import org.jetbrains.compose.swing.foundation.util.fastForEach
 import org.jetbrains.compose.swing.layout.MeasurementLayoutManager
 import org.jetbrains.compose.swing.layout.ParentLayoutElement
 import org.jetbrains.compose.swing.node.SwingComponentNode
 import org.jetbrains.compose.swing.node.invalidateLayout
+import org.jetbrains.compose.swing.util.fastAny
+import org.jetbrains.compose.swing.util.fastForEach
 import java.awt.Component
 import java.awt.ComponentOrientation
 import java.awt.Container

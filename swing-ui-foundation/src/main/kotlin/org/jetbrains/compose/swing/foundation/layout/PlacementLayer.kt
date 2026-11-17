@@ -10,10 +10,10 @@ import org.jetbrains.compose.swing.foundation.graphics.TransformOrigin
 import org.jetbrains.compose.swing.foundation.graphics.clipArea
 import org.jetbrains.compose.swing.foundation.graphics.publishSteps
 import org.jetbrains.compose.swing.foundation.graphics.setToScaleAndRotation
-import org.jetbrains.compose.swing.foundation.util.fastForEach
 import org.jetbrains.compose.swing.node.SwingComponentNode
 import org.jetbrains.compose.swing.node.invalidateLayout
 import org.jetbrains.compose.swing.node.observeReads
+import org.jetbrains.compose.swing.util.fastForEach
 import java.awt.Component
 import java.awt.Graphics2D
 import java.awt.Rectangle

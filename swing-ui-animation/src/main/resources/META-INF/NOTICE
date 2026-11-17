@@ -14,7 +14,7 @@ Adaptations: flattened from Kotlin Multiplatform (expect/actual) to a single JVM
 source set; the package was relocated from androidx.compose.animation.core to
 org.jetbrains.compose.swing.animation.core; compose-ui geometry/unit converters
 and Path-based easing were removed; the cubic Bezier easing helpers and the
-ui-util fast math, list and Float packing helpers were vendored from
+ui-util fast math and Float packing helpers were vendored from
 androidx.compose.ui. Animations that never end use the InfiniteAnimationPolicy
 of this project's swing-ui module, and motion is scaled by the
 MotionDurationScale declared there. The code taken from

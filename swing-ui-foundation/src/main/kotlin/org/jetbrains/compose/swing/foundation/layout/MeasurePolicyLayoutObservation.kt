@@ -1,11 +1,11 @@
 // Copyright 2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.jetbrains.compose.swing.foundation.layout
 
-import org.jetbrains.compose.swing.foundation.util.fastForEach
 import org.jetbrains.compose.swing.node.SwingComponentNode
 import org.jetbrains.compose.swing.node.invalidateLayout
 import org.jetbrains.compose.swing.node.observeReads
 import org.jetbrains.compose.swing.node.requestAfterValidation
+import org.jetbrains.compose.swing.util.fastForEach
 
 /** Replays placement after validation, unless a later placement pass has already satisfied the request. */
 private val ReplayPlacement: (SwingComponentNode<ConstrainedPanel>) -> Unit = { node ->

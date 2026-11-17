@@ -9,8 +9,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.annotation.RememberInComposition
 import androidx.compose.runtime.remember
-import org.jetbrains.compose.swing.foundation.util.fastForEach
-import org.jetbrains.compose.swing.foundation.util.fastForEachIndexed
+import org.jetbrains.compose.swing.util.fastForEach
+import org.jetbrains.compose.swing.util.fastForEachIndexed
 import java.awt.AlphaComposite
 import java.awt.Color
 import java.awt.Composite

@@ -2,8 +2,8 @@
 package org.jetbrains.compose.swing.foundation.graphics
 
 import org.jetbrains.compose.swing.foundation.layout.ChildMeasurables
-import org.jetbrains.compose.swing.foundation.util.fastAny
-import org.jetbrains.compose.swing.foundation.util.fastForEach
+import org.jetbrains.compose.swing.util.fastAny
+import org.jetbrains.compose.swing.util.fastForEach
 import java.awt.Component
 import java.awt.Graphics
 import java.awt.Graphics2D

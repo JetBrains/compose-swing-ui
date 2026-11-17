@@ -5,10 +5,10 @@ import org.jetbrains.compose.swing.foundation.layout.LayoutModifierNode
 import org.jetbrains.compose.swing.foundation.layout.PaintOutsets
 import org.jetbrains.compose.swing.foundation.layout.PaintOutsetsNode
 import org.jetbrains.compose.swing.foundation.layout.PlacementLayer
-import org.jetbrains.compose.swing.foundation.util.fastAll
-import org.jetbrains.compose.swing.foundation.util.fastAny
-import org.jetbrains.compose.swing.foundation.util.fastForEach
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.util.fastAll
+import org.jetbrains.compose.swing.util.fastAny
+import org.jetbrains.compose.swing.util.fastForEach
 import java.awt.Graphics2D
 import java.awt.Insets
 import java.awt.Rectangle

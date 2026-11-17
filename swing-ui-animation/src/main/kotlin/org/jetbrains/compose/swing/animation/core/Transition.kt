@@ -39,11 +39,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.runtime.snapshots.SnapshotStateObserver
 import androidx.compose.runtime.withFrameNanos
-import kotlin.coroutines.coroutineContext
-import kotlin.coroutines.resume
-import kotlin.jvm.JvmName
-import kotlin.math.max
-import kotlin.math.roundToLong
 import kotlinx.coroutines.CancellableContinuation
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineStart
@@ -54,9 +49,14 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.jetbrains.compose.swing.animation.core.internal.JvmDefaultWithCompatibility
-import org.jetbrains.compose.swing.animation.core.internal.fastAny
-import org.jetbrains.compose.swing.animation.core.internal.fastFold
-import org.jetbrains.compose.swing.animation.core.internal.fastForEach
+import org.jetbrains.compose.swing.util.fastAny
+import org.jetbrains.compose.swing.util.fastFold
+import org.jetbrains.compose.swing.util.fastForEach
+import kotlin.coroutines.coroutineContext
+import kotlin.coroutines.resume
+import kotlin.jvm.JvmName
+import kotlin.math.max
+import kotlin.math.roundToLong
 
 /**
  * This sets up a [Transition], and updates it with the target provided by [targetState]. When

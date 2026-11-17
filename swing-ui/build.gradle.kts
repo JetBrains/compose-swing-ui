@@ -33,6 +33,8 @@ kotlin {
 
 dependencies {
     api(libs.composeRuntime)
+    // fastDistinctBy inlines MutableScatterSet into its callers.
+    api(libs.androidxCollection)
     // Mounted content reads its LifecycleOwner through androidx.lifecycle.compose.LocalLifecycleOwner,
     // so the Lifecycle vocabulary belongs on consumers' compile classpath.
     api(libs.androidxLifecycleRuntimeCompose)

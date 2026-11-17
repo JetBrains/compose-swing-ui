@@ -3,7 +3,7 @@ package org.jetbrains.compose.swing.foundation.layout
 
 import org.jetbrains.compose.swing.foundation.graphics.Decoratable
 import org.jetbrains.compose.swing.foundation.graphics.Decoration
-import org.jetbrains.compose.swing.foundation.util.fastForEach
+import org.jetbrains.compose.swing.util.fastForEach
 import java.awt.Component
 
 /**

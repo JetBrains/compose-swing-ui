@@ -24,8 +24,8 @@
 package org.jetbrains.compose.swing.foundation.layout
 
 import androidx.compose.runtime.Composable
-import org.jetbrains.compose.swing.foundation.util.fastForEachIndexed
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.util.fastForEachIndexed
 import java.awt.ComponentOrientation
 import java.awt.Dimension
 

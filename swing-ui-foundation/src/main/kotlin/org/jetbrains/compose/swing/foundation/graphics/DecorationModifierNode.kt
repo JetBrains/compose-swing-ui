@@ -3,10 +3,10 @@ package org.jetbrains.compose.swing.foundation.graphics
 
 import org.jetbrains.compose.swing.foundation.layout.fitted
 import org.jetbrains.compose.swing.foundation.layout.writeFitted
-import org.jetbrains.compose.swing.foundation.util.fastAny
-import org.jetbrains.compose.swing.foundation.util.fastForEach
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.requestAfterValidation
+import org.jetbrains.compose.swing.util.fastAny
+import org.jetbrains.compose.swing.util.fastForEach
 import java.awt.Component
 import java.awt.Graphics2D
 import java.awt.Rectangle

@@ -13,51 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * fastForEach, fastAll and fastAny are copied from
+ * The functions in this file are forked from
  * compose/ui/ui-util/src/commonMain/kotlin/androidx/compose/ui/util/ListUtils.kt in AndroidX's
  * ui-util; see this module's META-INF/NOTICE for the synced version.
  */
 
-package org.jetbrains.compose.swing.foundation.util
+@file:JvmMultifileClass
+@file:JvmName("ListUtilsKt")
+@file:OptIn(ExperimentalContracts::class)
+
+package org.jetbrains.compose.swing.util
 
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.contract
-
-/**
- * Iterates through a [List] using the index and calls [action] for each item. This does not
- * allocate an iterator like [Iterable.forEach].
- *
- * **Do not use for collections that come from public APIs**, since they may not support random
- * access in an efficient way, and this method may actually be a lot slower. Only use for
- * collections that are created by code we control and are known to support random access.
- */
-@Suppress("BanInlineOptIn")
-@OptIn(ExperimentalContracts::class)
-internal inline fun <T> List<T>.fastForEach(action: (T) -> Unit) {
-    contract { callsInPlace(action) }
-    for (index in indices) {
-        val item = get(index)
-        action(item)
-    }
-}
-
-/**
- * Iterates through a [List] using the index and calls [action] for each item. This does not
- * allocate an iterator like [Iterable.forEachIndexed].
- *
- * **Do not use for collections that come from public APIs**, since they may not support random
- * access in an efficient way, and this method may actually be a lot slower. Only use for
- * collections that are created by code we control and are known to support random access.
- */
-@Suppress("BanInlineOptIn")
-@OptIn(ExperimentalContracts::class)
-internal inline fun <T> List<T>.fastForEachIndexed(action: (Int, T) -> Unit) {
-    contract { callsInPlace(action) }
-    for (index in indices) {
-        val item = get(index)
-        action(index, item)
-    }
-}
 
 /**
  * Returns `true` if all elements match the given [predicate].
@@ -66,9 +34,7 @@ internal inline fun <T> List<T>.fastForEachIndexed(action: (Int, T) -> Unit) {
  * access in an efficient way, and this method may actually be a lot slower. Only use for
  * collections that are created by code we control and are known to support random access.
  */
-@Suppress("BanInlineOptIn")
-@OptIn(ExperimentalContracts::class)
-internal inline fun <T> List<T>.fastAll(predicate: (T) -> Boolean): Boolean {
+public inline fun <T> List<T>.fastAll(predicate: (T) -> Boolean): Boolean {
     contract { callsInPlace(predicate) }
     fastForEach { if (!predicate(it)) return false }
     return true
@@ -81,10 +47,52 @@ internal inline fun <T> List<T>.fastAll(predicate: (T) -> Boolean): Boolean {
  * access in an efficient way, and this method may actually be a lot slower. Only use for
  * collections that are created by code we control and are known to support random access.
  */
-@Suppress("BanInlineOptIn")
-@OptIn(ExperimentalContracts::class)
-internal inline fun <T> List<T>.fastAny(predicate: (T) -> Boolean): Boolean {
+public inline fun <T> List<T>.fastAny(predicate: (T) -> Boolean): Boolean {
     contract { callsInPlace(predicate) }
     fastForEach { if (predicate(it)) return true }
     return false
+}
+
+/**
+ * Returns the first value that [predicate] returns `true` for.
+ *
+ * **Do not use for collections that come from public APIs**, since they may not support random
+ * access in an efficient way, and this method may actually be a lot slower. Only use for
+ * collections that are created by code we control and are known to support random access.
+ *
+ * @throws [NoSuchElementException] if no such element is found
+ */
+public inline fun <T> List<T>.fastFirst(predicate: (T) -> Boolean): T {
+    contract { callsInPlace(predicate) }
+    fastForEach { if (predicate(it)) return it }
+    throw NoSuchElementException("Collection contains no element matching the predicate.")
+}
+
+/**
+ * Returns the first value that [predicate] returns `true` for or `null` if nothing matches.
+ *
+ * **Do not use for collections that come from public APIs**, since they may not support random
+ * access in an efficient way, and this method may actually be a lot slower. Only use for
+ * collections that are created by code we control and are known to support random access.
+ */
+public inline fun <T> List<T>.fastFirstOrNull(predicate: (T) -> Boolean): T? {
+    contract { callsInPlace(predicate) }
+    fastForEach { if (predicate(it)) return it }
+    return null
+}
+
+/**
+ * Returns the last element matching the given [predicate], or `null` if no such element was found.
+ *
+ * **Do not use for collections that come from public APIs**, since they may not support random
+ * access in an efficient way, and this method may actually be a lot slower. Only use for
+ * collections that are created by code we control and are known to support random access.
+ */
+public inline fun <T> List<T>.fastLastOrNull(predicate: (T) -> Boolean): T? {
+    contract { callsInPlace(predicate) }
+    for (index in indices.reversed()) {
+        val item = get(index)
+        if (predicate(item)) return item
+    }
+    return null
 }

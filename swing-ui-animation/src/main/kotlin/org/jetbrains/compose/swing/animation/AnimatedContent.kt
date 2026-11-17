@@ -33,7 +33,6 @@ import org.jetbrains.compose.swing.animation.core.DeferredTransition
 import org.jetbrains.compose.swing.animation.core.DimensionToVector
 import org.jetbrains.compose.swing.animation.core.Transition
 import org.jetbrains.compose.swing.animation.core.createDeferredAnimation
-import org.jetbrains.compose.swing.animation.core.internal.fastForEach
 import org.jetbrains.compose.swing.animation.core.updateTransition
 import org.jetbrains.compose.swing.foundation.graphics.RectangleShape
 import org.jetbrains.compose.swing.foundation.graphics.clip
@@ -57,6 +56,7 @@ import org.jetbrains.compose.swing.foundation.layout.layoutParentDataProtocol
 import org.jetbrains.compose.swing.layout.ParentDataModifier
 import org.jetbrains.compose.swing.layout.ParentProtocol
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.util.fastForEach
 import java.awt.ComponentOrientation
 import java.awt.Dimension
 import java.awt.Point

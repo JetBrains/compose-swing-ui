@@ -27,7 +27,7 @@
 
 package org.jetbrains.compose.swing.foundation.layout
 
-import org.jetbrains.compose.swing.foundation.util.fastForEach
+import org.jetbrains.compose.swing.util.fastForEach
 import java.awt.ComponentOrientation
 import java.awt.Dimension
 import kotlin.math.roundToInt
