@@ -55,6 +55,7 @@ import javax.swing.JDialog
 import javax.swing.JSlider
 import javax.swing.JViewport
 import javax.swing.SwingUtilities
+import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
@@ -721,7 +722,7 @@ class FoundationGraphicsSectionTest {
 private fun colorDistance(
     first: Int,
     second: Int,
-): Int = listOf(0, 8, 16).sumOf { shift -> kotlin.math.abs((first shr shift and 255) - (second shr shift and 255)) }
+): Int = listOf(0, 8, 16).sumOf { shift -> abs((first shr shift and 255) - (second shr shift and 255)) }
 
 /** The layout bounds of the [PLACEMENT_LAYER_TAG] layer, in the coordinates a capture of the stage uses. */
 internal fun ComposeSwingTest.placementLayerBox(): Rectangle2D {

@@ -4,6 +4,7 @@ package org.jetbrains.compose.swing.node
 import org.jetbrains.compose.swing.core.checkEventDispatchThread
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import java.awt.Component
+import java.util.ArrayDeque
 import java.util.IdentityHashMap
 import javax.swing.SwingUtilities
 
@@ -62,7 +63,7 @@ internal class AfterValidationActionQueue(
 ) {
     private val actions = IdentityHashMap<Any, IdentityHashMap<Any, PendingAction<*>>>()
     private val requests = PendingBuffers<PendingAction<*>>()
-    private val drainingRequests = java.util.ArrayDeque<MutableList<PendingAction<*>>>()
+    private val drainingRequests = ArrayDeque<MutableList<PendingAction<*>>>()
     private var disposed = false
 
     /** Queues [action] for this composition's attached [node], unless it detaches before the drain. */
@@ -245,7 +246,7 @@ internal val sharedAfterValidationCoordinator: AfterValidationCoordinator = Afte
 
 private class PendingBuffers<T> {
     private val buffers = arrayListOf<MutableList<T>>(ArrayList(), ArrayList())
-    private val available = java.util.ArrayDeque<Int>().apply { addLast(1) }
+    private val available = ArrayDeque<Int>().apply { addLast(1) }
     private var pendingIndex = 0
 
     val pending: MutableList<T> get() = buffers[pendingIndex]

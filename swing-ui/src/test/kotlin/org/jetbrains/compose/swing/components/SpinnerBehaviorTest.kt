@@ -4,6 +4,7 @@ package org.jetbrains.compose.swing.components
 import androidx.compose.runtime.ReusableContentHost
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.neverEqualPolicy
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.countTests
 import org.jetbrains.compose.swing.fixtures.components.SpinnerDateFixture
@@ -507,9 +508,9 @@ class SpinnerBehaviorTest {
         val model = InPlaceSteppingSpinnerModel()
         val observed = mutableListOf<Int>()
         setContent {
-            var counter by mutableStateOf(model.value as Counter, androidx.compose.runtime.neverEqualPolicy())
+            var counter by mutableStateOf(model.value, neverEqualPolicy())
             observed += counter.n
-            Spinner(model = model, changeListener = { counter = model.value as Counter })
+            Spinner(model = model, changeListener = { counter = model.value })
         }
         awaitIdle()
         assertEquals(0, observed.last(), "the reader starts at the value the model holds")
@@ -518,7 +519,7 @@ class SpinnerBehaviorTest {
         spinner.value = spinner.model.nextValue
         awaitIdle()
 
-        assertEquals(1, (model.value as Counter).n, "the step reaches the model")
+        assertEquals(1, model.value.n, "the step reaches the model")
         assertTrue(1 in observed, "a step the model takes in place invalidates whoever reads the state")
     }
 
@@ -564,7 +565,7 @@ private class Counter(
 private class InPlaceSteppingSpinnerModel : AbstractSpinnerModel() {
     private val counter = Counter(0)
 
-    override fun getValue(): Any = counter
+    override fun getValue(): Counter = counter
 
     override fun getNextValue(): Any = Counter(counter.n + 1)
 

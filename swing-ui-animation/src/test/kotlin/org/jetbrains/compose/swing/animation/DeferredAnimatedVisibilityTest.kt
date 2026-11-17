@@ -16,6 +16,7 @@
 
 package org.jetbrains.compose.swing.animation
 
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -57,7 +58,7 @@ class DeferredAnimatedVisibilityTest {
                         exit = fadeOut(tween(160, easing = LinearEasing)),
                     ) {
                         Block(width = 100, height = 100)
-                        androidx.compose.runtime.DisposableEffect(Unit) {
+                        DisposableEffect(Unit) {
                             composed = true
                             onDispose { composed = false }
                         }
@@ -95,7 +96,7 @@ class DeferredAnimatedVisibilityTest {
                         exit = fadeOut(tween(160)),
                     ) {
                         Block()
-                        androidx.compose.runtime.DisposableEffect(Unit) {
+                        DisposableEffect(Unit) {
                             composed = true
                             onDispose { composed = false }
                         }

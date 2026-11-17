@@ -17,6 +17,7 @@
 package org.jetbrains.compose.swing.animation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -43,6 +44,7 @@ import java.awt.Container
 import java.awt.Dimension
 import java.awt.Point
 import java.awt.Rectangle
+import kotlin.math.abs
 import kotlin.math.roundToInt
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -255,7 +257,7 @@ class AnimatedVisibilityTest {
                     exit = veilOut(tween(160, easing = LinearEasing), targetColor = Color.BLUE),
                 ) {
                     veilColor = transition.animationValue("veil") as? Color ?: veilColor
-                    androidx.compose.runtime.DisposableEffect(Unit) {
+                    DisposableEffect(Unit) {
                         onDispose { disposed = true }
                     }
                     Block(width = 100, height = 100)
@@ -331,7 +333,7 @@ class AnimatedVisibilityTest {
                     enter = EnterTransition.None,
                     exit = ExitTransition.None,
                 ) {
-                    androidx.compose.runtime.DisposableEffect(Unit) {
+                    DisposableEffect(Unit) {
                         contentPresent = true
                         onDispose { contentPresent = false }
                     }
@@ -469,25 +471,25 @@ private fun ComposeSwingTest.assertScaleRaster(
         }
     val expectedWidth = (20 * scale).roundToInt()
     assertTrue(
-        kotlin.math.abs(expectedWidth - bounds.width) <= 1,
+        abs(expectedWidth - bounds.width) <= 1,
         "painted width at ${transition.playTimeNanos}ns: expected $expectedWidth, got ${bounds.width}",
     )
     val expectedHeight = (20 * scale).roundToInt()
     assertTrue(
-        kotlin.math.abs(expectedHeight - bounds.height) <= 1,
+        abs(expectedHeight - bounds.height) <= 1,
         "painted height at ${transition.playTimeNanos}ns: expected $expectedHeight, got ${bounds.height}",
     )
     if (bounds.width > 1) {
         val expectedPivot = ((20 - bounds.width) / 2f).roundToInt()
         assertTrue(
-            kotlin.math.abs(expectedPivot - bounds.x) <= 1,
+            abs(expectedPivot - bounds.x) <= 1,
             "painted horizontal pivot at ${transition.playTimeNanos}ns: expected $expectedPivot, got ${bounds.x}",
         )
     }
     if (bounds.height > 1) {
         val expectedPivot = ((20 - bounds.height) / 2f).roundToInt()
         assertTrue(
-            kotlin.math.abs(expectedPivot - bounds.y) <= 1,
+            abs(expectedPivot - bounds.y) <= 1,
             "painted vertical pivot at ${transition.playTimeNanos}ns: expected $expectedPivot, got ${bounds.y}",
         )
     }

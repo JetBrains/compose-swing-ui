@@ -5,10 +5,12 @@ import androidx.compose.runtime.CompositionLocalMap
 import androidx.compose.runtime.ReusableContentHost
 import androidx.compose.runtime.currentComposer
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
+import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.background
@@ -360,7 +362,7 @@ class ComponentDefaultsBehaviorTest {
 
         setContent {
             ProvideComponentDefaults(alignment provides SwingConstants.RIGHT) {
-                SwingNode(factory = { JPanel() })
+                Panel {}
                 Label("sample")
             }
         }
@@ -534,7 +536,7 @@ class ComponentDefaultsBehaviorTest {
                     Label("second")
                 }
                 for (item in items) {
-                    androidx.compose.runtime.key(item) {
+                    key(item) {
                         Label(item)
                     }
                 }

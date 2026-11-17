@@ -4,6 +4,7 @@ package org.jetbrains.compose.swing.core
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReusableContentHost
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.movableContentOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -149,7 +150,7 @@ private fun KeyedButton(
     onClick: () -> Unit,
     modifier: SwingModifier,
 ) {
-    androidx.compose.runtime.key(key) {
+    key(key) {
         Button(text = "Keyed", onClick = onClick, modifier = modifier)
     }
 }

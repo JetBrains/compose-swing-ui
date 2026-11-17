@@ -2,15 +2,31 @@
 package org.jetbrains.compose.swing.detekt
 
 import dev.detekt.api.Config
-import dev.detekt.test.lint
+import dev.detekt.test.lintWithContext
+import dev.detekt.test.utils.createEnvironment
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class PreferImportsOverFqnTest {
+    private fun lint(code: String) =
+        PreferImportsOverFqn(Config.empty).lintWithContext(
+            environment,
+            code,
+            """
+            package org.jetbrains.compose.swing.node
+
+            public fun SwingNode(update: () -> Unit = {}) {}
+            """.trimIndent(),
+        )
+
+    private companion object {
+        private val environment = createEnvironment()
+    }
+
     @Test
     fun `reports direct FQN in type reference`() {
         val findings =
-            PreferImportsOverFqn(Config.empty).lint(
+            lint(
                 """
                 package sample
 
@@ -28,7 +44,7 @@ class PreferImportsOverFqnTest {
     @Test
     fun `reports direct FQN for a nested type reference`() {
         val findings =
-            PreferImportsOverFqn(Config.empty).lint(
+            lint(
                 """
                 package sample
 
@@ -45,7 +61,7 @@ class PreferImportsOverFqnTest {
     @Test
     fun `does not report when type is imported`() {
         val findings =
-            PreferImportsOverFqn(Config.empty).lint(
+            lint(
                 """
                 package sample
 
@@ -59,9 +75,9 @@ class PreferImportsOverFqnTest {
     }
 
     @Test
-    fun `does not inspect expression call chains`() {
+    fun `does not report an unresolved qualified call`() {
         val findings =
-            PreferImportsOverFqn(Config.empty).lint(
+            lint(
                 """
                 package sample
 
@@ -80,7 +96,7 @@ class PreferImportsOverFqnTest {
     @Test
     fun `does not report regular member access chain`() {
         val findings =
-            PreferImportsOverFqn(Config.empty).lint(
+            lint(
                 """
                 package sample
 
@@ -96,7 +112,7 @@ class PreferImportsOverFqnTest {
     @Test
     fun `does not report member chains rooted at a value`() {
         val findings =
-            PreferImportsOverFqn(Config.empty).lint(
+            lint(
                 """
                 package sample
 
@@ -112,7 +128,7 @@ class PreferImportsOverFqnTest {
     @Test
     fun `does not report FQN text inside string literals`() {
         val findings =
-            PreferImportsOverFqn(Config.empty).lint(
+            lint(
                 """
                 package sample
 
@@ -126,7 +142,7 @@ class PreferImportsOverFqnTest {
     @Test
     fun `supports suppression by rule id`() {
         val findings =
-            PreferImportsOverFqn(Config.empty).lint(
+            lint(
                 """
                 package sample
 
@@ -141,11 +157,155 @@ class PreferImportsOverFqnTest {
     @Test
     fun `reports a fully qualified nullable type`() {
         val findings =
-            PreferImportsOverFqn(Config.empty).lint(
+            lint(
                 """
                 package sample
 
                 class Demo(val value: org.jetbrains.compose.swing.sample.Widget?)
+                """.trimIndent(),
+            )
+
+        assertEquals(1, findings.size)
+    }
+
+    @Test
+    fun `reports a package-qualified call`() {
+        val findings =
+            lint(
+                """
+                package sample
+
+                fun show() {
+                    org.jetbrains.compose.swing.node.SwingNode()
+                }
+                """.trimIndent(),
+            )
+
+        assertEquals(
+            listOf("Use import instead of direct FQN: org.jetbrains.compose.swing.node.SwingNode"),
+            findings.map { it.message },
+        )
+    }
+
+    @Test
+    fun `reports a package-qualified enum or property reference once`() {
+        val findings =
+            lint(
+                """
+                package sample
+
+                val color = java.awt.Color.RED
+                val mode = java.util.concurrent.TimeUnit.SECONDS
+                """.trimIndent(),
+            )
+
+        assertEquals(
+            listOf(
+                "Use import instead of direct FQN: java.awt.Color",
+                "Use import instead of direct FQN: java.util.concurrent.TimeUnit",
+            ),
+            findings.map { it.message },
+        )
+    }
+
+    @Test
+    fun `reports a package-qualified call inside a lambda`() {
+        val findings =
+            lint(
+                """
+                package sample
+
+                fun run(block: () -> Unit) = block()
+
+                fun show() {
+                    run { org.jetbrains.compose.swing.node.SwingNode() }
+                }
+                """.trimIndent(),
+            )
+
+        assertEquals(
+            listOf("Use import instead of direct FQN: org.jetbrains.compose.swing.node.SwingNode"),
+            findings.map { it.message },
+        )
+    }
+
+    @Test
+    fun `does not report a chain rooted at a value`() {
+        val findings =
+            lint(
+                """
+                package sample
+
+                object Registry { val items = listOf(1) }
+
+                class Holder(val items: List<Int>) {
+                    fun size(other: Holder) = items.size + this.items.size + other.items.size + Registry.items.size
+                }
+                """.trimIndent(),
+            )
+
+        assertEquals(0, findings.size)
+    }
+
+    @Test
+    fun `does not report a qualified name in an import directive`() {
+        val findings =
+            lint(
+                """
+                package sample
+
+                import java.awt.Color
+                import org.jetbrains.compose.swing.node.SwingNode
+
+                val color = Color.RED
+                """.trimIndent(),
+            )
+
+        assertEquals(0, findings.size)
+    }
+
+    @Test
+    fun `does not report a package-qualified call whose package declares a same-named extension`() {
+        val findings =
+            PreferImportsOverFqn(Config.empty).lintWithContext(
+                environment,
+                """
+                package sample
+
+                fun show() {
+                    org.jetbrains.compose.swing.scoped.Reveal()
+                }
+                """.trimIndent(),
+                """
+                package org.jetbrains.compose.swing.scoped
+
+                public class Scope
+
+                public fun Reveal() {}
+
+                public fun Scope.Reveal() {}
+                """.trimIndent(),
+            )
+
+        assertEquals(0, findings.size)
+    }
+
+    @Test
+    fun `reports a package-qualified property whose package declares a same-named extension`() {
+        val findings =
+            PreferImportsOverFqn(Config.empty).lintWithContext(
+                environment,
+                """
+                package sample
+
+                fun show() = org.jetbrains.compose.swing.scoped.status
+                """.trimIndent(),
+                """
+                package org.jetbrains.compose.swing.scoped
+
+                public val status: Int = 1
+
+                public fun String.status() {}
                 """.trimIndent(),
             )
 

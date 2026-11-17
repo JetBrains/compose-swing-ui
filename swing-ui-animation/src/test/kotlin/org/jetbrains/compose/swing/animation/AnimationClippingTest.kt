@@ -387,7 +387,7 @@ class AnimationClippingTest {
         val below = onNodeWithTag(BELOW).fetch<JComponent>()
         val contentBounds = SwingUtilities.convertRectangle(content.parent, content.bounds, root)
         val belowBounds = SwingUtilities.convertRectangle(below.parent, below.bounds, root)
-        kotlin.test.assertTrue(
+        assertTrue(
             contentBounds.intersects(belowBounds),
             "content at $contentBounds does not reach sibling at $belowBounds",
         )

@@ -29,6 +29,7 @@ import javax.swing.JTextField
 import javax.swing.UIManager
 import javax.swing.plaf.basic.BasicHTML
 import javax.swing.text.View
+import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotSame
@@ -481,7 +482,7 @@ class LayoutSectionsTest {
             assertEquals("0.5", aspect.text, "the numeric label follows the cycled ratio")
             assertTrue(aspect.width < wideAspect.width, "cycling from 2f to 0.5f makes the swatch narrower")
             assertTrue(
-                kotlin.math.abs(aspect.width * 2 - aspect.height) <= 1,
+                abs(aspect.width * 2 - aspect.height) <= 1,
                 "aspectRatio(0.5f) keeps the child at one unit wide by two high",
             )
             val roomyAspect = aspect.size

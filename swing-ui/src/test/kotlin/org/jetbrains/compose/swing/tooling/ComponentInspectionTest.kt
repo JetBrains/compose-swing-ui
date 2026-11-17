@@ -53,6 +53,7 @@ import kotlin.test.assertNotSame
 import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
+import java.awt.Panel as AwtPanel
 
 private const val PANEL_TAG = "inspection-panel"
 internal const val LABEL_TAG = "inspection-label"
@@ -497,7 +498,7 @@ class ComponentInspectionTest {
         setContent { Label(text = "hello", modifier = SwingModifier.testTag(LABEL_TAG)) }
 
         // Add a raw AWT Panel (not a JComponent) between the composition root and a detached child.
-        val rawContainer = java.awt.Panel()
+        val rawContainer = AwtPanel()
         val child = JPanel()
         rawContainer.add(child)
 
