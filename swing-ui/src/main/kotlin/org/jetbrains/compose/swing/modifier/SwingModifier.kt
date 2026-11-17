@@ -30,6 +30,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import org.jetbrains.compose.swing.annotations.InternalSwingUiApi
+import org.jetbrains.compose.swing.annotations.SwingComponentLibraryApi
 import org.jetbrains.compose.swing.core.SwingCompositionDiagnostics
 import org.jetbrains.compose.swing.core.collectFailure
 import org.jetbrains.compose.swing.core.runEveryStep
@@ -416,6 +417,22 @@ public interface SwingModifier {
         public open val additive: Boolean get() = false
 
         /**
+         * Whether a later keyed declaration may replace an earlier, different declaration with the same [key].
+         * Defaults to `true`.
+         *
+         * Direct elements of one modifier chain are checked together. Declarations collected by one styleable block
+         * are also checked together. Within either group, equal elements coalesce. If two elements differ and either
+         * disallows redeclaration, the second declaration throws [IllegalStateException].
+         *
+         * Across the chain and a styleable block, or across separate styleable blocks, the later declaration in
+         * modifier order wins. `runComposeSwingTest` reports such a conflict once the pass settles.
+         *
+         * A declaration may change value on a later recomposition. Ignored when [additive] is `true`.
+         */
+        @SwingComponentLibraryApi
+        public open val allowsRedeclaration: Boolean get() = true
+
+        /**
          * What detaching this element puts back, [RestorePolicy.EverythingWritten] by default. See
          * [RestorePolicy] for what each undertakes.
          */
@@ -483,6 +500,20 @@ public interface SwingModifier {
          * @param previous the element this one replaces, or `null` where none precedes it.
          */
         internal open fun checkPreviousDeclaration(previous: SwingModifier.Element?) = Unit
+
+        /**
+         * Refuses a declaration that replaces [previous], the element of the same [key] it follows in one chain,
+         * where either disallows [redeclaration][allowsRedeclaration] and the two differ.
+         *
+         * @param previous the element this one replaces, or `null` where none precedes it.
+         */
+        internal fun requireRedeclarationAllowed(previous: NodeElement<*, *>?) {
+            if (previous == null || (allowsRedeclaration && previous.allowsRedeclaration)) return
+            check(this == previous) {
+                "$name is declared twice on this component with different values; a component holds one: " +
+                    "declare it once."
+            }
+        }
 
         abstract override fun equals(other: Any?): Boolean
 

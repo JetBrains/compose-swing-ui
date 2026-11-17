@@ -520,23 +520,29 @@ internal class ComposeSwingTestImpl(
     /** The restore check every composition this test mounts is held to, reached through [diagnostics]. */
     private val restoreCheck = ModifierRestoreCheck(::recordUncaughtFailure)
 
+    /** The redeclaration check, compared over what every declaration holds once a gate has settled. */
+    private val redeclarationCheck = RedeclarationCheck(::recordUncaughtFailure)
+
+    /** The checks every declaration and restore is held to, outermost first. */
+    private val checks: List<SwingCompositionDiagnostics> = listOf(redeclarationCheck, restoreCheck)
+
     /**
      * The one diagnostics element this test states on its recomposer's context, so a nested composition - a cell
-     * renderer's, a menu's, a window's - inherits the same one. It forwards to [restoreCheck] and [rootRegistry]
-     * by hand: interface delegation would also delegate the context lookup, which then hands out the delegate
-     * instead of this element.
+     * renderer's, a menu's, a window's - inherits the same one. It forwards each write and restore through
+     * [checks], and root announcements to [rootRegistry], by hand: interface delegation would also delegate the
+     * context lookup, which then hands out the delegate instead of this element.
      */
     private val diagnostics =
         object : SwingCompositionDiagnostics {
             override fun declaring(
                 info: ModifierInfo,
                 write: () -> Unit,
-            ) = restoreCheck.declaring(info, write)
+            ) = checks.foldRight(write) { check, inner -> { check.declaring(info, inner) } }()
 
             override fun restoring(
                 info: ModifierInfo,
                 restore: () -> Unit,
-            ) = restoreCheck.restoring(info, restore)
+            ) = checks.foldRight(restore) { check, inner -> { check.restoring(info, inner) } }()
 
             override fun onRootForTestCreated(root: RootForTest) = rootRegistry.onRootForTestCreated(root)
 
@@ -772,7 +778,11 @@ internal class ComposeSwingTestImpl(
     ) {
         var steps = 0
         while (true) {
-            if (step(nextFrame()) && done()) return
+            if (step(nextFrame()) && done()) {
+                redeclarationCheck.conflicts()
+                throwUncaughtFailure()
+                return
+            }
             if (++steps >= MAX_STEPS) throw notIdle(gate)
         }
     }

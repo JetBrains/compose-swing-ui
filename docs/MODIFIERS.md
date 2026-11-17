@@ -72,6 +72,8 @@ A property element is written again, even when equal, on a pass where an earlier
 
 A property element - `additive` left at its default `false` - is identified by its `key`, which defaults to the element's class, so elements of different types never collide. Declared under the same key on the next pass, it updates the same node. Override `key` only when several instances of the *same* type must coexist independently, such as a client property keyed by its property name.
 
+Two different elements of one key in one chain resolve to the later one. A component that holds exactly one value of a kind (`popupAnchor`, `buttonGroup`) refuses a second, different declaration instead: composing it fails, naming the binding, while equal declarations are one. A different element on a later recomposition replaces the previous one either way.
+
 An additive element has no key and is identified by its position among the additive elements: the k-th additive element of the modifier takes over from the k-th one of the last pass. A property element entering or leaving does not change those positions.
 
 A `styleable` may appear more than once. An empty style clears that declaration's contribution. Removing a later declaration restores the earlier declaration's value for overlapping properties. [When a style runs](STYLES.md#when-a-style-runs) says when a style is written again.

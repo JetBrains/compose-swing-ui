@@ -113,7 +113,9 @@ public fun rememberPopupAnchor(): PopupAnchor = remember { PopupAnchor() }
  * composition, and a different anchor declared on a later recomposition takes the binding over from the
  * previous one.
  *
- * One component takes one anchor: declaring two on the same chain binds the last one. An anchor carries
+ * One component takes one anchor: declaring two different anchors on the same chain throws an
+ * [IllegalStateException] naming `popupAnchor`, so declare it once; the same anchor twice is one
+ * declaration. An anchor carries
  * at most one [ContextMenu], alongside any number of menus the application opens itself - a context menu
  * and a drop-down over the same component are two declarations against one anchor.
  *

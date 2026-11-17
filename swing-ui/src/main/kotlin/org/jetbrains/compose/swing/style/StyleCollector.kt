@@ -10,6 +10,7 @@ import org.jetbrains.compose.swing.modifier.requireSingleElementRole
 import org.jetbrains.compose.swing.node.SwingNodeHolder
 import org.jetbrains.compose.swing.node.forEachStyle
 import org.jetbrains.compose.swing.node.forEachStyleReversed
+import org.jetbrains.compose.swing.util.fastFirstOrNull
 import org.jetbrains.compose.swing.util.fastForEach
 
 /**
@@ -152,11 +153,7 @@ internal class StyleCollector : NestedStyleProviderScope {
 
     fun writeElement(element: SwingModifier.Element) = checkNotNull(collected).write(element)
 
-    fun declare(element: PropertyElement<*, *>) {
-        val declarations = checkNotNull(collected).declarations
-        declarations.removeAll { it.key == element.key }
-        declarations.add(element)
-    }
+    fun declare(element: PropertyElement<*, *>) = checkNotNull(collected).declare(element)
 
     /**
      * Declares [element] on this component and provides [local] to descendants.
@@ -255,6 +252,16 @@ internal class StyleCollector : NestedStyleProviderScope {
 
         override var scope: ComponentStyleScope? = null
 
+        /**
+         * Records [element] as the last descriptor declaration for its key, refusing it where a custom element of
+         * the key refuses a second different declaration.
+         */
+        fun declare(element: PropertyElement<*, *>) {
+            element.requireRedeclarationAllowed(propertyElements.fastFirstOrNull { it.key == element.key })
+            declarations.removeAll { it.key == element.key }
+            declarations.add(element)
+        }
+
         /** Records [element] as the last write for its key; rejects additive elements and parent data modifiers. */
         fun write(element: SwingModifier.Element) {
             element.requireSingleElementRole()
@@ -265,6 +272,10 @@ internal class StyleCollector : NestedStyleProviderScope {
                             "collapse with another of its key. Declare it in the component's modifier instead."
                     }
                     val key = element.key
+                    element.requireRedeclarationAllowed(
+                        propertyElements.fastFirstOrNull { it.key == key }
+                            ?: declarations.fastFirstOrNull { it.key == key },
+                    )
                     propertyElements.removeAll { it.key == key }
                     propertyElements.add(element)
                 }

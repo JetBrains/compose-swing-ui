@@ -3,6 +3,7 @@ package org.jetbrains.compose.swing.modifier.datatransfer
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.annotation.RememberInComposition
 import androidx.compose.runtime.remember
 import org.jetbrains.annotations.VisibleForTesting
 import org.jetbrains.compose.swing.annotations.TransferAction
@@ -194,77 +195,79 @@ public fun SwingModifier.onExportDone(onExportDone: (data: Transferable?, action
  * returns `false`.
  */
 @Stable
-public class ClipboardHandle internal constructor(
-    // The clipboard copy/cut/paste act on, resolved on each operation and `null` where the environment
-    // has none, which leaves every operation a no-op.
-    private val resolveClipboard: () -> Clipboard?,
-) {
-    // The component the clipboard modifier bound this handle to, or null while unbound. Copy/cut/paste
-    // operate on it through the transfer handler that same modifier installed.
-    private var component: JComponent? = null
+public class ClipboardHandle
+    @RememberInComposition
+    internal constructor(
+        // The clipboard copy/cut/paste act on, resolved on each operation and `null` where the environment
+        // has none, which leaves every operation a no-op.
+        private val resolveClipboard: () -> Clipboard?,
+    ) {
+        // The component the clipboard modifier bound this handle to, or null while unbound. Copy/cut/paste
+        // operate on it through the transfer handler that same modifier installed.
+        private var component: JComponent? = null
 
-    /**
-     * Copies to the system clipboard: exports the value the bound component's [clipboard] modifier
-     * produces as a `TransferHandler.COPY`. A no-op while the handle is unbound or no clipboard is
-     * reachable; a clipboard that refuses the value completes the export as `TransferHandler.NONE`.
-     *
-     * @see javax.swing.TransferHandler.exportToClipboard
-     */
-    public fun copy() {
-        export(TransferHandler.COPY)
-    }
+        /**
+         * Copies to the system clipboard: exports the value the bound component's [clipboard] modifier
+         * produces as a `TransferHandler.COPY`. A no-op while the handle is unbound or no clipboard is
+         * reachable; a clipboard that refuses the value completes the export as `TransferHandler.NONE`.
+         *
+         * @see javax.swing.TransferHandler.exportToClipboard
+         */
+        public fun copy() {
+            export(TransferHandler.COPY)
+        }
 
-    /**
-     * Cuts to the system clipboard: exports the value the bound component's [clipboard] modifier
-     * produces as a `TransferHandler.MOVE`, reported through the component's [onExportDone] so the
-     * source can remove the moved data. A no-op while the handle is unbound or no clipboard is
-     * reachable; a clipboard that refuses the value reports `TransferHandler.NONE` in place of the move.
-     *
-     * @see javax.swing.TransferHandler.exportToClipboard
-     */
-    public fun cut() {
-        export(TransferHandler.MOVE)
-    }
+        /**
+         * Cuts to the system clipboard: exports the value the bound component's [clipboard] modifier
+         * produces as a `TransferHandler.MOVE`, reported through the component's [onExportDone] so the
+         * source can remove the moved data. A no-op while the handle is unbound or no clipboard is
+         * reachable; a clipboard that refuses the value reports `TransferHandler.NONE` in place of the move.
+         *
+         * @see javax.swing.TransferHandler.exportToClipboard
+         */
+        public fun cut() {
+            export(TransferHandler.MOVE)
+        }
 
-    /**
-     * Pastes from the system clipboard: reads the clipboard and, when the bound component's [clipboard]
-     * modifier's `canImport` accepts the flavors, imports the contents through that modifier's
-     * `onPaste`. Returns whether the import succeeded; returns `false` while the handle is unbound, or
-     * while no clipboard is reachable or its contents cannot be read.
-     *
-     * @see javax.swing.TransferHandler.importData
-     */
-    public fun paste(): Boolean {
-        val component = component ?: return false
-        val handler = component.transferHandler
-        val contents = resolveClipboard()?.contentsOrNull()
-        return handler != null &&
-            contents != null &&
-            handler.importData(TransferHandler.TransferSupport(component, contents))
-    }
+        /**
+         * Pastes from the system clipboard: reads the clipboard and, when the bound component's [clipboard]
+         * modifier's `canImport` accepts the flavors, imports the contents through that modifier's
+         * `onPaste`. Returns whether the import succeeded; returns `false` while the handle is unbound, or
+         * while no clipboard is reachable or its contents cannot be read.
+         *
+         * @see javax.swing.TransferHandler.importData
+         */
+        public fun paste(): Boolean {
+            val component = component ?: return false
+            val handler = component.transferHandler
+            val contents = resolveClipboard()?.contentsOrNull()
+            return handler != null &&
+                contents != null &&
+                handler.importData(TransferHandler.TransferSupport(component, contents))
+        }
 
-    private fun export(action: Int) {
-        val component = component ?: return
-        val systemClipboard = resolveClipboard() ?: return
-        try {
-            component.transferHandler?.exportToClipboard(component, systemClipboard, action)
-        } catch (_: IllegalStateException) {
-            // A clipboard another application holds open refuses to take the value, which
-            // TransferHandler.exportToClipboard reports through exportDone as a completed export that
-            // transferred nothing before it throws. The outcome has already reached the component.
+        private fun export(action: Int) {
+            val component = component ?: return
+            val systemClipboard = resolveClipboard() ?: return
+            try {
+                component.transferHandler?.exportToClipboard(component, systemClipboard, action)
+            } catch (_: IllegalStateException) {
+                // A clipboard another application holds open refuses to take the value, which
+                // TransferHandler.exportToClipboard reports through exportDone as a completed export that
+                // transferred nothing before it throws. The outcome has already reached the component.
+            }
+        }
+
+        /** Binds the handle to [target] so copy/cut/paste act on it; called by the [clipboard] modifier. */
+        internal fun bind(target: JComponent) {
+            component = target
+        }
+
+        /** Unbinds [target] if it is the currently bound component, leaving a handle bound elsewhere intact. */
+        internal fun unbind(target: JComponent) {
+            if (component === target) component = null
         }
     }
-
-    /** Binds the handle to [target] so copy/cut/paste act on it; called by the [clipboard] modifier. */
-    internal fun bind(target: JComponent) {
-        component = target
-    }
-
-    /** Unbinds [target] if it is the currently bound component, leaving a handle bound elsewhere intact. */
-    internal fun unbind(target: JComponent) {
-        if (component === target) component = null
-    }
-}
 
 /**
  * Creates and remembers a [ClipboardHandle] to drive a component's clipboard copy/cut/paste

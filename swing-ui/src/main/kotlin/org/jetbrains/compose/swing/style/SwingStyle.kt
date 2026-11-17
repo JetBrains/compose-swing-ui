@@ -158,8 +158,11 @@ public fun <V> styleLocalOf(
 
 /**
  * Creates a style property whose value is applied by a custom element.
- * A declaration replaces an earlier one with the same key. The element's equality, target constraints
- * and restoration behavior apply as in a modifier.
+ * A declaration replaces an earlier one with the same key. An element that disallows redeclaration is refused only
+ * against another declaration in the same styleable block; see [SwingModifier.NodeElement.allowsRedeclaration].
+ * Against a declaration of another source, the later wins, and `runComposeSwingTest` reports the conflict once the
+ * pass settles.
+ * The element's equality, target constraints and restoration behavior apply as in a modifier.
  * A style writes its descriptor-backed properties before its custom elements.
  * Each group follows declaration order.
  *

@@ -42,6 +42,9 @@ internal class BindingElement<C : Component, B : Any>(
 ) : SwingModifier.NodeElement<C, BindingNode<C, B>>() {
     override val key: Any get() = attach.javaClass
 
+    /** A component holds one value of a binding; a second, different one in the same chain is refused. */
+    override val allowsRedeclaration: Boolean get() = false
+
     override val declaredValues: Map<String, Any?> get() = mapOf(name to value)
 
     /** A binding hands the component over to a value; what it leaves behind is what drove it last. */
@@ -84,7 +87,9 @@ internal class BindingElement<C : Component, B : Any>(
  *
  * One binding builder must declare exactly one [attach] callback (call this exactly once per builder):
  * that callback's class is the binding's last-wins slot, so every application of one builder shares a
- * slot while distinct builders stay independent.
+ * slot while distinct builders stay independent. Within one modifier chain or one style block, a second,
+ * different declaration of the same binding throws [IllegalStateException]; across chains and style
+ * blocks, the later declaration still wins.
  *
  * [target] is the component type the binding requires; [attach] and [detach] receive it already typed,
  * and a component that is not a [target] is rejected at apply with a clear error.

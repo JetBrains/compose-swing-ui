@@ -30,7 +30,8 @@ import javax.swing.ButtonGroup
  * a different group moves the button to it, and the button leaves the group when the modifier leaves
  * the modifier chain or the component leaves the composition or parks, so a departed button stops taking
  * part in the exclusion instead of lingering as a hidden member. One button belongs to one
- * group: declaring two on the same modifier chain enrolls it in the last one.
+ * group: declaring two different groups on the same modifier chain throws an [IllegalStateException]
+ * naming `buttonGroup`, so declare it once; declaring the same group twice is one declaration.
  *
  * A group owns which of its members is selected and only ever moves that selection: a member holds it
  * until another one takes it, so declaring `selected = false` for every member leaves the one that has

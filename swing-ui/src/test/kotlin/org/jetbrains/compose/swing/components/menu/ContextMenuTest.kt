@@ -434,30 +434,80 @@ class ContextMenuTest {
     }
 
     @Test
-    fun theLastAnchorInTheChainOwnsTheGesture() = runComposeSwingTest {
+    fun twoDifferentAnchorsInOneChainAreRefusedBeforeAnyMenuRuns() = runComposeSwingTest {
         val opened = mutableListOf<String?>()
         val record: (JPopupMenu, Component, Int, Int) -> Unit = { popup, _, _, _ ->
             opened += popup.menuItemTexts().single()
         }
-        setContent {
-            val first = rememberPopupAnchor()
-            val second = rememberPopupAnchor()
-            Label("target", modifier = SwingModifier.popupAnchor(first).popupAnchor(second))
-            ContextMenu(first, display = record) {
-                MenuItem("Cut", onClick = { })
+        val error =
+            assertFailsWith<IllegalStateException> {
+                setContent {
+                    val first = rememberPopupAnchor()
+                    val second = rememberPopupAnchor()
+                    Label("target", modifier = SwingModifier.popupAnchor(first).popupAnchor(second))
+                    ContextMenu(first, display = record) {
+                        MenuItem("Cut", onClick = { })
+                    }
+                    ContextMenu(second, display = record) {
+                        MenuItem("Paste", onClick = { })
+                    }
+                }
+                awaitIdle()
             }
-            ContextMenu(second, display = record) {
-                MenuItem("Paste", onClick = { })
+
+        assertTrue("popupAnchor" in error.message.orEmpty(), "the error names the declaration: ${error.message}")
+        assertEquals(emptyList<String?>(), opened.toList(), "neither anchor's callback ran")
+    }
+
+    @Test
+    fun oneAnchorSwappedAcrossRecompositionsDetachesBeforeTheNextAttaches() = runComposeSwingTest {
+        val events = mutableListOf<String>()
+        val first = PopupAnchor()
+        val second = PopupAnchor()
+        first.attach(recordingAttachment("first", events))
+        second.attach(recordingAttachment("second", events))
+        var useSecond by mutableStateOf(false)
+        setContent {
+            Label("target", modifier = SwingModifier.popupAnchor(if (useSecond) second else first))
+        }
+        awaitIdle()
+        events.clear()
+
+        useSecond = true
+        awaitIdle()
+
+        assertEquals(listOf("first unbound", "second bound"), events.toList())
+    }
+
+    // That equal declarations coalesce is RedeclarationTest's; this pins that two popupAnchor calls
+    // for one anchor are equal declarations, so the context click opens the menu once, not twice.
+    @Test
+    fun repeatingOnePopupAnchorOnALabelOpensItsMenuOnce() = runComposeSwingTest {
+        val opened = mutableListOf<String?>()
+        setContent {
+            val anchor = rememberPopupAnchor()
+            Label("target", modifier = SwingModifier.popupAnchor(anchor).popupAnchor(anchor))
+            ContextMenu(anchor, display = { popup, _, _, _ -> opened += popup.menuItemTexts().single() }) {
+                MenuItem("Cut", onClick = { })
             }
         }
 
         onNodeWithText("target").performContextClick()
 
-        assertEquals(
-            listOf<String?>("Paste"),
-            opened.toList(),
-            "a component has one popup menu: the chain's last anchor owns it",
-        )
+        assertEquals(listOf<String?>("Cut"), opened.toList())
+    }
+
+    private fun recordingAttachment(
+        name: String,
+        events: MutableList<String>,
+    ) = object : AnchorAttachment {
+        override fun onBound(component: Component) {
+            events += "$name bound"
+        }
+
+        override fun onUnbound(component: Component) {
+            events += "$name unbound"
+        }
     }
 
     @Test

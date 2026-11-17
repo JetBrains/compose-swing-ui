@@ -977,6 +977,7 @@ public abstract class org/jetbrains/compose/swing/modifier/SwingModifier$NodeEle
 	public abstract fun equals (Ljava/lang/Object;)Z
 	public final fun foldIn (Ljava/lang/Object;Lkotlin/jvm/functions/Function2;)Ljava/lang/Object;
 	public fun getAdditive ()Z
+	public fun getAllowsRedeclaration ()Z
 	public fun getDeclaredValues ()Ljava/util/Map;
 	public fun getHeldProperties ()Ljava/util/Set;
 	public fun getKey ()Ljava/lang/Object;

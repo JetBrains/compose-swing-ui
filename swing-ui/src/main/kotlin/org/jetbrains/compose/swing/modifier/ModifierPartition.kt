@@ -155,7 +155,9 @@ internal class ModifierPartition(
         // own order, so a key declared again later stands where it was declared last.
         val key = element.key
         val previous = keyedElements.indexOfFirst { it.key == key }
-        element.checkPreviousDeclaration(if (previous >= 0) keyedElements[previous] else null)
+        val replaced = if (previous >= 0) keyedElements[previous] else null
+        element.checkPreviousDeclaration(replaced)
+        element.requireRedeclarationAllowed(replaced)
         if (previous >= 0) {
             keyedElements.removeAt(previous)
         }

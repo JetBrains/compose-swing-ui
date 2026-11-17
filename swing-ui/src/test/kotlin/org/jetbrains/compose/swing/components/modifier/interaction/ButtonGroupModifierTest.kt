@@ -7,6 +7,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.button.CheckBox
 import org.jetbrains.compose.swing.components.button.RadioButton
 import org.jetbrains.compose.swing.components.button.ToggleButton
@@ -424,6 +425,23 @@ class ButtonGroupModifierTest {
             (moving.model as DefaultButtonModel).group,
             "the button's own model should name the group it moved to",
         )
+    }
+
+    @Test
+    fun twoDifferentButtonGroupsOnOneButtonAreRefusedNamingTheBinding() = runComposeSwingTest {
+        val error =
+            assertFailsWith<IllegalStateException> {
+                setContent {
+                    Button(
+                        "x",
+                        onClick = {},
+                        modifier = SwingModifier.buttonGroup(ButtonGroup()).buttonGroup(ButtonGroup()),
+                    )
+                }
+                awaitIdle()
+            }
+
+        assertTrue("buttonGroup" in error.message.orEmpty(), "the error names the binding: ${error.message}")
     }
 
     @Test
