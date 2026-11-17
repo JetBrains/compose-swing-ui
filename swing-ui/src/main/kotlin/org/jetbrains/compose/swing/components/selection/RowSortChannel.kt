@@ -5,10 +5,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
-import org.jetbrains.compose.swing.node.AppliedWrite
 import org.jetbrains.compose.swing.node.MirrorState
 import org.jetbrains.compose.swing.node.SwingNodeUpdater
-import org.jetbrains.compose.swing.node.settleWhenDue
+import org.jetbrains.compose.swing.node.runReportingUncaught
 import org.jetbrains.compose.swing.util.fastFirstOrNull
 import org.jetbrains.compose.swing.util.fastForEachIndexed
 import javax.swing.JTable
@@ -35,7 +34,12 @@ import javax.swing.table.TableRowSorter
 internal class RowSortChannel(
     target: State<RowSorterListener?>,
 ) {
-    private val ownWrite = AppliedWrite()
+    /**
+     * Count of this channel's own writes in flight. A sorter raises its event from inside the write that
+     * provokes it, so an event arriving while this is above zero is the channel's own doing. A count keeps
+     * a write nested inside another one stretch.
+     */
+    private var writeDepth = 0
 
     private var sorter: TableRowSorter<TableModel>? = null
 
@@ -71,13 +75,27 @@ internal class RowSortChannel(
     /** Reports the user's own sort-order changes. Installed on every sorter this channel builds. */
     private val listener =
         RowSorterListener { event ->
-            if (!ownWrite.isWriting) {
+            if (writeDepth == 0) {
                 if (event.type == RowSorterEvent.Type.SORT_ORDER_CHANGED) {
                     appliedSortKeys = event.source.sortKeys.toList()
                 }
                 target.value?.sorterChanged(event)
             }
         }
+
+    /**
+     * Runs [block] as this channel's own write, so the events it raises are not taken for the user's. A
+     * failure of a listener the caller attached is reported to the uncaught handler instead of carried out,
+     * and the count is lowered either way.
+     */
+    private inline fun writing(block: () -> Unit) {
+        writeDepth++
+        try {
+            runReportingUncaught(block)
+        } finally {
+            writeDepth--
+        }
+    }
 
     /**
      * Sorts by [keys], dropping a key that names a column the model does not hold - a sorter takes only
@@ -94,7 +112,7 @@ internal class RowSortChannel(
      */
     fun applyHeld(keys: List<SortKey>) {
         if (keys == appliedSortKeys) return
-        ownWrite.write { applySortKeys(keys) }
+        writing { applySortKeys(keys) }
         appliedSortKeys = keys
     }
 
@@ -129,7 +147,7 @@ internal class RowSortChannel(
         install: () -> Unit = {},
     ) {
         val retained = held ?: sorter?.sortKeys?.toList().orEmpty()
-        ownWrite.write {
+        writing {
             install()
             bind(table, sortable)
             sorter?.let { current ->
@@ -138,7 +156,12 @@ internal class RowSortChannel(
                 // a new one in its place, so this stays what the sorter was on.
                 val standing = current.sortKeys
                 var resortDue = false
-                growRecord(columns.size)
+                // The record is grown to hold every column, and never shrunk: a column count changes through
+                // a structure change, which leaves the sorter unsorted, so an entry left over past the columns
+                // can only have this channel write a `null` comparator the sorter is already on.
+                if (writtenComparators.size < columns.size) {
+                    writtenComparators = writtenComparators.copyOf(columns.size)
+                }
                 columns.fastForEachIndexed { index, column ->
                     current.setSortable(index, column.isSortable)
                     if (isRecompared(current, index, column.comparator)) {
@@ -166,7 +189,7 @@ internal class RowSortChannel(
      * structure change drops the comparators it holds - `DefaultRowSorter.modelStructureChanged` clears
      * them - while the record stands.
      *
-     * The record holds column [index], which [growRecord] answers for.
+     * The record holds column [index], which [preserveAcross] grows it to before asking.
      *
      * Identity is the whole of the comparison: two comparators carry no equality to compare by, so an
      * equal ordering under a new instance cannot be told from a new one.
@@ -183,22 +206,13 @@ internal class RowSortChannel(
         }
 
     /**
-     * Grows the record to hold [columns] columns. It is never shrunk: a column count changes through a
-     * structure change, which leaves the sorter unsorted, so an entry left over past the columns can only
-     * have this channel write a `null` comparator the sorter is already on.
-     */
-    private fun growRecord(columns: Int) {
-        if (writtenComparators.size < columns) writtenComparators = writtenComparators.copyOf(columns)
-    }
-
-    /**
      * Puts [rowFilter] onto the sorter. A filter re-orders and re-filters every row it is handed to, so it
      * is written only where the caller declares another one than the sorter is already filtering by.
      */
     fun applyRowFilter(rowFilter: RowFilter<in TableModel, in Int>?) {
         val current = sorter ?: return
         if (current.rowFilter === rowFilter) return
-        ownWrite.write { current.rowFilter = rowFilter }
+        writing { current.rowFilter = rowFilter }
     }
 
     /** Builds the sorter [table] is missing, or takes away the one it should no longer have. */
@@ -312,15 +326,16 @@ internal fun SwingNodeUpdater<JTable>.declareRowFilter(
     // selection back and does nothing else.
     val selectionChanged = mirror.redeclare(declared)
     val filterChanged = sortChannel.redeclareRowFilter(rowFilter)
-    settleWhenDue(if (selectionChanged || filterChanged) RowFilterInstall(rowFilter) else null) { due ->
-        installContent(mirror, declared, target) { sortChannel.applyRowFilter(due.filter) }
+    val due = selectionChanged || filterChanged
+    set(if (due) RowFilterInstall() else null) { install ->
+        if (install != null) {
+            installContent(mirror, declared, target) { sortChannel.applyRowFilter(rowFilter) }
+        }
     }
 }
 
-/** One due install of a row filter: the filter to leave the sorter on. */
-private class RowFilterInstall(
-    val filter: RowFilter<in TableModel, in Int>?,
-)
+/** Stands for one due install of a row filter, so the slot that carries it never holds back a pass that is due. */
+private class RowFilterInstall
 
 /** A [RowSortChannel] that keeps reporting to the latest [listener] without being rebuilt. */
 @Composable

@@ -11,6 +11,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.annotations.SwingComponentLibraryApi
 import org.jetbrains.compose.swing.core.trace
 import java.awt.Component
 
@@ -49,6 +50,7 @@ import java.awt.Component
  *
  * @param initial the value the widget holds before any declaration has been settled onto it.
  */
+@SwingComponentLibraryApi
 public class MirrorState<V>
     @RememberInComposition
     constructor(

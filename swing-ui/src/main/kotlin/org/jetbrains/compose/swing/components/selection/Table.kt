@@ -17,7 +17,6 @@ import org.jetbrains.compose.swing.node.MirrorState
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.SwingNodeUpdater
 import org.jetbrains.compose.swing.node.rememberMirrorState
-import org.jetbrains.compose.swing.node.settleWhenDue
 import org.jetbrains.compose.swing.style.ComponentStyleScope
 import org.jetbrains.compose.swing.style.SwingComponentStyleScope
 import org.jetbrains.compose.swing.style.SwingStyle
@@ -26,7 +25,6 @@ import org.jetbrains.compose.swing.style.styleable
 import javax.swing.JTable
 import javax.swing.ListSelectionModel
 import javax.swing.RowFilter
-import javax.swing.RowSorter.SortKey
 import javax.swing.event.ListSelectionListener
 import javax.swing.table.TableModel
 
@@ -604,31 +602,18 @@ private fun SwingNodeUpdater<JTable>.settleHeldArrangement(
     columnChannel: ColumnLayoutChannel,
 ) {
     if (state != null) columnMirror.subscribe()
-    settleWhenDue(HeldArrangement.dueFor(state, sortChannel, columnChannel)) { held ->
-        sortChannel.applyHeld(held.sortKeys)
-        columnChannel.applyHeld(this, held.columnLayout)
+    val due =
+        state != null &&
+            (state.sortKeys != sortChannel.appliedSortKeys || state.columnLayout != columnChannel.appliedLayout)
+    val sortKeys = state?.sortKeys
+    val columnLayout = state?.columnLayout
+    set(if (due) HeldArrangementApply() else null) { token ->
+        if (token != null && sortKeys != null) {
+            sortChannel.applyHeld(sortKeys)
+            columnChannel.applyHeld(this, columnLayout)
+        }
     }
 }
 
-/** One due apply of what a [TableState] holds: the order to sort the rows by and the layout of the columns. */
-private class HeldArrangement(
-    val sortKeys: List<SortKey>,
-    val columnLayout: TableColumnLayout?,
-) {
-    companion object {
-        /** What [state] holds that the table does not yet show, or `null` when the table already shows all of it. */
-        fun dueFor(
-            state: TableState?,
-            sortChannel: RowSortChannel,
-            columnChannel: ColumnLayoutChannel,
-        ): HeldArrangement? =
-            if (
-                state != null &&
-                (state.sortKeys != sortChannel.appliedSortKeys || state.columnLayout != columnChannel.appliedLayout)
-            ) {
-                HeldArrangement(state.sortKeys, state.columnLayout)
-            } else {
-                null
-            }
-    }
-}
+/** Stands for one due apply of what a [TableState] holds, so the slot that carries it never holds back a due pass. */
+private class HeldArrangementApply

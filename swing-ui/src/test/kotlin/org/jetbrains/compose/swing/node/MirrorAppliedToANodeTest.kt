@@ -48,6 +48,38 @@ class MirrorAppliedToANodeTest {
     }
 
     @Test
+    fun consecutiveDuePassesEachSettleAndAQuietPassWritesNothing() = runComposeSwingTest {
+        var declared by mutableStateOf(1)
+        var label by mutableStateOf("a")
+        val writes = mutableListOf<Int>()
+        val labels = mutableListOf<String>()
+        lateinit var mirror: MirrorState<Int>
+        setContent {
+            mirror = rememberMirrorState(0)
+            SwingNode(
+                factory = { JCheckBox() },
+                update = {
+                    declare(declared, mirror, { 0 }, { writes += it })
+                    set(label) { labels += it }
+                },
+            )
+        }
+        awaitIdle()
+        assertEquals(listOf(1), writes, "the first declaration settles")
+
+        declared = 2
+        awaitIdle()
+        declared = 3
+        awaitIdle()
+        assertEquals(listOf(1, 2, 3), writes, "each consecutive due pass settles")
+
+        label = "b"
+        awaitIdle()
+        assertEquals(listOf(1, 2, 3), writes, "a quiet pass for the declaration writes nothing")
+        assertEquals(listOf("a", "b"), labels, "a later set keeps its position and applies once per change")
+    }
+
+    @Test
     fun aMirrorNoNodeHasAppliedFailsAtTheFirstChange() {
         val mirror = MirrorState(false)
 
