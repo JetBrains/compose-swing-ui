@@ -1,27 +1,9 @@
 # Module swing-ui-animation
 
-The animation engine for Compose Swing UI, and the containers that animate a composable in, out and between states. It provides the familiar Compose animation APIs.
-
-## Usage
-
-Animations run with no extra wiring inside a `setContent { ... }` composition: they advance on their own while an animation is in flight and rest otherwise.
-
-```kotlin
-import org.jetbrains.compose.swing.animation.core.animateFloatAsState
-import androidx.compose.runtime.getValue
-import org.jetbrains.compose.swing.foundation.graphics.alpha
-import org.jetbrains.compose.swing.foundation.layout.Box
-import org.jetbrains.compose.swing.modifier.SwingModifier
-
-val alpha by animateFloatAsState(if (visible) 1f else 0f)
-Box(SwingModifier.alpha(alpha)) { Label("Saved") }
-```
-
-A `java.awt.Color` animates through `animateColorAsState`, which interpolates in Oklab and returns an sRGB color. For value types beyond those, supply a `TwoWayConverter`. The animation APIs are documented in KDoc.
-
-`ScrollState.animateScrollTo` and `animateScrollBy` travel a scroll pane to a position over time instead of in one write, holding the pane's position until they arrive. Both are suspend functions; launch them from `rememberCoroutineScope()` on the Event Dispatch Thread.
-
-Opt in to experimental APIs with the annotation they declare, such as `ExperimentalAnimationApi`, `ExperimentalAnimationSpecApi`, or `ExperimentalTransitionApi`.
+The containers that animate a composable in, out and between states, on the animation engine of
+[`swing-ui-animation-core`](../swing-ui-animation-core/README.md). A `java.awt.Color` animates through
+`animateColorAsState`, which interpolates in Oklab and returns an sRGB color. Opt in to the experimental
+animation APIs with `ExperimentalAnimationApi`.
 
 ## Animating a composable
 
@@ -41,5 +23,6 @@ The content is laid out by a Foundation layout, so it takes `fillMaxWidth` or `f
 
 ## Related
 
+- [`swing-ui-animation-core/README.md`](../swing-ui-animation-core/README.md) - the animation engine.
 - [Compose Swing UI](../README.md) - project overview and quick start.
-- [`swing-ui`](../swing-ui/README.md) - the core library.
+- [`swing-ui-core`](../swing-ui-core/README.md) - the core library.

@@ -1,28 +1,18 @@
 compose-swing-ui :: swing-ui-animation
 
 This module contains source code copied and adapted from the Android Open Source
-Project's Jetpack Compose animation-core and animation libraries, redistributed
-under the Apache License, Version 2.0.
+Project's Jetpack Compose animation library, redistributed under the Apache
+License, Version 2.0.
 
-  Original: androidx.compose.animation:animation-core 1.13.0
-            (AndroidX commit ac6d2ce3d991b07d9b981d616bddc6d3ab461eab)
   Original: androidx.compose.animation:animation 1.13.0
             (AndroidX commit ac6d2ce3d991b07d9b981d616bddc6d3ab461eab)
   Copyright The Android Open Source Project
 
-Adaptations: flattened from Kotlin Multiplatform (expect/actual) to a single JVM
-source set; the package was relocated from androidx.compose.animation.core to
-org.jetbrains.compose.swing.animation.core; compose-ui geometry/unit converters
-and Path-based easing were removed; the cubic Bezier easing helpers and the
-ui-util fast math and Float packing helpers were vendored from
-androidx.compose.ui. Animations that never end use the InfiniteAnimationPolicy
-of this project's swing-ui module, and motion is scaled by the
-MotionDurationScale declared there. The code taken from
-animation lays out, places and paints through this project's Swing layout and
-decoration mechanisms, without its lookahead and shared-element parts, and with
-java.awt types in place of Compose's geometry and color types. A deferred
+Adaptations: the code lays out, places and paints through this project's Swing
+layout and decoration mechanisms, without its lookahead and shared-element parts,
+and with java.awt types in place of Compose's geometry and color types. A deferred
 transition's handoff carries only the offset velocity its caller supplies, where
-the original also measures the scale and offset velocities itself. See per-file
-headers for original copyright years.
+the original also measures the scale and offset velocities itself.
+See per-file headers for original copyright years.
 
 A copy of the Apache License 2.0 is in the repository root LICENSE file.

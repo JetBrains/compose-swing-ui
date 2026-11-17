@@ -21,12 +21,10 @@ ktlint_function_naming_ignore_when_annotated_with = Composable
 # than the layout one. These types are pervasive in this Compose-based library.
 ktlint_standard_function-type-modifier-spacing = disabled
 
-# The upstream-derived engine under animation/core keeps the format AndroidX publishes it in so a
-# re-sync diff stays readable alongside its documented adoption edits. ktlint's standard ruleset
-# encodes a different format and would rewrite the tree away from that, so it is off for this package.
-# Directory-scoped detekt exclusions cover this engine too; authored animation code
-# outside this package remains under the module's normal gates.
-[swing-ui-animation/src/**/animation/core/**.kt]
+# The forked AndroidX animation-core sources under animation/core keep the format AndroidX publishes them
+# in so a re-sync diff stays readable alongside their documented adoption edits. ktlint's standard ruleset
+# encodes a different format and would rewrite them away from that, so it is off for them.
+[swing-ui-animation-core/src/{main,test}/**/animation/core/**.kt]
 max_line_length = 100
 ktlint_standard = disabled
 

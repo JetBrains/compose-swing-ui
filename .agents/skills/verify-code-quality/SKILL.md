@@ -57,11 +57,12 @@ explains what the plain task misses everywhere else.
 A module carries the gates of the convention plugins its `build.gradle.kts` applies, and an ABI dump
 when it commits `<module>/api/<module>.api`. `buildSrc` is gated by its own tasks, invoked explicitly.
 
-The `animation.core` package of `swing-ui-animation` contains the Android Open Source Project's
+The `animation.core` package of `swing-ui-animation-core` contains the Android Open Source Project's
 Jetpack Compose `animation-core` in upstream's format, with the adaptations its `META-INF/NOTICE`
 lists, so it is exempt from the shared style gates by design. Keep it comparable to that upstream: do
-not restyle it, and do not bring it under those gates. The module's hand-written animation APIs and
-containers stay under them.
+not restyle it, and do not bring it under those gates. `AwtVectorConverters.kt` there is authored
+here and stays under detekt, though ktlint is off for the whole package, as do the animated containers
+of `swing-ui-animation`.
 
 Which modules carry a coverage floor, and each one's line and branch minimums, is set in that
 module's own `build.gradle.kts` - read it there rather than here. `CONTRIBUTING.md` explains how the

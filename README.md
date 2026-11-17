@@ -77,7 +77,7 @@ AnimatedVisibility(visible = title.text.isNotBlank()) {
 
 <!--- KNIT example-readme-02.kt -->
 
-See the [layout and drawing guide](docs/FOUNDATION.md) and the [animation guide](swing-ui-animation/README.md).
+See the [layout and drawing guide](docs/FOUNDATION.md) and the [animation guide](swing-ui-animation/README.md) and the [animation engine guide](swing-ui-animation-core/README.md).
 
 ## Working with existing Swing code
 

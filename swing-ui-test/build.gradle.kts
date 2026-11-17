@@ -37,8 +37,8 @@ dependencies {
     // the jar boundary without leaking org.jetbrains:annotations to the published runtime.
     compileOnly(libs.jetbrainsAnnotations)
     // The harness's own tests drive real animations to show what manual frame control does to one.
-    // Test-only: the published harness does not depend on the animation module.
-    testImplementation(project(":swing-ui-animation"))
+    // Test-only: the published harness does not depend on the animation engine.
+    testImplementation(project(":swing-ui-animation-core"))
     testImplementation(libs.junitJupiterParams)
     testImplementation(libs.mockk)
     testImplementation(testFixtures(project(":swing-ui")))

@@ -1,10 +1,7 @@
 // Copyright 2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
-import dev.detekt.gradle.Detekt
 import org.jetbrains.kotlin.gradle.dsl.abi.ExperimentalAbiValidation
-import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
-    `java-test-fixtures`
     id("buildsrc.convention.kotlin-jvm")
     id("buildsrc.convention.composable-fixtures")
     id("buildsrc.convention.kotlin-quality")
@@ -14,20 +11,13 @@ plugins {
     id("buildsrc.convention.exclusive-window-system-tests")
 }
 
-// This module holds two bodies of code. `org.jetbrains.compose.swing.animation` is hand-written project
-// code under the full quality gates. `org.jetbrains.compose.swing.animation.core` is upstream-derived
-// Compose animation-core with documented adoption edits, kept in upstream's format so re-sync diffs stay
-// readable. Each source-quality gate excludes that package where configured: detekt below, and ktlint in
-// `.editorconfig`, which reaches an editor as well as the build. Compile, test, ABI validation and
-// coverage cover both bodies.
-tasks.withType<Detekt>().configureEach {
-    exclude("**/animation/core/**")
-}
-
 kotlin {
     explicitApi()
     compilerOptions.optIn.addAll(
         "org.jetbrains.compose.swing.animation.ExperimentalAnimationApi",
+        "org.jetbrains.compose.swing.animation.core.ExperimentalAnimationSpecApi",
+        "org.jetbrains.compose.swing.animation.core.ExperimentalTransitionApi",
+        "org.jetbrains.compose.swing.animation.core.InternalAnimationApi",
         "org.jetbrains.compose.swing.annotations.SwingComponentLibraryApi",
     )
 
@@ -36,66 +26,39 @@ kotlin {
 }
 
 dependencies {
-    // withFrameNanos / @Composable / snapshot state appear in public signatures.
-    api(libs.composeRuntime)
-    // Range / nullability annotations (@FloatRange, @IntRange, @RestrictTo) on the vendored engine's
-    // public declarations, mirroring upstream animation-core's api dependency.
     api(libs.androidxAnnotation)
-    implementation(libs.androidxCollection)
-    // The Swing dispatcher and frame clock live in :swing-ui, which also owns the
-    // InfiniteAnimationPolicy this engine honors - as upstream animation-core takes its policy type
-    // from compose-ui. SwingModifier and Alignment appear in the animated containers' signatures.
+    api(libs.composeRuntime)
+    api(project(":swing-ui-animation-core"))
     api(project(":swing-ui"))
     api(project(":swing-ui-foundation"))
+    implementation(libs.androidxCollection)
     implementation(libs.kotlinxCoroutinesCore)
-
-    // The ported Transition suite hosts its composition in the shipped harness rather than a
-    // second one. :swing-ui-test takes this module as a testImplementation in turn, which is not a
-    // cycle: each test compilation needs only the other's main jar, and neither main compilation
-    // depends on the other.
-    testImplementation(project(":swing-ui-test"))
-    testImplementation(project(":swing-ui-animation")) {
-        capabilities { requireFeature("fixtures") }
-    }
+    fixturesImplementation(project(":swing-ui"))
     fixturesImplementation(project(":swing-ui")) {
         capabilities { requireFeature("fixtures") }
     }
     fixturesImplementation(project(":swing-ui-foundation")) {
         capabilities { requireFeature("fixtures") }
     }
+    testImplementation(libs.composeRuntimeSaveable)
+    testImplementation(libs.junitJupiterParams)
+    testImplementation(libs.kotlinxCoroutinesTest)
+    testImplementation(libs.mockk)
+    testImplementation(kotlin("test"))
+    testImplementation(project(":swing-ui-animation")) {
+        capabilities { requireFeature("fixtures") }
+    }
+    testImplementation(testFixtures(project(":swing-ui-animation-core")))
+    testImplementation(project(":swing-ui"))
     testImplementation(testFixtures(project(":swing-ui")))
     testImplementation(testFixtures(project(":swing-ui-foundation")))
-    testImplementation(kotlin("test"))
-    testImplementation(libs.kotlinxCoroutinesTest)
-    testImplementation(libs.junitJupiterParams)
-    testImplementation(libs.mockk)
-    testImplementation(libs.composeRuntimeSaveable)
-    testFixturesApi(project(":swing-ui-test"))
+    testImplementation(project(":swing-ui-test"))
 }
 
-// The fixtures stand in for Swing services while this project's own tests run; they are not part of what
-// the library publishes.
-(components["java"] as AdhocComponentWithVariants).run {
-    withVariantsFromConfiguration(configurations["testFixturesApiElements"]) { skip() }
-    withVariantsFromConfiguration(configurations["testFixturesRuntimeElements"]) { skip() }
-}
-
-// Upstream's tests use these markers without opting in because they live in the declaring module.
-tasks.named<KotlinCompile>("compileTestKotlin") {
-    compilerOptions.optIn.addAll(
-        "org.jetbrains.compose.swing.animation.core.ExperimentalTransitionApi",
-        "org.jetbrains.compose.swing.animation.core.ExperimentalAnimationSpecApi",
-        "org.jetbrains.compose.swing.animation.core.InternalAnimationApi",
-    )
-}
-
-// Regression ratchet: this module's floor tracks the vendored engine's achieved ratio to within about
-// a point on each axis - tighter than a module with its own tests would want, because an upstream
-// re-sync moves the achieved ratio and the floor together. Re-baseline the floor alongside the
-// vendored code on every re-sync rather than chasing noise between them.
+// Regression ratchet over code forked from androidx animation: re-baseline the floor with every upstream re-sync.
 jacocoCoverage {
-    lineMinimum.set("0.55".toBigDecimal())
-    branchMinimum.set("0.40".toBigDecimal())
+    lineMinimum.set("0.90".toBigDecimal())
+    branchMinimum.set("0.85".toBigDecimal())
 }
 
 publishing {
@@ -103,8 +66,8 @@ publishing {
         pom {
             name.set("compose-swing-ui :: swing-ui-animation")
             description.set(
-                "Compose animation APIs and animated Swing containers, backed by the vendored " +
-                    "animation-core engine (animate*AsState, Animatable, Transition, easing, spring/tween).",
+                "Animated Swing containers for compose-swing-ui: AnimatedVisibility, AnimatedContent, Crossfade " +
+                    "and animateContentSize, built on the animation-core engine.",
             )
         }
     }
