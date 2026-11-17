@@ -142,6 +142,29 @@ class TreeExpansionVetoTest {
     }
 
     @Test
+    fun aCallbackDeclaredInTheSamePassAsAnAssignedExpansionIsTheOneAsked() = runComposeSwingTest {
+        var veto by mutableStateOf(false)
+        val state = TreeState(initialExpandedPaths = setOf(emptyList()))
+        setContent {
+            Tree(
+                root = sample,
+                children = { it.children },
+                state = state,
+                label = { it.name },
+                onWillExpand = if (veto) ({ _, _ -> false }) else ({ _, _ -> true }),
+            )
+        }
+
+        veto = true
+        state.expandedPaths = setOf(emptyList(), listOf(0))
+        awaitIdle()
+
+        onNodeOfType<JTree>().assertProperty(false, "the veto declared with the expansion refuses it") {
+            isExpanded(pathTo(0))
+        }
+    }
+
+    @Test
     fun anExpansionTheStateStartsOnIsRefusedTheSameWay() = runComposeSwingTest {
         setContent {
             Tree(

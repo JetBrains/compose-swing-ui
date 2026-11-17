@@ -12,7 +12,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCompositionContext
 import org.jetbrains.compose.swing.annotations.SwingComponentLibraryApi
 import org.jetbrains.compose.swing.annotations.SwingMenuComposable
-import org.jetbrains.compose.swing.node.runReportingUncaught
+import org.jetbrains.compose.swing.modifier.listener.DeclaredCallback
+import org.jetbrains.compose.swing.modifier.listener.rememberDeclaredCallback
 import java.awt.Component
 import javax.swing.JPopupMenu
 
@@ -88,10 +89,10 @@ internal fun PopupMenu(
         () -> Unit,
 ) {
     val parentContext = rememberCompositionContext()
-    val host = remember(parentContext) { PopupMenuHost(parentContext) }
+    val declaredOnDismiss = rememberDeclaredCallback(onDismiss)
+    val host = remember { PopupMenuHost(parentContext, declaredOnDismiss) }
     // See ContextMenu for why a fresh lambda each pass is safe.
     host.display = display
-    host.onDismiss = onDismiss
     host.content = content
     DisposableEffect(anchor, host) {
         anchor.attach(host)
@@ -108,8 +109,8 @@ internal fun PopupMenu(
  */
 private class PopupMenuHost(
     private val parentContext: CompositionContext,
+    private val onDismiss: DeclaredCallback<() -> Unit>,
 ) : AnchorAttachment {
-    var onDismiss: () -> Unit = {}
     var display: (popup: JPopupMenu, invoker: Component, x: Int, y: Int) -> Unit = JPopupMenu::show
     var content:
         @Composable @SwingMenuComposable
@@ -168,7 +169,7 @@ private class PopupMenuHost(
         // Only the menu this host still tracks clears the field - see ContextMenuHost.onMenuClosed for
         // the close that lands here for a menu already gone.
         if (open === menu) open = null
-        runReportingUncaught { onDismiss() }
+        onDismiss.report { it() }
     }
 
     private fun close() {

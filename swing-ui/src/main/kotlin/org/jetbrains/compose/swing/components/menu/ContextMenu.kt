@@ -11,7 +11,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCompositionContext
 import org.jetbrains.compose.swing.annotations.SwingComponentLibraryApi
 import org.jetbrains.compose.swing.annotations.SwingMenuComposable
-import org.jetbrains.compose.swing.node.runReportingUncaught
+import org.jetbrains.compose.swing.modifier.listener.DeclaredCallback
+import org.jetbrains.compose.swing.modifier.listener.rememberDeclaredCallback
 import java.awt.Component
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
@@ -91,12 +92,12 @@ internal fun ContextMenu(
         () -> Unit,
 ) {
     val parentContext = rememberCompositionContext()
-    val host = remember(parentContext) { ContextMenuHost(parentContext) }
+    val declaredOnOpen = rememberDeclaredCallback(onOpen)
+    val declaredOnClose = rememberDeclaredCallback(onClose)
+    val host = remember { ContextMenuHost(parentContext, declaredOnOpen, declaredOnClose) }
     // The callbacks and the body are read when a gesture opens the menu, not when this pass runs, so a
     // fresh lambda each pass reaches the already-attached host without reinstalling anything.
     host.display = display
-    host.onOpen = onOpen
-    host.onClose = onClose
     host.content = content
     DisposableEffect(anchor, host) {
         anchor.attach(host)
@@ -111,11 +112,11 @@ internal fun ContextMenu(
  */
 private class ContextMenuHost(
     private val parentContext: CompositionContext,
+    private val onOpen: DeclaredCallback<() -> Unit>,
+    private val onClose: DeclaredCallback<() -> Unit>,
 ) : AnchorAttachment {
     override val exclusive: Boolean get() = true
 
-    var onOpen: () -> Unit = {}
-    var onClose: () -> Unit = {}
     var display: (popup: JPopupMenu, invoker: Component, x: Int, y: Int) -> Unit = JPopupMenu::show
     var content:
         @Composable @SwingMenuComposable
@@ -153,7 +154,7 @@ private class ContextMenuHost(
         // The open is reported once the presentation has put the menu on screen, so a presentation that
         // refuses the menu reports no open.
         display(menu.popup, invoker, x, y)
-        onOpen()
+        onOpen.current()
     }
 
     private fun onMenuClosed(menu: MenuPopup) {
@@ -162,7 +163,7 @@ private class ContextMenuHost(
         // close landing here can be one for a menu already replaced. Clearing the field then would leave
         // the replacement running when the declaration withdraws.
         if (open === menu) open = null
-        runReportingUncaught { onClose() }
+        onClose.report { it() }
     }
 
     private val listener =

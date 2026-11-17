@@ -1,6 +1,13 @@
 // Copyright 2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+@file:JvmMultifileClass
+@file:JvmName("ListenerModifierKt")
+
 package org.jetbrains.compose.swing.modifier.listener
 
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.referentialEqualityPolicy
+import androidx.compose.runtime.remember
 import org.jetbrains.compose.swing.annotations.SwingComponentLibraryApi
 import org.jetbrains.compose.swing.node.runReportingUncaught
 import java.awt.Component
@@ -47,7 +54,7 @@ public class ListenerRegistration<in T : Component, L : EventListener>(
  * declares a new callback changes what it yields without rebuilding the listener that holds it.
  */
 @SwingComponentLibraryApi
-public class DeclaredCallback<C : Any>
+public class DeclaredCallback<C>
     internal constructor(
         private val read: () -> C,
     ) {
@@ -69,6 +76,29 @@ public class DeclaredCallback<C : Any>
         public inline fun report(crossinline block: (callback: C) -> Unit): Unit =
             runReportingUncaught { block(current) }
     }
+
+/**
+ * A [DeclaredCallback] over [callback], for a host or model channel that hands Swing events to a callback its
+ * composable declares. The holder is the same object for as long as the call stays in the composition and
+ * holds no widget and registers no listener: it is the composition that owns the host or channel that owns
+ * it.
+ *
+ * The callback it yields is the one most recently declared. It is published with the composition's
+ * snapshot and replaced by reference, so an event raised while that pass applies sees it, a discarded pass
+ * leaves no trace, and a new function reference equal to the old one still replaces it. [callback] may be
+ * `null` for an absent callback, which [DeclaredCallback.current] then yields.
+ *
+ * Build the event and check it outside [DeclaredCallback.report], and decide inside the wrapper how to
+ * answer a throw from the callback, which `report` sends to the uncaught-exception handler.
+ *
+ * @param callback the callback the composition declares now.
+ */
+@Composable
+@SwingComponentLibraryApi
+public fun <C> rememberDeclaredCallback(callback: C): DeclaredCallback<C> {
+    val state = remember { mutableStateOf(callback, referentialEqualityPolicy()) }.apply { value = callback }
+    return remember { DeclaredCallback { state.value } }
+}
 
 /**
  * A [registration] together with the [adapter] that builds the listener riding it: what a modifier taking
