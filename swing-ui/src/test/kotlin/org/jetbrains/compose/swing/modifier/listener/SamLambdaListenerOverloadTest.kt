@@ -4,9 +4,15 @@ package org.jetbrains.compose.swing.modifier.listener
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.components.Slider
+import org.jetbrains.compose.swing.components.button.CheckBox
 import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.text.EditorPane
+import org.jetbrains.compose.swing.components.text.TextField
+import org.jetbrains.compose.swing.components.text.rememberDocumentState
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.toolTip
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.event.MouseEvent
@@ -33,8 +39,10 @@ class SamLambdaListenerOverloadTest {
         var reports = 0
         setContent {
             Panel {
-                SwingNode(
-                    factory = { JCheckBox() },
+                CheckBox(
+                    text = "",
+                    checked = false,
+                    onCheckedChange = {},
                     modifier = SwingModifier.itemListener { reports++ },
                 )
             }
@@ -48,8 +56,9 @@ class SamLambdaListenerOverloadTest {
         var reports = 0
         setContent {
             Panel {
-                SwingNode(
-                    factory = { JSlider() },
+                Slider(
+                    value = 50,
+                    onValueChange = {},
                     modifier = SwingModifier.changeListener { reports++ },
                 )
             }
@@ -63,8 +72,9 @@ class SamLambdaListenerOverloadTest {
         var reports = 0
         setContent {
             Panel {
-                SwingNode(
-                    factory = { JTextField() },
+                TextField(
+                    value = "",
+                    onValueChange = {},
                     modifier = SwingModifier.caretListener { reports++ },
                 )
             }
@@ -122,8 +132,9 @@ class SamLambdaListenerOverloadTest {
         val seen = mutableListOf<String>()
         setContent {
             Panel {
-                SwingNode(
-                    factory = { JTextField() },
+                TextField(
+                    value = "",
+                    onValueChange = {},
                     modifier = SwingModifier.propertyChangeListener { seen += it.propertyName },
                 )
             }
@@ -137,8 +148,8 @@ class SamLambdaListenerOverloadTest {
         val seen = mutableListOf<HyperlinkEvent>()
         setContent {
             Panel {
-                SwingNode(
-                    factory = { JEditorPane() },
+                EditorPane(
+                    state = rememberDocumentState(),
                     modifier = SwingModifier.hyperlinkListener { seen += it },
                 )
             }
@@ -165,8 +176,9 @@ class SamLambdaListenerOverloadTest {
         val turns = mutableListOf<Int>()
         setContent {
             Panel {
-                SwingNode(
-                    factory = { JTextField() },
+                TextField(
+                    value = "",
+                    onValueChange = {},
                     modifier = SwingModifier.mouseWheelListener { turns += it.wheelRotation },
                 )
             }
@@ -203,8 +215,9 @@ class SamLambdaListenerOverloadTest {
         var reports = 0
         setContent {
             Panel {
-                SwingNode(
-                    factory = { JTextField() },
+                TextField(
+                    value = "",
+                    onValueChange = {},
                     modifier = SwingModifier.hierarchyListener { reports++ },
                 )
             }
@@ -221,12 +234,13 @@ class SamLambdaListenerOverloadTest {
                 // Captured while the chain is built, so the value each lambda reports is the one its own
                 // pass declared: a listener left holding the first lambda reports 1.
                 val captured = declared
-                SwingNode(
-                    factory = { JSlider() },
+                Slider(
+                    value = 50,
+                    onValueChange = {},
                     modifier = SwingModifier.changeListener { reports += captured },
-                    // Read in the update block, so a new value recomposes this node and rebuilds the chain
-                    // with a lambda written afresh.
-                    update = { set(declared) { toolTipText = it.toString() } },
+                    // Captured above, so a new value recomposes this node and rebuilds the chain with a lambda
+                    // written afresh.
+                    style = { toolTip(captured.toString()) },
                 )
             }
         }

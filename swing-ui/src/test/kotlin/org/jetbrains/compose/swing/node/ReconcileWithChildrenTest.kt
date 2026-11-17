@@ -5,6 +5,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.modifier.SwingModifier
@@ -64,7 +65,7 @@ class ReconcileWithChildrenTest {
                     },
                 ) {
                     repeat(childCount) { index ->
-                        SwingNode(factory = { JLabel("child-$index") })
+                        Label("child-$index")
                     }
                 }
             }

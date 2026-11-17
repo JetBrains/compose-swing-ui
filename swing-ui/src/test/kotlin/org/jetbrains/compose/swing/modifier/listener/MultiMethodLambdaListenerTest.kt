@@ -1,11 +1,17 @@
 // Copyright 2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.jetbrains.compose.swing.modifier.listener
 
+import org.jetbrains.compose.swing.components.desktop.DesktopPane
 import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.layout.PanelLayout
+import org.jetbrains.compose.swing.components.layout.ToolBar
+import org.jetbrains.compose.swing.components.text.TextField
+import org.jetbrains.compose.swing.components.text.TextPane
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import java.awt.Rectangle
 import java.awt.event.ComponentEvent
 import java.awt.event.ContainerEvent
 import java.awt.event.FocusEvent
@@ -32,8 +38,9 @@ class MultiMethodLambdaListenerTest {
         var calls = 0
         setContent {
             Panel {
-                SwingNode(
-                    factory = { JTextPane() },
+                TextPane(
+                    value = "",
+                    onValueChange = {},
                     modifier = SwingModifier.documentListener { calls++ },
                 )
             }
@@ -53,8 +60,9 @@ class MultiMethodLambdaListenerTest {
         val reported = mutableListOf<String>()
         setContent {
             Panel {
-                SwingNode(
-                    factory = { JTextPane() },
+                TextPane(
+                    value = "",
+                    onValueChange = {},
                     modifier =
                         SwingModifier.documentListener(
                             onInsert = { reported += "insert" },
@@ -83,8 +91,9 @@ class MultiMethodLambdaListenerTest {
         var inserts = 0
         setContent {
             Panel {
-                SwingNode(
-                    factory = { JTextField() },
+                TextField(
+                    value = "",
+                    onValueChange = {},
                     modifier = SwingModifier.documentListener(onInsert = { inserts++ }),
                 )
             }
@@ -101,8 +110,9 @@ class MultiMethodLambdaListenerTest {
         var calls = 0
         setContent {
             Panel {
-                SwingNode(
-                    factory = { JTextField() },
+                TextField(
+                    value = "",
+                    onValueChange = {},
                     modifier = SwingModifier.mouseListener { calls++ },
                 )
             }
@@ -125,8 +135,9 @@ class MultiMethodLambdaListenerTest {
         val reported = mutableListOf<String>()
         setContent {
             Panel {
-                SwingNode(
-                    factory = { JTextField() },
+                TextField(
+                    value = "",
+                    onValueChange = {},
                     modifier =
                         SwingModifier.mouseListener(
                             onMouseClicked = { reported += "clicked" },
@@ -159,8 +170,9 @@ class MultiMethodLambdaListenerTest {
         val reported = mutableListOf<String>()
         setContent {
             Panel {
-                SwingNode(
-                    factory = { JTextField() },
+                TextField(
+                    value = "",
+                    onValueChange = {},
                     modifier =
                         SwingModifier.focusListener(
                             onFocusGained = { reported += "gained" },
@@ -188,8 +200,9 @@ class MultiMethodLambdaListenerTest {
         var calls = 0
         setContent {
             Panel {
-                SwingNode(
-                    factory = { JTextField() },
+                TextField(
+                    value = "",
+                    onValueChange = {},
                     modifier = SwingModifier.focusListener { calls++ },
                 )
             }
@@ -317,8 +330,9 @@ class MultiMethodLambdaListenerTest {
         var everything = 0
         setContent {
             Panel {
-                SwingNode(
-                    factory = { JTextField() },
+                TextField(
+                    value = "",
+                    onValueChange = {},
                     modifier =
                         SwingModifier
                             .mouseMotionListener(
@@ -350,8 +364,9 @@ class MultiMethodLambdaListenerTest {
         var everything = 0
         setContent {
             Panel {
-                SwingNode(
-                    factory = { JTextField() },
+                TextField(
+                    value = "",
+                    onValueChange = {},
                     modifier =
                         SwingModifier
                             .keyListener(
@@ -389,8 +404,9 @@ class MultiMethodLambdaListenerTest {
         var everything = 0
         setContent {
             Panel {
-                SwingNode(
-                    factory = { JTextField() },
+                TextField(
+                    value = "",
+                    onValueChange = {},
                     modifier =
                         SwingModifier
                             .componentListener(
@@ -441,9 +457,8 @@ class MultiMethodLambdaListenerTest {
         val reported = mutableListOf<String>()
         var everything = 0
         setContent {
-            Panel {
-                SwingNode(
-                    factory = { JToolBar() },
+            Panel(layout = PanelLayout.Border()) {
+                ToolBar(
                     modifier =
                         SwingModifier
                             .containerListener(
@@ -484,20 +499,24 @@ class MultiMethodLambdaListenerTest {
         var everything = 0
         setContent {
             Panel {
-                SwingNode(
-                    factory = { JInternalFrame("frame") },
-                    modifier =
-                        SwingModifier
-                            .internalFrameListener(
-                                onFrameOpened = { reported += "opened" },
-                                onFrameClosing = { reported += "closing" },
-                                onFrameClosed = { reported += "closed" },
-                                onFrameIconified = { reported += "iconified" },
-                                onFrameDeiconified = { reported += "deiconified" },
-                                onFrameActivated = { reported += "activated" },
-                                onFrameDeactivated = { reported += "deactivated" },
-                            ).internalFrameListener { everything++ },
-                )
+                DesktopPane {
+                    InternalFrame(
+                        title = "frame",
+                        bounds = Rectangle(),
+                        onClose = {},
+                        modifier =
+                            SwingModifier
+                                .internalFrameListener(
+                                    onFrameOpened = { reported += "opened" },
+                                    onFrameClosing = { reported += "closing" },
+                                    onFrameClosed = { reported += "closed" },
+                                    onFrameIconified = { reported += "iconified" },
+                                    onFrameDeiconified = { reported += "deiconified" },
+                                    onFrameActivated = { reported += "activated" },
+                                    onFrameDeactivated = { reported += "deactivated" },
+                                ).internalFrameListener { everything++ },
+                    ) {}
+                }
             }
         }
 

@@ -4,6 +4,7 @@ package org.jetbrains.compose.swing.node
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.snapshots.Snapshot
+import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyDeclaredModifier
@@ -36,9 +37,9 @@ class OwnerSnapshotObserverTest {
         lateinit var earlier: RenderingNode
         lateinit var inner: RenderingNode
         setContent {
-            SwingNode(factory = { JLabel() }, modifier = SwingModifier then RenderingElement { outer = it })
-            SwingNode(factory = { JLabel() }, modifier = SwingModifier then RenderingElement { earlier = it })
-            SwingNode(factory = { JLabel() }, modifier = SwingModifier then RenderingElement { inner = it })
+            Label("", modifier = SwingModifier then RenderingElement { outer = it })
+            Label("", modifier = SwingModifier then RenderingElement { earlier = it })
+            Label("", modifier = SwingModifier then RenderingElement { inner = it })
         }
         outer.observeReads(onChanged = { changed += "outer" }) {
             if (observedBefore) {
@@ -59,8 +60,8 @@ class OwnerSnapshotObserverTest {
         var firstRead = true
         lateinit var node: RenderingNode
         setContent {
-            SwingNode(
-                factory = { JLabel() },
+            Label(
+                "",
                 modifier =
                     SwingModifier then
                         RenderingElement { created ->
@@ -92,8 +93,8 @@ class OwnerSnapshotObserverTest {
         lateinit var first: RenderingNode
         lateinit var second: RenderingNode
         setContent {
-            SwingNode(factory = { JLabel() }, modifier = SwingModifier then RenderingElement { first = it })
-            SwingNode(factory = { JLabel() }, modifier = SwingModifier then RenderingElement { second = it })
+            Label("", modifier = SwingModifier then RenderingElement { first = it })
+            Label("", modifier = SwingModifier then RenderingElement { second = it })
         }
         val owner = first.requireOwner()
         lateinit var detached: RenderingNode

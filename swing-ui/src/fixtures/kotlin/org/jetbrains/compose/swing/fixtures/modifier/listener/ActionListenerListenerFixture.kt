@@ -2,10 +2,8 @@
 package org.jetbrains.compose.swing.fixtures.modifier.listener
 
 import androidx.compose.runtime.Composable
+import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.fixtures.ComposableFixture
-import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.listener.actionListener
-import org.jetbrains.compose.swing.node.SwingNode
 import java.awt.event.ActionListener
 import javax.swing.JButton
 
@@ -32,13 +30,10 @@ public object ActionListenerListenerFixture : ComposableFixture<ActionListenerLi
     @Composable
     override fun Content(parameters: ActionListenerListenerParameters): Unit = Content(parameters.listener)
 
-    /** Composes a button that attaches [listener] through [SwingModifier.actionListener]. */
+    /** Composes a button that attaches [listener] as its action listener. */
     @Composable
     public fun Content(listener: ActionListener) {
-        SwingNode<JButton>(
-            factory = { JButton("Action") },
-            modifier = SwingModifier.actionListener(listener = listener),
-        )
+        Button(text = "Action", actionListener = listener)
     }
 
     /** Builds a bare [JButton] before any of the fixture's listeners are applied. */

@@ -11,7 +11,6 @@ import kotlinx.coroutines.DisposableHandle
 import kotlinx.coroutines.swing.Swing
 import org.jetbrains.compose.swing.OnDemandComposition
 import org.jetbrains.compose.swing.components.Label
-import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.reportedUncaught
 import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.setContent
@@ -19,7 +18,6 @@ import org.junit.jupiter.api.Assumptions.assumeFalse
 import org.junit.jupiter.api.DynamicTest
 import org.junit.jupiter.api.TestFactory
 import java.awt.GraphicsEnvironment
-import javax.swing.JLabel
 import javax.swing.JPanel
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -168,7 +166,7 @@ class CompositionDisposalFailureTest {
         var disposals = 0
         val content =
             OnDemandComposition(parent) {
-                SwingNode(factory = { JLabel("mounted") })
+                Label("mounted")
                 DisposableEffect(Unit) {
                     onDispose {
                         disposals++

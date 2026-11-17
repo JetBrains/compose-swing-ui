@@ -11,6 +11,7 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import io.mockk.every
 import io.mockk.mockk
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.components.menu.MenuItem
 import org.jetbrains.compose.swing.composeMenu
 import org.jetbrains.compose.swing.layout.MeasurementLayoutManager
 import org.jetbrains.compose.swing.layout.ParentLayoutElement
@@ -30,7 +31,6 @@ import java.awt.Dimension
 import java.awt.Rectangle
 import java.lang.ref.WeakReference
 import javax.swing.JLabel
-import javax.swing.JMenuItem
 import javax.swing.JPanel
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -117,7 +117,7 @@ class CompositionLocalConsumerModifierNodeTest {
     fun currentValueOfResolvesTheLocalInScopeWhereTheNodeWasDeclared() = runComposeSwingTest {
         setContent {
             CompositionLocalProvider(LocalDynamic provides "hello") {
-                SwingNode(factory = { JLabel() }, modifier = SwingModifier.nameFrom(LocalDynamic))
+                Label("", modifier = SwingModifier.nameFrom(LocalDynamic))
             }
         }
         onNodeOfType<JLabel>().assert(SwingMatcher.hasName("hello"))
@@ -128,7 +128,7 @@ class CompositionLocalConsumerModifierNodeTest {
         var value by mutableStateOf("hello")
         setContent {
             CompositionLocalProvider(LocalDynamic provides value) {
-                SwingNode(factory = { JLabel() }, modifier = SwingModifier.nameFrom(LocalDynamic))
+                Label("", modifier = SwingModifier.nameFrom(LocalDynamic))
             }
         }
         value = "changed"
@@ -141,7 +141,7 @@ class CompositionLocalConsumerModifierNodeTest {
         var value by mutableStateOf("hello")
         setContent {
             CompositionLocalProvider(LocalStatic provides value) {
-                SwingNode(factory = { JLabel() }, modifier = SwingModifier.nameFrom(LocalStatic))
+                Label("", modifier = SwingModifier.nameFrom(LocalStatic))
             }
         }
         value = "changed"
@@ -171,7 +171,7 @@ class CompositionLocalConsumerModifierNodeTest {
         setContent {
             CompositionLocalProvider(LocalStatic provides value) {
                 SwingNode(factory = { JPanel(layout) }, content = {
-                    SwingNode(factory = { JLabel() }, modifier = SwingModifier then StaticReadingLayoutElement)
+                    Label("", modifier = SwingModifier then StaticReadingLayoutElement)
                 })
             }
         }
@@ -249,7 +249,7 @@ class CompositionLocalConsumerModifierNodeTest {
         var value by mutableStateOf("hello")
         setContent {
             CompositionLocalProvider(LocalStatic provides value) {
-                SwingNode(factory = { JLabel() }, modifier = SwingModifier.nameFrom(LocalStatic).fixedName("later"))
+                Label("", modifier = SwingModifier.nameFrom(LocalStatic).fixedName("later"))
             }
         }
         value = "changed"
@@ -262,7 +262,7 @@ class CompositionLocalConsumerModifierNodeTest {
         var value by mutableStateOf("hello")
         setContent {
             CompositionLocalProvider(LocalDynamic provides value) {
-                SwingNode(factory = { JLabel() }, modifier = SwingModifier.nameFrom(LocalDynamic).fixedName("later"))
+                Label("", modifier = SwingModifier.nameFrom(LocalDynamic).fixedName("later"))
             }
         }
         value = "changed"
@@ -275,10 +275,7 @@ class CompositionLocalConsumerModifierNodeTest {
         var value by mutableStateOf("hello")
         setContent {
             CompositionLocalProvider(LocalStatic provides value) {
-                SwingNode(
-                    factory = { JLabel() },
-                    modifier = SwingModifier.nameFrom(LocalStatic, additive = true).fixedName("property"),
-                )
+                Label("", modifier = SwingModifier.nameFrom(LocalStatic, additive = true).fixedName("property"))
             }
         }
         onNodeOfType<JLabel>().assert(SwingMatcher.hasName("hello"))
@@ -293,7 +290,7 @@ class CompositionLocalConsumerModifierNodeTest {
         val menu =
             composeMenu {
                 CompositionLocalProvider(LocalDynamic provides value) {
-                    MenuNode(factory = { JMenuItem() }, modifier = SwingModifier.nameFrom(LocalDynamic))
+                    MenuItem("", onClick = {}, modifier = SwingModifier.nameFrom(LocalDynamic))
                 }
             }
         val item = menu.getComponent(0)
@@ -309,10 +306,7 @@ class CompositionLocalConsumerModifierNodeTest {
         var consuming by mutableStateOf(true)
         setContent {
             CompositionLocalProvider(LocalDynamic provides value) {
-                SwingNode(
-                    factory = { JLabel() },
-                    modifier = if (consuming) SwingModifier.nameFrom(LocalDynamic) else SwingModifier,
-                )
+                Label("", modifier = if (consuming) SwingModifier.nameFrom(LocalDynamic) else SwingModifier)
             }
         }
         consuming = false
@@ -332,7 +326,7 @@ class CompositionLocalConsumerModifierNodeTest {
         setContent {
             // A provided dynamic local is snapshot state, so the node's read of it registers a scope.
             CompositionLocalProvider(LocalDynamic provides "hello") {
-                SwingNode(factory = { JLabel() }, modifier = if (consuming) element else SwingModifier)
+                Label("", modifier = if (consuming) element else SwingModifier)
             }
         }
         val createdReference = assertNotNull(created, "the consuming modifier must create a node")

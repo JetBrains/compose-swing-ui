@@ -9,7 +9,9 @@ import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.BorderPanelScope
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
+import org.jetbrains.compose.swing.components.layout.ScrollPane
 import org.jetbrains.compose.swing.components.layout.SplitPane
+import org.jetbrains.compose.swing.components.selection.ListBox
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.node.SwingNode
@@ -18,15 +20,11 @@ import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.interaction.onDescendants
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.withRecordedRepaints
-import java.awt.BorderLayout
 import java.awt.Component
 import java.awt.event.ComponentAdapter
 import java.awt.event.ComponentEvent
 import javax.swing.BoxLayout
 import javax.swing.JComponent
-import javax.swing.JList
-import javax.swing.JPanel
-import javax.swing.JScrollPane
 import kotlin.test.assertEquals
 import kotlin.time.Duration
 
@@ -80,10 +78,16 @@ public const val WRAPPING_TEXT_AREA_PANEL: String = "JPanel holding a wrapping J
 public val DefaultLeaves: Map<String, @Composable (SwingModifier) -> Unit> =
     mapOf<String, @Composable (SwingModifier) -> Unit>(
         "JScrollPane holding a JList" to { modifier ->
-            SwingNode(factory = { JScrollPane(JList(arrayOf("One", "Two", "Three"))) }, modifier = modifier)
+            ScrollPane(modifier = modifier) {
+                Viewport {
+                    ListBox(items = listOf("One", "Two", "Three"))
+                }
+            }
         },
         WRAPPING_TEXT_AREA_PANEL to { modifier ->
-            SwingNode(factory = { JPanel(BorderLayout()).apply { add(ResizeCountingTextArea()) } }, modifier = modifier)
+            Panel(PanelLayout.Border(), modifier) {
+                SwingNode(factory = { ResizeCountingTextArea() }, modifier = SwingModifier.center())
+            }
         },
     ) + WrappingTexts
 

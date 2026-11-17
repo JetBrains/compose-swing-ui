@@ -9,7 +9,6 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
-import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.onAllNodesOfType
 import org.jetbrains.compose.swing.test.onNodeOfType
@@ -57,7 +56,7 @@ class RecompositionBasicsTest : TracedTest() {
             // Recomputed on every recomposition and equal every time, so the node's update block runs
             // and finds the widget already holding what it declares.
             val declared = if (tick >= 0) SETTLED_TEXT else "never"
-            SwingNode(factory = { JLabel() }, update = { set(declared) { text = it } })
+            Label(declared)
         }
         awaitIdle()
 

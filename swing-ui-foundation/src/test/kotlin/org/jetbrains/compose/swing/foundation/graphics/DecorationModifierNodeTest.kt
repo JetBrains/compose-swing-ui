@@ -11,6 +11,8 @@ import io.mockk.verify
 import org.jetbrains.compose.swing.assertAskedToRepaint
 import org.jetbrains.compose.swing.assertPixelColor
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.components.button.Button
+import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.foundation.graphics.drawscope.ContentDrawScope
 import org.jetbrains.compose.swing.foundation.layout.Box
 import org.jetbrains.compose.swing.foundation.layout.PaintOutsets
@@ -40,7 +42,6 @@ import java.awt.Graphics2D
 import java.awt.Insets
 import javax.swing.JButton
 import javax.swing.JComponent
-import javax.swing.JPanel
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -302,7 +303,7 @@ class DecorationModifierNodeTest {
             setContent {
                 // Read here rather than in the style, so the change reaches the value and the step in one pass.
                 val value = if (changed) PaintOutsets.None else PaintOutsets.Decoration
-                SwingNode(factory = { JPanel() }) {
+                Panel {
                     SwingNode(
                         factory = { WriteCountingPanel() },
                         modifier =
@@ -561,7 +562,7 @@ class DecorationModifierNodeTest {
             val failure =
                 assertFailsWith<IllegalStateException> {
                     setContent {
-                        SwingNode(factory = { JButton() }, modifier = SwingModifier.then(Step()))
+                        Button(text = "", onClick = {}, modifier = SwingModifier.then(Step()))
                     }
                 }
 

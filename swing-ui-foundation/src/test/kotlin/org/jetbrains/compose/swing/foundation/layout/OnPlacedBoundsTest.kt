@@ -153,7 +153,7 @@ class OnPlacedBoundsTest {
                             )
                         }
                     }
-                SwingNode(factory = { JLayeredPane() }) {
+                LayeredPane {
                     Box(
                         modifier =
                             SwingModifier.styleable {

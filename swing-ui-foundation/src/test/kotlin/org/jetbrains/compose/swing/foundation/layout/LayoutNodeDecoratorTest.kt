@@ -5,6 +5,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.assertPixelColor
+import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.foundation.graphics.Brush
 import org.jetbrains.compose.swing.foundation.graphics.Decoratable
 import org.jetbrains.compose.swing.foundation.graphics.DecoratedPanel
@@ -213,10 +214,7 @@ class LayoutNodeDecoratorTest {
                 runComposeSwingTest {
                     setContent {
                         Box {
-                            SwingNode(
-                                factory = { JPanel() },
-                                modifier = SwingModifier.then(FillingLayoutNodeElement(Color.GREEN)),
-                            )
+                            Panel(modifier = SwingModifier.then(FillingLayoutNodeElement(Color.GREEN))) {}
                         }
                     }
                 }

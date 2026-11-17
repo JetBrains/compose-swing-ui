@@ -348,14 +348,9 @@ class IntrinsicTest {
             setContent {
                 CenteredColumn(320) {
                     Row(modifier = SwingModifier.testTag("row").fillMaxWidth().height(IntrinsicSize.Max)) {
-                        SwingNode(
-                            factory = {
-                                JTextArea(WRAPPING_TEXT).apply {
-                                    columns = 10
-                                    lineWrap = true
-                                    wrapStyleWord = true
-                                }
-                            },
+                        TextArea(
+                            value = WRAPPING_TEXT,
+                            onValueChange = {},
                             modifier =
                                 SwingModifier
                                     .testTag("text")
@@ -363,6 +358,9 @@ class IntrinsicTest {
                                     .alignByBaseline()
                                     .height(200)
                                     .wrapContentHeight(Alignment.Bottom),
+                            columns = 10,
+                            lineWrap = true,
+                            wrapStyleWord = true,
                         )
                         Label("Side", modifier = SwingModifier.alignByBaseline().padding(top = 300))
                     }

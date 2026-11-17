@@ -2,10 +2,10 @@
 package org.jetbrains.compose.swing.fixtures.modifier.listener
 
 import androidx.compose.runtime.Composable
+import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.fixtures.ComposableFixture
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.containerListener
-import org.jetbrains.compose.swing.node.SwingNode
 import java.awt.event.ContainerAdapter
 import java.awt.event.ContainerListener
 import javax.swing.JPanel
@@ -16,7 +16,7 @@ public data class ContainerListenerListenerParameters(
 )
 
 /**
- * A [SwingNode] holding a [JPanel] with a [containerListener] listener against a raw [JPanel] with the same listener.
+ * A [Panel] holding a [JPanel] with a [containerListener] listener against a raw [JPanel] with the same listener.
  */
 public object ContainerListenerListenerFixture : ComposableFixture<ContainerListenerListenerParameters, JPanel>(
     initial = ContainerListenerListenerParameters(listener = object : ContainerAdapter() {}),
@@ -33,10 +33,7 @@ public object ContainerListenerListenerFixture : ComposableFixture<ContainerList
     /** Composes a panel host with [listener] attached. */
     @Composable
     public fun Content(listener: ContainerListener) {
-        SwingNode<JPanel>(
-            factory = { JPanel() },
-            modifier = SwingModifier.containerListener(listener),
-        )
+        Panel(modifier = SwingModifier.containerListener(listener)) {}
     }
 
     /** Builds a bare [JPanel] before any of the fixture's values are applied. */

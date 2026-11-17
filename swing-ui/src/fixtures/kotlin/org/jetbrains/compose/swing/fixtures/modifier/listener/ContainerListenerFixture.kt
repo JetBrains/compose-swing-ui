@@ -2,10 +2,10 @@
 package org.jetbrains.compose.swing.fixtures.modifier.listener
 
 import androidx.compose.runtime.Composable
+import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.fixtures.ComposableFixture
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.containerListener
-import org.jetbrains.compose.swing.node.SwingNode
 import java.awt.event.ContainerAdapter
 import java.awt.event.ContainerEvent
 import javax.swing.JPanel
@@ -33,10 +33,7 @@ public object ContainerListenerFixture : ComposableFixture<ContainerListenerPara
     /** Composes a panel host that runs [onChildrenChange] when a child is added or removed. */
     @Composable
     public fun Content(onChildrenChange: (ContainerEvent) -> Unit) {
-        SwingNode<JPanel>(
-            factory = { JPanel() },
-            modifier = SwingModifier.containerListener(onChildrenChange),
-        )
+        Panel(modifier = SwingModifier.containerListener(onChildrenChange)) { }
     }
 
     /** Builds a bare [JPanel] before any of the fixture's values are applied. */

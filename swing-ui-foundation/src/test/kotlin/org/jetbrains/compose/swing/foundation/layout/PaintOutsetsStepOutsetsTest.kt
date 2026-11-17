@@ -4,6 +4,8 @@ package org.jetbrains.compose.swing.foundation.layout
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.foundation.graphics.Brush
 import org.jetbrains.compose.swing.foundation.graphics.background
 import org.jetbrains.compose.swing.foundation.graphics.blurOutsets
@@ -278,8 +280,8 @@ class PaintOutsetsStepOutsetsTest {
         runComposeSwingTest {
             val reach = { 8 }
             setContent {
-                SwingNode(
-                    factory = { JPanel(FlowLayout(FlowLayout.LEADING, 0, 0)) },
+                Panel(
+                    PanelLayout.Flow(FlowLayout.LEADING, 0, 0),
                     modifier = SwingModifier.styleable { preferredSize(200, 200) },
                 ) {
                     Row(modifier = SwingModifier.testTag("row")) {

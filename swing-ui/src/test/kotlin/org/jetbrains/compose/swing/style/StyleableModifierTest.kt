@@ -8,11 +8,11 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.neverEqualPolicy
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.property
-import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.interaction.assertIsOfType
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
@@ -44,8 +44,8 @@ internal class StyleableModifierTest {
     fun anEmptyStylePreservesTheDeclaredModifierAndComponentProperties() = runComposeSwingTest {
         var text by mutableStateOf("declared")
         setContent {
-            SwingNode(
-                factory = { JLabel("original") },
+            Label(
+                "original",
                 modifier =
                     SwingModifier
                         .testTag("declared")
@@ -164,5 +164,5 @@ private fun Styled(
     style: SwingStyle<CostProbeScope>,
     record: ProbeRecord,
 ) {
-    SwingNode(factory = { JLabel() }, modifier = SwingModifier.styleable(record.kind, style))
+    Label(text = "", modifier = SwingModifier.styleable(record.kind, style))
 }

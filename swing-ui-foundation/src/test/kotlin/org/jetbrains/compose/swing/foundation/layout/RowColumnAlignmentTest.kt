@@ -5,6 +5,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.node.SwingNode
@@ -384,14 +385,13 @@ class RowColumnAlignmentTest {
             setContent {
                 Row(modifier = SwingModifier.testTag(CONTAINER_TAG)) {
                     FlexibleBaselineChild(30, SwingModifier.weight(1f).alignByBaseline())
-                    SwingNode(
-                        factory = { JPanel() },
+                    Panel(
                         modifier =
                             SwingModifier
                                 .weight(1f)
                                 .alignByBaseline()
                                 .styleable { preferredSize(CHILD_WIDTH, CHILD_HEIGHT) },
-                    )
+                    ) {}
                     BaselineChild(10, SwingModifier.alignByBaseline())
                 }
             }

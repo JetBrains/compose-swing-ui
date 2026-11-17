@@ -33,7 +33,6 @@ import org.junit.jupiter.params.provider.ValueSource
 import java.awt.Component
 import java.lang.ref.WeakReference
 import javax.swing.JButton
-import javax.swing.JLabel
 import javax.swing.JPanel
 import javax.swing.SwingUtilities
 import kotlin.test.Test
@@ -50,8 +49,8 @@ class ParentLayoutNodeTest {
         var dropped by mutableStateOf(false)
         setContent {
             StyledHost("styled", MarkProperty) {
-                SwingNode(
-                    factory = { JLabel("a") },
+                Label(
+                    "a",
                     modifier =
                         if (dropped) {
                             SwingModifier.mark("own", slot = 6)

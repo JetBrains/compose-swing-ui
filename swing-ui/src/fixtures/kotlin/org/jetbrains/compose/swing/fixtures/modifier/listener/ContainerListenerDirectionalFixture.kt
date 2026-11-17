@@ -2,10 +2,10 @@
 package org.jetbrains.compose.swing.fixtures.modifier.listener
 
 import androidx.compose.runtime.Composable
+import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.fixtures.ComposableFixture
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.containerListener
-import org.jetbrains.compose.swing.node.SwingNode
 import java.awt.event.ContainerAdapter
 import java.awt.event.ContainerEvent
 import javax.swing.JPanel
@@ -40,14 +40,13 @@ public object ContainerListenerDirectionalFixture : ComposableFixture<ContainerL
         onComponentAdded: (ContainerEvent) -> Unit,
         onComponentRemoved: (ContainerEvent) -> Unit,
     ) {
-        SwingNode<JPanel>(
-            factory = { JPanel() },
+        Panel(
             modifier =
                 SwingModifier.containerListener(
                     onComponentAdded = onComponentAdded,
                     onComponentRemoved = onComponentRemoved,
                 ),
-        )
+        ) { }
     }
 
     /** Builds a bare [JPanel] before any of the fixture's values are applied. */

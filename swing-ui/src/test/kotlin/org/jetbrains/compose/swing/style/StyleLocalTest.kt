@@ -185,10 +185,7 @@ class StyleLocalTest {
         setContent {
             ProbeContainer(null, { InheritedFirst.provide("inherited") }) {
                 ProbeLeaf("leaf", SwingStyle, PlainProbe)
-                SwingNode(
-                    factory = { JLabel() },
-                    modifier = SwingModifier.styleable(PlainProbe) { LabelText.provide("own style") },
-                )
+                Label("", modifier = SwingModifier.styleable(PlainProbe) { LabelText.provide("own style") })
             }
         }
         onProbe("leaf").assertProperty("inherited") { first }
@@ -233,8 +230,8 @@ class StyleLocalTest {
         val style = SwingStyle<ProbeScope> { LabelToolTip.provide(LocalProbe.currentValue) }
         setContent {
             CompositionLocalProvider(LocalProbe provides value) {
-                SwingNode(
-                    factory = { JLabel("target") },
+                Label(
+                    "target",
                     modifier = case.declare(SwingModifier.styleable(PlainProbe, style), directTip),
                 )
             }

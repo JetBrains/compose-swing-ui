@@ -8,9 +8,11 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.rememberCompositionContext
 import androidx.compose.runtime.rememberUpdatedState
 import kotlinx.coroutines.DisposableHandle
+import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.interaction.assertIsOfType
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
@@ -161,8 +163,8 @@ class IntrinsicCacheTest {
                 }
             setContent {
                 Layout(policy, SwingModifier.testTag("parent")) {
-                    SwingNode(factory = { JPanel().apply { preferredSize = Dimension(20, 10) } })
-                    SwingNode(factory = { JPanel().apply { preferredSize = Dimension(80, 10) } })
+                    Panel(style = { preferredSize(20, 10) }) {}
+                    Panel(style = { preferredSize(80, 10) }) {}
                 }
             }
 

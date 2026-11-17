@@ -2,6 +2,8 @@
 package org.jetbrains.compose.swing.foundation.layout
 
 import androidx.compose.runtime.Composable
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.style.preferredSize
@@ -10,9 +12,7 @@ import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
-import java.awt.BorderLayout
 import java.awt.Dimension
-import javax.swing.JPanel
 import javax.swing.JTextArea
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -32,8 +32,8 @@ class GrantedWidthPreferredSizeQueryTest {
                 val preferredSizeWidths = mutableListOf<Int>()
                 val text = "A wrapping sentence with enough words to take several lines. ".repeat(5)
                 setContent {
-                    SwingNode(
-                        factory = { JPanel(BorderLayout()) },
+                    Panel(
+                        PanelLayout.Border(),
                         modifier = SwingModifier.styleable { preferredSize(200, 100) },
                     ) {
                         container {

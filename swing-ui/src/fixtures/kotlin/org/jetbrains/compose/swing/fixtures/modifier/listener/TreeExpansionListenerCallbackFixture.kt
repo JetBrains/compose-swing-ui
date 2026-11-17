@@ -2,13 +2,16 @@
 package org.jetbrains.compose.swing.fixtures.modifier.listener
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import org.jetbrains.compose.swing.components.selection.Tree
 import org.jetbrains.compose.swing.fixtures.ComposableFixture
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.treeExpansionListener
-import org.jetbrains.compose.swing.node.SwingNode
 import javax.swing.JTree
 import javax.swing.event.TreeExpansionEvent
 import javax.swing.event.TreeExpansionListener
+import javax.swing.tree.DefaultMutableTreeNode
+import javax.swing.tree.DefaultTreeModel
 
 /** The parameters [TreeExpansionListenerCallbackFixture] varies: the one callback run on expansion and on collapse. */
 public data class TreeExpansionListenerCallbackParameters(
@@ -36,14 +39,14 @@ public object TreeExpansionListenerCallbackFixture :
     /** Composes a [JTree] host that runs [onExpansionChange] whenever a node expands or collapses. */
     @Composable
     public fun Content(onExpansionChange: (TreeExpansionEvent) -> Unit) {
-        SwingNode<JTree>(
-            factory = { JTree() },
+        Tree(
+            model = remember { DefaultTreeModel(DefaultMutableTreeNode("JTree")) },
             modifier = SwingModifier.treeExpansionListener(onExpansionChange = onExpansionChange),
         )
     }
 
     /** Builds a bare [JTree] before any of the fixture's values are applied. */
-    override fun createRawSwing(): JTree = JTree()
+    override fun createRawSwing(): JTree = JTree(DefaultTreeModel(DefaultMutableTreeNode("JTree")))
 
     /** Adds the listener on the first call; later calls only replace its callback with the one of [parameters]. */
     override fun updateRawSwing(

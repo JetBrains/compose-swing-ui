@@ -6,11 +6,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.assertDeclaredChainCarriedOnce
+import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.countTests
 import org.jetbrains.compose.swing.fixtures.modifier.datatransfer.ClipboardFixture
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.Assumptions.assumeTrue
@@ -362,8 +362,8 @@ class ClipboardModifierTest {
     @Test
     fun clipboardBindsTheStandardKeystrokesWhenRequested() = runComposeSwingTest {
         setContent {
-            SwingNode(
-                factory = { JLabel() },
+            Label(
+                text = "",
                 modifier =
                     SwingModifier.clipboard(
                         transferable = { StringSelection("x") },

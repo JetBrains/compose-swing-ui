@@ -8,6 +8,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import org.jetbrains.compose.swing.KeyReadingElement
+import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.layout.ParentLayoutNode
 import org.jetbrains.compose.swing.layout.ParentLayoutNodeElement
 import org.jetbrains.compose.swing.layout.ParentProtocol
@@ -350,7 +351,7 @@ class DeclaredNodesTest {
         lateinit var declined: ListeningPanel
         setContent {
             CompositionLocalProvider(LocalStatic provides value) {
-                SwingNode(factory = { JPanel() }) {
+                Panel {
                     SwingNode(
                         factory = { ListeningPanel().also { needed = it } },
                         modifier = SwingModifier.then(ConsumingAdditive("a")),
@@ -377,7 +378,7 @@ class DeclaredNodesTest {
         lateinit var declined: ListeningPanel
         setContent {
             CompositionLocalProvider(LocalDynamic provides value) {
-                SwingNode(factory = { JPanel() }) {
+                Panel {
                     SwingNode(
                         factory = { ListeningPanel().also { needed = it } },
                         modifier = SwingModifier.then(DynamicConsumingAdditive("a")),
@@ -405,7 +406,7 @@ class DeclaredNodesTest {
         val element = KeyedStaticConsumerElement { node = it }
         setContent {
             CompositionLocalProvider(LocalStatic provides value) {
-                SwingNode(factory = { JPanel() }) {
+                Panel {
                     SwingNode(
                         factory = { ListeningPanel().also { panel = it } },
                         modifier =
@@ -434,7 +435,7 @@ class DeclaredNodesTest {
         val element = KeyedDynamicConsumerElement { node = it }
         setContent {
             CompositionLocalProvider(LocalDynamic provides value) {
-                SwingNode(factory = { JPanel() }) {
+                Panel {
                     SwingNode(
                         factory = { ListeningPanel().also { panel = it } },
                         modifier = SwingModifier.then(element).then(Additive("step", autoInvalidates = false)),

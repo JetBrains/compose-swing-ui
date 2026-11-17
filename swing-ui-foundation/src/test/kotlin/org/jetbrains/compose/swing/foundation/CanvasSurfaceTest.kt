@@ -5,6 +5,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.assertPixelColor
+import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.countTests
 import org.jetbrains.compose.swing.foundation.fixtures.CanvasFixture
 import org.jetbrains.compose.swing.foundation.graphics.Decoratable
@@ -13,7 +14,6 @@ import org.jetbrains.compose.swing.foundation.graphics.shadow
 import org.jetbrains.compose.swing.foundation.layout.Box
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.style.border
 import org.jetbrains.compose.swing.style.minimumSize
 import org.jetbrains.compose.swing.style.preferredSize
@@ -30,7 +30,6 @@ import java.awt.Color
 import java.awt.Dimension
 import java.awt.Insets
 import javax.swing.JComponent
-import javax.swing.JPanel
 import javax.swing.border.EmptyBorder
 import javax.swing.border.LineBorder
 import kotlin.test.Test
@@ -152,7 +151,7 @@ class CanvasSurfaceTest {
         runComposeSwingTest {
             var drawingSize: Dimension? = null
             setContent {
-                SwingNode(factory = { JPanel() }) {
+                Panel {
                     Canvas(
                         modifier =
                             SwingModifier
@@ -198,7 +197,7 @@ class CanvasSurfaceTest {
     fun aFadedDrawKeepsTheCompositeRuleOnDrawSet() =
         runComposeSwingTest {
             setContent {
-                SwingNode(factory = { JPanel() }) {
+                Panel {
                     Canvas(modifier = SwingModifier.testTag("faded").styleable { preferredSize(Dimension(16, 16)) }) {
                         drawRect(Color.RED)
                         graphics.composite = AlphaComposite.DstOut
@@ -246,7 +245,7 @@ class CanvasSurfaceTest {
     fun anUnsizedCanvasAsksForNoOutsets() =
         runComposeSwingTest {
             setContent {
-                SwingNode(factory = { JPanel() }) {
+                Panel {
                     Canvas(modifier = SwingModifier.testTag("bare")) { }
                     // Only a Foundation container gives paint outsets.
                     Box {

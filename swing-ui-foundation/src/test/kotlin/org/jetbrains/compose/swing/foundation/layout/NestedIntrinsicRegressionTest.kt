@@ -3,9 +3,11 @@ package org.jetbrains.compose.swing.foundation.layout
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableIntStateOf
+import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.minimumSize
 import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.interaction.assertProperty
@@ -20,7 +22,6 @@ import java.awt.Dimension
 import java.awt.Rectangle
 import javax.swing.BorderFactory
 import javax.swing.JComponent
-import javax.swing.JPanel
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -160,15 +161,13 @@ class NestedIntrinsicRegressionTest {
     @Test
     fun nestedFiniteQueriesUseStockSwingSizes() =
         assertNestedIntrinsicSizes {
-            SwingNode(
-                factory = {
-                    JPanel().apply {
-                        minimumSize = Dimension(11, 13)
-                        preferredSize = Dimension(17, 19)
-                    }
-                },
+            Panel(
                 modifier = SwingModifier.testTag("child"),
-            )
+                style = {
+                    minimumSize(11, 13)
+                    preferredSize(17, 19)
+                },
+            ) {}
         }
 
     @Test
@@ -233,7 +232,7 @@ class NestedIntrinsicRegressionTest {
                 Box {
                     Layout(parentPolicy, SwingModifier.testTag("parent").size(30, 20)) {
                         Layout(childPolicy, SwingModifier.testTag("child").width(IntrinsicSize.Min)) {
-                            SwingNode(factory = { JPanel() }, modifier = SwingModifier.testTag("descendant"))
+                            Panel(modifier = SwingModifier.testTag("descendant")) {}
                         }
                     }
                 }

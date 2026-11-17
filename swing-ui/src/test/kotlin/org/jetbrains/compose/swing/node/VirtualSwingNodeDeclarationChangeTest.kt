@@ -498,7 +498,7 @@ class VirtualSwingNodeDeclarationChangeTest {
                     groupB()
                 }
             } else {
-                SwingNode(factory = { JPanel() }) {
+                Panel {
                     SettlingHost(firstTag, groupA)
                     SettlingHost(secondTag, groupB)
                 }
@@ -536,8 +536,8 @@ class VirtualSwingNodeDeclarationChangeTest {
         setContent {
             SwingNode(factory = { MeasuringHost() }) {
                 VirtualSwingNode(SwingModifier then Data("group-${protocol.description}", 1, protocol)) {
-                    Label(
-                        "a",
+                    SwingNode(
+                        factory = { JLabel("a") },
                         childModifier(protocol) then Data("child-${protocol.description}", 2, protocol),
                     )
                 }

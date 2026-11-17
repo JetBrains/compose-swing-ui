@@ -9,7 +9,9 @@ import androidx.compose.runtime.setValue
 import io.mockk.mockk
 import io.mockk.verify
 import org.jetbrains.compose.swing.RecordingMeasurementLayout
+import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
+import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.countTests
 import org.jetbrains.compose.swing.fixtures.style.StyleableFixture
 import org.jetbrains.compose.swing.layout.ParentLayoutElement
@@ -56,10 +58,7 @@ internal class StyleNodeTest {
             var shown by mutableStateOf(true)
             setContent {
                 if (shown) {
-                    SwingNode(
-                        factory = { JLabel() },
-                        modifier = SwingModifier.styleable(kind, state, SwingStyle),
-                    )
+                    Label(text = "", modifier = SwingModifier.styleable(kind, state, SwingStyle))
                 }
             }
             verify(exactly = 0) { state.onRemembered() }
@@ -84,10 +83,7 @@ internal class StyleNodeTest {
         assertFailsWith<IllegalArgumentException> {
             runComposeSwingTest {
                 setContent {
-                    SwingNode(
-                        factory = { JLabel() },
-                        modifier = SwingModifier.styleable(PlainProbe) { property.provide(Unit) },
-                    )
+                    Label(text = "", modifier = SwingModifier.styleable(PlainProbe) { property.provide(Unit) })
                 }
             }
         }
@@ -96,15 +92,14 @@ internal class StyleNodeTest {
     @Test
     fun theKindlessStyleOffersJComponentPropertiesAndProvidesNestedStyles() = runComposeSwingTest {
         setContent {
-            SwingNode(
-                factory = { JPanel() },
+            Panel(
                 modifier =
                     SwingModifier.testTag("container").styleable {
                         toolTip("container")
                         provideNestedStyle(Probes) { LabelToolTip.provide("nested") }
                     },
             ) {
-                SwingNode(factory = { JLabel() }, modifier = SwingModifier.styleable(NestedProbe, SwingStyle))
+                Label(text = "", modifier = SwingModifier.styleable(NestedProbe, SwingStyle))
             }
         }
         onNodeWithTag("container").assertIsOfType<JPanel>().assertProperty("container") { toolTipText }
@@ -382,8 +377,8 @@ internal class StyleNodeTest {
         var tip by mutableStateOf("first")
         setContent {
             val current = tip
-            SwingNode(
-                factory = { JLabel() },
+            Label(
+                text = "",
                 modifier =
                     SwingModifier
                         .testTag("first")
@@ -414,8 +409,8 @@ internal class StyleNodeTest {
             }
         setContent {
             SwingNode(factory = { JPanel(RecordingMeasurementLayout(FlowLayout())) }) {
-                SwingNode(
-                    factory = { JLabel() },
+                Label(
+                    text = "",
                     modifier = SwingModifier.styleable(PlainProbe) { if (present) observing.provide(Unit) },
                 )
             }

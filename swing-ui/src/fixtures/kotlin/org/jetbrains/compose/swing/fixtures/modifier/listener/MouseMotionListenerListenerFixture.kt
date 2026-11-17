@@ -2,10 +2,10 @@
 package org.jetbrains.compose.swing.fixtures.modifier.listener
 
 import androidx.compose.runtime.Composable
+import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.fixtures.ComposableFixture
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.mouseMotionListener
-import org.jetbrains.compose.swing.node.SwingNode
 import java.awt.event.MouseMotionAdapter
 import java.awt.event.MouseMotionListener
 import javax.swing.JLabel
@@ -16,7 +16,7 @@ public data class MouseMotionListenerListenerParameters(
 )
 
 /**
- * A [SwingNode] holding a [JLabel] with a [MouseMotionListener] attached, against a raw [JLabel] with the
+ * A [Label] with a [MouseMotionListener] attached, against a raw [JLabel] with the
  * same listener attached by hand.
  */
 public object MouseMotionListenerListenerFixture :
@@ -35,10 +35,7 @@ public object MouseMotionListenerListenerFixture :
     /** Composes a label host with [listener] attached to it. */
     @Composable
     public fun Content(listener: MouseMotionListener) {
-        SwingNode<JLabel>(
-            factory = { JLabel() },
-            modifier = SwingModifier.mouseMotionListener(listener = listener),
-        )
+        Label(text = "", modifier = SwingModifier.mouseMotionListener(listener = listener))
     }
 
     /** Builds a bare [JLabel] before any of the fixture's values are applied. */

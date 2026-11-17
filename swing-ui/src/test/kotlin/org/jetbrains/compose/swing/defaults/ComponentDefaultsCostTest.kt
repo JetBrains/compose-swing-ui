@@ -70,17 +70,11 @@ class ComponentDefaultsCostTest {
 
         setContent {
             // Node without provider
-            SwingNode(
-                factory = { JLabel() },
-                modifier = mod1,
-            )
+            Label("", modifier = mod1)
 
             // Node with empty defaults provider
             ProvideComponentDefaults {
-                SwingNode(
-                    factory = { JLabel() },
-                    modifier = mod2,
-                )
+                Label("", modifier = mod2)
             }
         }
 
@@ -124,7 +118,7 @@ class ComponentDefaultsCostTest {
 
         setContent {
             ProvideComponentDefaults(DefaultBackground provides if (dark) Color.BLACK else Color.WHITE) {
-                SwingNode(factory = { JLabel() }, modifier = if (dark) darkModifier else light)
+                Label("", modifier = if (dark) darkModifier else light)
             }
         }
         assertEquals(1, declaredWrites, "initial mount writes the declared property once")
@@ -154,10 +148,7 @@ class ComponentDefaultsCostTest {
                     DefaultBackground provides Color(10, 20, 30),
                     DefaultForeground provides Color(40, 50, 60),
                 ) {
-                    SwingNode(
-                        factory = { JLabel() },
-                        modifier = customMod,
-                    )
+                    Label("", modifier = customMod)
                 }
             }
         }
@@ -315,10 +306,7 @@ class ComponentDefaultsCostTest {
                 Label("inheriting")
 
                 // Node with explicit background override
-                SwingNode(
-                    factory = { JLabel() },
-                    modifier = explicitMod,
-                )
+                Label("", modifier = explicitMod)
             }
         }
 

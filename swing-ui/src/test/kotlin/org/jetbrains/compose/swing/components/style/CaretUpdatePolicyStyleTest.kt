@@ -4,6 +4,8 @@ package org.jetbrains.compose.swing.components.style
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.components.text.TextArea
+import org.jetbrains.compose.swing.components.text.rememberDocumentState
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.style.TestTextNodeKind
@@ -68,8 +70,8 @@ class CaretUpdatePolicyStyleTest {
         val mine = DefaultCaret()
         var decorated by mutableStateOf(true)
         setContent {
-            SwingNode(
-                factory = { JTextArea("hello world") },
+            TextArea(
+                rememberDocumentState("hello world"),
                 modifier =
                     SwingModifier.styleable(TestTextNodeKind) {
                         if (decorated) {
@@ -100,8 +102,8 @@ class CaretUpdatePolicyStyleTest {
         val second = DefaultCaret()
         var swapped by mutableStateOf(false)
         setContent {
-            SwingNode(
-                factory = { JTextArea("hello world") },
+            TextArea(
+                rememberDocumentState("hello world"),
                 modifier =
                     SwingModifier.styleable(TestTextNodeKind) {
                         caret(if (swapped) second else first)

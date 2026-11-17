@@ -130,10 +130,7 @@ class PropertyTest {
     @Test
     fun rewriteOnReassertsTheDeclaredValueWhenTheNamedPropertyAnnouncesAChange() = runComposeSwingTest {
         setContent {
-            SwingNode(
-                factory = { JLabel("target") },
-                modifier = SwingModifier.property(DeclaredNameProperty, DECLARED_TIP, rewriteOn = "name"),
-            )
+            Label("target", modifier = SwingModifier.property(DeclaredNameProperty, DECLARED_TIP, rewriteOn = "name"))
         }
         val label = onNodeOfType<JLabel>().fetch()
         assertEquals(DECLARED_TIP, label.name, "the declared value should reach the widget")

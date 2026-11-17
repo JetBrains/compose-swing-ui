@@ -9,13 +9,13 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.animation.core.MutableTransitionState
 import org.jetbrains.compose.swing.animation.core.tween
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.foundation.layout.Alignment
 import org.jetbrains.compose.swing.foundation.layout.Box
 import org.jetbrains.compose.swing.foundation.layout.Column
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.layoutConstraint
-import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.interaction.assertProperty
@@ -27,14 +27,10 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.Arguments.arguments
 import org.junit.jupiter.params.provider.MethodSource
-import java.awt.BorderLayout
 import java.awt.Color
 import java.awt.Dimension
-import java.awt.FlowLayout
-import java.awt.GridLayout
 import java.awt.Point
 import java.awt.Rectangle
-import javax.swing.JPanel
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -407,7 +403,7 @@ internal class AnimatedVisibilityStateMachineTest {
         GridCell {
             @Composable
             override fun Hosting(content: @Composable (constraint: SwingModifier) -> Unit) =
-                SwingNode(factory = { JPanel(GridLayout(0, 1)).apply { preferredSize = Dimension(60, 30) } }) {
+                Panel(PanelLayout.Grid(0, 1), style = { preferredSize(60, 30) }) {
                     content(SwingModifier)
                 }
         },
@@ -416,15 +412,15 @@ internal class AnimatedVisibilityStateMachineTest {
         FlowLayout {
             @Composable
             override fun Hosting(content: @Composable (constraint: SwingModifier) -> Unit) =
-                SwingNode(factory = { JPanel(FlowLayout()) }) { content(SwingModifier) }
+                Panel { content(SwingModifier) }
         },
 
         /** Sets the width of each container, wider than the content, and follows the height it requests. */
         NorthRegion {
             @Composable
             override fun Hosting(content: @Composable (constraint: SwingModifier) -> Unit) =
-                SwingNode(factory = { JPanel(BorderLayout()).apply { preferredSize = Dimension(200, 300) } }) {
-                    content(SwingModifier.layoutConstraint(BorderLayout.NORTH))
+                Panel(PanelLayout.Border(), style = { preferredSize(200, 300) }) {
+                    content(SwingModifier.north())
                 }
         },
         ;

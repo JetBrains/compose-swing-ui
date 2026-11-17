@@ -30,6 +30,7 @@ import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.interaction.assertIsOfType
 import org.jetbrains.compose.swing.test.interaction.assertProperty
+import org.jetbrains.compose.swing.test.interaction.onChild
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import org.jetbrains.compose.swing.test.screenshot.differingPixelBounds
@@ -49,7 +50,6 @@ import java.awt.Rectangle
 import javax.swing.BoxLayout
 import javax.swing.JComponent
 import javax.swing.JPanel
-import javax.swing.JTextArea
 import javax.swing.OverlayLayout
 import kotlin.math.roundToInt
 import kotlin.test.Test
@@ -163,12 +163,7 @@ class SwingParentBoundaryTest {
                                         .shadow(4, Color.BLACK)
                                         .styleable { preferredSize(64, 64) },
                             ) {
-                                Box(
-                                    modifier =
-                                        SwingModifier
-                                            .size(64, 64)
-                                            .placementLayer { scaleX = scale },
-                                )
+                                Box(modifier = SwingModifier.size(64, 64).placementLayer { scaleX = scale })
                             }
                         }
                     }
@@ -227,13 +222,9 @@ class SwingParentBoundaryTest {
                                         .shadow(8, Color.BLACK)
                                         .styleable { emptyBorder(2) },
                             ) {
-                                SwingNode(
-                                    factory = { JPanel() },
-                                    modifier =
-                                        SwingModifier
-                                            .testTag("child")
-                                            .styleable { preferredSize(40, 30) },
-                                )
+                                Panel(
+                                    style = { preferredSize(40, 30) },
+                                ) {}
                             }
                         }
                     }
@@ -247,9 +238,12 @@ class SwingParentBoundaryTest {
                 }
             }
             val card = onNodeWithTag("card").fetch<JComponent>()
-            val child = onNodeWithTag("child").fetch<JComponent>()
+            val child = onNodeWithTag("card").onChild()
             val outsets = blurOutsets(8)
-            assertEquals(Rectangle(outsets + 2, outsets + 2, 40, 30), child.bounds, "inside the border and outsets")
+            child.assertProperty(
+                Rectangle(outsets + 2, outsets + 2, 40, 30),
+                "inside the border and outsets",
+            ) { bounds }
             val row = onNodeWithTag("row").fetch<JComponent>()
             row.removeNotify()
             try {
@@ -259,7 +253,10 @@ class SwingParentBoundaryTest {
 
                 assertEquals(Dimension(44, 34), card.preferredSize, "the card answers its size without the old outsets")
                 onNodeWithTag("stock").fetch<JComponent>().validate()
-                assertEquals(Rectangle(2, 2, 40, 30), child.bounds, "and lays its child out inside the border alone")
+                child.assertProperty(
+                    Rectangle(2, 2, 40, 30),
+                    "and lays its child out inside the border alone",
+                ) { bounds }
             } finally {
                 row.addNotify()
             }
@@ -279,20 +276,22 @@ class SwingParentBoundaryTest {
                                     .shadow(8, Color.BLACK)
                                     .styleable { emptyBorder(2) },
                         ) {
-                            SwingNode(
-                                factory = { JPanel() },
-                                modifier = SwingModifier.testTag("child").styleable { preferredSize(40, 30) },
-                            )
+                            Panel(
+                                style = { preferredSize(40, 30) },
+                            ) {}
                         }
                     }
                     SwingNode(factory = { stockPanel() }, modifier = SwingModifier.testTag("stock"))
                 }
             }
             val card = onNodeWithTag("card").fetch<JComponent>()
-            val child = onNodeWithTag("child").fetch<JComponent>()
+            val child = onNodeWithTag("card").onChild()
             val stock = onNodeWithTag("stock").fetch<JComponent>()
             val outsets = blurOutsets(8)
-            assertEquals(Rectangle(outsets + 2, outsets + 2, 40, 30), child.bounds, "inside the border and outsets")
+            child.assertProperty(
+                Rectangle(outsets + 2, outsets + 2, 40, 30),
+                "inside the border and outsets",
+            ) { bounds }
             assertEquals(Dimension(44 + 2 * outsets, 34 + 2 * outsets), card.preferredSize, "child, border and outsets")
 
             stock.setComponentZOrder(card, 0)
@@ -300,7 +299,7 @@ class SwingParentBoundaryTest {
             stock.validate()
 
             assertEquals(Dimension(44, 34), card.preferredSize, "the card answers its size without the old outsets")
-            assertEquals(Rectangle(2, 2, 40, 30), child.bounds, "and lays its child out inside the border alone")
+            child.assertProperty(Rectangle(2, 2, 40, 30), "and lays its child out inside the border alone") { bounds }
         }
 
     @Test
@@ -463,7 +462,7 @@ class SwingParentBoundaryTest {
     ) {
         val text = "A text area that wraps its lines sizes its view while its size is read. ".repeat(6)
         assertStockParentSurvivesContainerContent(name, layout, holder) {
-            SwingNode(factory = { JTextArea(text).apply { lineWrap = true } })
+            TextArea(text, {}, lineWrap = true)
         }
     }
 
@@ -500,10 +499,7 @@ class SwingParentBoundaryTest {
         runComposeSwingTest {
             var width by mutableIntStateOf(300)
             setContent {
-                SwingNode(
-                    factory = { JPanel(BorderLayout()) },
-                    modifier = SwingModifier.styleable { preferredSize(width, 240) },
-                ) {
+                Panel(PanelLayout.Border(), style = { preferredSize(width, 240) }) {
                     SwingNode(
                         factory = { JPanel().apply { this.layout = layout(this) } },
                         modifier = SwingModifier.testTag("stock"),

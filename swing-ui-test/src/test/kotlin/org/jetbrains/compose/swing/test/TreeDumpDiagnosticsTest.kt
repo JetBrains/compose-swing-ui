@@ -5,9 +5,11 @@ import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
+import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.appearance.name
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.accessibleDescription
 import org.jetbrains.compose.swing.style.enabled
-import javax.swing.JLabel
 import kotlin.test.Test
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
@@ -25,13 +27,10 @@ class TreeDumpDiagnosticsTest {
     fun theDumpDescribesEachNodeByItsMatchableAttributes() = runComposeSwingTest {
         setContent {
             Panel(PanelLayout.Box()) {
-                SwingNode(
-                    factory = { JLabel() },
-                    update = {
-                        set("the-text") { this.text = it }
-                        set("the-name") { this.name = it }
-                        set("the-a11y-description") { this.accessibleContext.accessibleDescription = it }
-                    },
+                Label(
+                    text = "the-text",
+                    modifier = SwingModifier.name("the-name"),
+                    style = { accessibleDescription("the-a11y-description") },
                 )
                 Button(text = "off", onClick = {}, style = { enabled(false) })
                 SwingNode(factory = { PlainAwtComponent() })

@@ -2,10 +2,10 @@
 package org.jetbrains.compose.swing.fixtures.modifier.listener
 
 import androidx.compose.runtime.Composable
+import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.fixtures.ComposableFixture
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.mouseMotionListener
-import org.jetbrains.compose.swing.node.SwingNode
 import java.awt.event.MouseEvent
 import java.awt.event.MouseMotionAdapter
 import javax.swing.JLabel
@@ -40,8 +40,8 @@ public object MouseMotionListenerFixture : ComposableFixture<MouseMotionListener
         onMouseDragged: (MouseEvent) -> Unit,
         onMouseMoved: (MouseEvent) -> Unit,
     ) {
-        SwingNode<JLabel>(
-            factory = { JLabel() },
+        Label(
+            text = "",
             modifier =
                 SwingModifier.mouseMotionListener(
                     onMouseDragged = onMouseDragged,

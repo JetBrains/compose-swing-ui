@@ -599,6 +599,7 @@ class VirtualSwingNodeRefusalTest {
                 if (moved) refused()
             }
         }
+
         assertFailsWith<IllegalStateException> {
             moved = true
             awaitIdle()

@@ -5,6 +5,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.countTests
 import org.jetbrains.compose.swing.fixtures.modifier.KeyFixture
 import org.jetbrains.compose.swing.modifier.appearance.clientProperty
@@ -176,7 +177,7 @@ class KeyTest {
         setContent {
             var chain = SwingModifier.key(leading).then(ProbeElement(counts)).key(trailing)
             if (duplicated) chain = chain.key(trailing)
-            SwingNode(factory = { JLabel("X") }, modifier = chain)
+            Label("X", modifier = chain)
         }
         assertEquals(1, counts.attaches.get())
 
@@ -214,10 +215,7 @@ class KeyTest {
             // therefore changes nothing, and a modifier tied to what it was tied to is not rebuilt.
             var chain = SwingModifier.key("a")
             if (!repeated) chain = SwingModifier
-            SwingNode(
-                factory = { JLabel("X") },
-                modifier = chain.key("b").key("a").then(ProbeElement(counts)),
-            )
+            Label("X", modifier = chain.key("b").key("a").then(ProbeElement(counts)))
         }
         assertEquals(1, counts.attaches.get())
 
@@ -236,8 +234,9 @@ class KeyTest {
         val caret = CountingCaret()
         var token by mutableStateOf(0)
         setContent {
-            SwingNode(
-                factory = { JTextField("text") },
+            TextField(
+                value = "text",
+                onValueChange = {},
                 modifier = SwingModifier.key(token).then(CaretElement(caret)),
             )
         }

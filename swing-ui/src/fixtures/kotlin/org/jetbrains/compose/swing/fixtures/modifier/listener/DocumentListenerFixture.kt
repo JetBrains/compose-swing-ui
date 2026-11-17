@@ -2,10 +2,10 @@
 package org.jetbrains.compose.swing.fixtures.modifier.listener
 
 import androidx.compose.runtime.Composable
+import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.fixtures.ComposableFixture
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.documentListener
-import org.jetbrains.compose.swing.node.SwingNode
 import javax.swing.JTextField
 import javax.swing.event.DocumentEvent
 import javax.swing.event.DocumentListener
@@ -47,8 +47,9 @@ public object DocumentListenerFixture : ComposableFixture<DocumentListenerParame
         onRemove: (DocumentEvent) -> Unit,
         onChange: (DocumentEvent) -> Unit,
     ) {
-        SwingNode(
-            factory = { JTextField() },
+        TextField(
+            value = "",
+            onValueChange = {},
             modifier =
                 SwingModifier.documentListener(
                     onInsert = onInsert,

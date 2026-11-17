@@ -127,8 +127,8 @@ class VirtualSwingNodeTest {
         isDebugInspectorInfoEnabled = true
         try {
             setContent {
-                SwingNode(factory = { JPanel() }, modifier = SwingModifier.testTag("host")) {
-                    VirtualSwingNode { SwingNode(factory = { JLabel("a") }) }
+                Panel(modifier = SwingModifier.testTag("host")) {
+                    VirtualSwingNode { Label("a") }
                 }
             }
             onNodeWithTag("host").assertTreeMatches(JPanel().apply { add(JLabel("a")) })

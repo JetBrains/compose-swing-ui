@@ -2,8 +2,8 @@
 package org.jetbrains.compose.swing.foundation.graphics
 
 import androidx.compose.runtime.Recomposer
+import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.reportedUncaught
 import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.setContent
@@ -13,7 +13,6 @@ import org.junit.jupiter.params.provider.MethodSource
 import java.awt.Component
 import java.awt.Graphics2D
 import java.util.stream.Stream
-import javax.swing.JButton
 import javax.swing.JPanel
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
@@ -35,10 +34,7 @@ class DecorationAttachFailureTest {
                     val failure =
                         assertFailsWith<IllegalStateException> {
                             JPanel().setContent(parent = parent) {
-                                SwingNode(
-                                    factory = { JButton() },
-                                    modifier = SwingModifier.then(Element(node, additive)),
-                                )
+                                Button("", onClick = {}, modifier = SwingModifier.then(Element(node, additive)))
                             }
                         }
                     assertContains(failure.message.orEmpty(), expectedMessage)

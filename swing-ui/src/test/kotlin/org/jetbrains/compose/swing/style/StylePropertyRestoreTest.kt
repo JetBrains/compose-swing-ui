@@ -7,6 +7,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.style.TextStyleScope
 import org.jetbrains.compose.swing.components.style.caret
 import org.jetbrains.compose.swing.components.style.caretBlinkRate
@@ -35,7 +36,6 @@ import java.awt.event.MouseEvent
 import javax.swing.BorderFactory
 import javax.swing.JComponent
 import javax.swing.JLabel
-import javax.swing.JPanel
 import javax.swing.JTextField
 import javax.swing.ToolTipManager
 import javax.swing.border.Border
@@ -144,8 +144,8 @@ class StylePropertyRestoreTest {
                     } else {
                         SwingModifier
                     }
-                SwingNode(
-                    factory = { JLabel() },
+                Label(
+                    "",
                     modifier = base.styleable(TestNodeKind) { if (styleOn) toolTip("style") },
                 )
             }
@@ -249,8 +249,8 @@ class StylePropertyRestoreTest {
             val retained = EmptyBorder(1, 2, 3, 4)
             val custom = EmptyBorder(5, 6, 7, 8)
             setContent {
-                SwingNode(
-                    factory = { JLabel() },
+                Label(
+                    "",
                     modifier =
                         SwingModifier.styleable(PlainProbe) {
                             property.provide(retained)
@@ -338,8 +338,8 @@ class StylePropertyRestoreTest {
                 )
             }
         setContent {
-            SwingNode(
-                factory = { JLabel() },
+            Label(
+                "",
                 modifier =
                     SwingModifier.styleable(PlainProbe) {
                         custom.provide("custom")
@@ -435,8 +435,8 @@ class StylePropertyRestoreTest {
             var property by mutableStateOf(stylePropertyOf(descriptor, rewriteOn = initialEvent))
             var provided by mutableStateOf(true)
             setContent {
-                SwingNode(
-                    factory = { JLabel() },
+                Label(
+                    "",
                     modifier = SwingModifier.styleable(PlainProbe) { if (provided) property.provide("declared") },
                 )
             }
@@ -517,12 +517,9 @@ class StylePropertyRestoreTest {
         var text: String? by mutableStateOf("styled")
         var color by mutableStateOf(Color.RED)
         setContent {
-            SwingNode(
-                factory = { JPanel() },
-                modifier = SwingModifier.styleable(PlainProbeContainer) { InheritedForeground.provide(color) },
-            ) {
-                SwingNode(
-                    factory = { JLabel("own text") },
+            Panel(modifier = SwingModifier.styleable(PlainProbeContainer) { InheritedForeground.provide(color) }) {
+                Label(
+                    "own text",
                     modifier = SwingModifier.styleable(PlainProbe) { text?.let { LabelText.provide(it) } },
                 )
             }
@@ -547,12 +544,9 @@ class StylePropertyRestoreTest {
         var tip: String? by mutableStateOf("styled")
         var color by mutableStateOf(Color.RED)
         setContent {
-            SwingNode(
-                factory = { JPanel() },
-                modifier = SwingModifier.styleable(PlainProbeContainer) { InheritedForeground.provide(color) },
-            ) {
-                SwingNode(
-                    factory = { JLabel("own text") },
+            Panel(modifier = SwingModifier.styleable(PlainProbeContainer) { InheritedForeground.provide(color) }) {
+                Label(
+                    "own text",
                     modifier =
                         SwingModifier.styleable(PlainProbe) {
                             text?.let { LabelText.provide(it) }
@@ -591,10 +585,7 @@ class StylePropertyRestoreTest {
         var text by mutableStateOf("styled")
         var color by mutableStateOf(Color.RED)
         setContent {
-            SwingNode(
-                factory = { JPanel() },
-                modifier = SwingModifier.styleable(PlainProbeContainer) { InheritedForeground.provide(color) },
-            ) {
+            Panel(modifier = SwingModifier.styleable(PlainProbeContainer) { InheritedForeground.provide(color) }) {
                 SwingNode(
                     factory = { JLabel("own text") },
                     modifier =

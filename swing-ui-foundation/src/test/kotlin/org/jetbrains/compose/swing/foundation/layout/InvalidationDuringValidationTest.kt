@@ -12,6 +12,8 @@ import androidx.compose.runtime.rememberCompositionContext
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.Snapshot
 import org.jetbrains.compose.swing.OnDemandComposition
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.foundation.graphics.layoutBounds
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
@@ -69,8 +71,8 @@ class InvalidationDuringValidationTest {
                     }
                 }
             setContent {
-                SwingNode(
-                    factory = { JPanel(FlowLayout(FlowLayout.LEADING, 0, 0)) },
+                Panel(
+                    PanelLayout.Flow(FlowLayout.LEADING, 0, 0),
                     modifier = SwingModifier.styleable { preferredSize(200, 200) },
                 ) {
                     Layout(measurePolicy = policy, modifier = SwingModifier.testTag("layout"))
@@ -151,8 +153,8 @@ class InvalidationDuringValidationTest {
             setContent {
                 Layout(
                     content = {
-                        SwingNode(
-                            factory = { JPanel(FlowLayout(FlowLayout.LEADING, 0, 0)) },
+                        Panel(
+                            PanelLayout.Flow(FlowLayout.LEADING, 0, 0),
                             modifier = SwingModifier.testTag("panel"),
                         ) {
                             Layout(measurePolicy = { _, _ -> layout(extent.intValue, 20) {} })
@@ -783,8 +785,8 @@ private fun RowOfOneRequesting(requests: Requests) {
 /** A row of one box with the layout node of [requesting], under a Swing parent whose layout asks the row's size. */
 @Composable
 private fun RowUnderFlowLayout(requesting: LayoutModifierNodeElement<*>) {
-    SwingNode(
-        factory = { JPanel(FlowLayout(FlowLayout.LEADING, 0, 0)) },
+    Panel(
+        PanelLayout.Flow(FlowLayout.LEADING, 0, 0),
         modifier = SwingModifier.styleable { preferredSize(200, 200) },
     ) {
         Row(modifier = SwingModifier.testTag("row")) {

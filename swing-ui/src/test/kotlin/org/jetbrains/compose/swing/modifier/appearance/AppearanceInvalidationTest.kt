@@ -6,6 +6,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.assertDeclaredChainCarriedOnce
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.style.horizontalTextPosition
 import org.jetbrains.compose.swing.components.style.margin
 import org.jetbrains.compose.swing.modifier.SwingModifier
@@ -29,7 +31,6 @@ import java.awt.Font
 import java.awt.Insets
 import java.util.concurrent.atomic.AtomicInteger
 import javax.swing.JLabel
-import javax.swing.JPanel
 import javax.swing.JTextField
 import javax.swing.SwingConstants
 import javax.swing.text.DefaultHighlighter.DefaultHighlightPainter
@@ -126,9 +127,7 @@ class AppearanceInvalidationTest {
         var large by mutableStateOf(false)
 
         setContent {
-            SwingNode(
-                factory = { JPanel(FlowLayout(FlowLayout.LEADING, 0, 0)) },
-            ) {
+            Panel(PanelLayout.Flow(FlowLayout.LEADING, 0, 0)) {
                 // The growing label gets a small font initially and a much larger one when `large` flips.
                 Label(
                     text = "WWWWWW",

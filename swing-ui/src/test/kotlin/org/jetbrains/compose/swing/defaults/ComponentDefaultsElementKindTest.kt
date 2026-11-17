@@ -6,6 +6,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
+import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
 import org.jetbrains.compose.swing.modifier.SwingModifier
@@ -18,7 +19,6 @@ import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.appearance.toolTip
 import org.jetbrains.compose.swing.modifier.property
-import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.onAllNodesOfType
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -26,7 +26,6 @@ import java.awt.Color
 import java.awt.event.KeyEvent
 import javax.swing.JButton
 import javax.swing.JLabel
-import javax.swing.JPanel
 import javax.swing.JTextField
 import javax.swing.SwingConstants
 import kotlin.test.Test
@@ -177,7 +176,7 @@ class ComponentDefaultsElementKindTest {
         var provided by mutableStateOf<Int?>(null)
         setContent {
             ProvideComponentDefaults(alignment provides provided) {
-                SwingNode(factory = { JPanel() }, modifier = SwingModifier.testTag("unserved"))
+                Panel(modifier = SwingModifier.testTag("unserved")) {}
             }
         }
         onNodeWithTag("unserved").assertExists()

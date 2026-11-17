@@ -2,20 +2,20 @@
 package org.jetbrains.compose.swing.animation
 
 import androidx.compose.runtime.Composable
+import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.foundation.layout.ContainerContent
 import org.jetbrains.compose.swing.foundation.layout.DefaultLeaves
 import org.jetbrains.compose.swing.foundation.layout.PreferenceSlots
 import org.jetbrains.compose.swing.foundation.layout.WRAPPING_TEXT_AREA_PANEL
 import org.jetbrains.compose.swing.foundation.layout.assertPreferencesSettle
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.preferredSize
 import org.junit.jupiter.api.Named
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
 import java.awt.Dimension
 import java.util.stream.Stream
-import javax.swing.JPanel
 import kotlin.test.Test
 import kotlin.time.Duration
 
@@ -44,11 +44,8 @@ class AnimatedContentPreferencesAtWidthTest {
             slots =
                 PreferenceSlots.mapValues {
                     mapOf<String, @Composable (SwingModifier) -> Unit>(
-                        "JPanel preferring 200 by 10" to { modifier ->
-                            SwingNode(
-                                factory = { JPanel().apply { preferredSize = Dimension(200, 10) } },
-                                modifier = modifier,
-                            )
+                        "Panel preferring 200 by 10" to { modifier ->
+                            Panel(modifier = modifier, style = { preferredSize(200, 10) }) {}
                         },
                     )
                 },

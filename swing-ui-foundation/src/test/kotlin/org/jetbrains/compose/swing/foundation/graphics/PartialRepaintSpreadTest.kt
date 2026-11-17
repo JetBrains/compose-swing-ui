@@ -2,6 +2,8 @@
 package org.jetbrains.compose.swing.foundation.graphics
 
 import androidx.compose.runtime.Composable
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.foundation.Canvas
 import org.jetbrains.compose.swing.foundation.graphics.drawscope.DrawScope
 import org.jetbrains.compose.swing.foundation.layout.Box
@@ -14,7 +16,6 @@ import org.jetbrains.compose.swing.foundation.layout.setWindowContent
 import org.jetbrains.compose.swing.foundation.layout.size
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.ComposeSwingTest
@@ -37,7 +38,6 @@ import java.awt.Shape
 import java.awt.geom.Rectangle2D
 import java.util.stream.Stream
 import javax.swing.JComponent
-import javax.swing.JPanel
 import javax.swing.SwingUtilities
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -210,7 +210,7 @@ class PartialRepaintSpreadTest {
                 val decorated = SwingModifier.testTag("decorated").padding(40).drawBehind(leaf.onPaint)
                 Box(modifier = decorated.background(Brush.of(Color.WHITE))) {
                     Column {
-                        SwingNode(factory = { JPanel(FlowLayout(FlowLayout.LEADING, 30, 30)) }) {
+                        Panel(PanelLayout.Flow(FlowLayout.LEADING, 30, 30)) {
                             Canvas(
                                 modifier =
                                     SwingModifier
@@ -510,7 +510,7 @@ class PartialRepaintSpreadTest {
                     Box(modifier = SwingModifier.padding(40)) {
                         val shifted = SwingModifier.testTag("shifted").drawBehind(leaf.onPaint).decoration(Shifted(-20))
                         Box(modifier = shifted) {
-                            SwingNode(factory = { JPanel(FlowLayout(FlowLayout.LEADING, 0, 0)) }) {
+                            Panel(PanelLayout.Flow(FlowLayout.LEADING, 0, 0)) {
                                 Canvas(
                                     modifier = SwingModifier.testTag("leaf").styleable { preferredSize(40, 40) },
                                     onDraw = leaf.draw,
@@ -555,7 +555,7 @@ class PartialRepaintSpreadTest {
             val leaf = MarkedLeaf(mark = Rectangle(24, 24, 12, 12))
             setWindowContent {
                 Box(modifier = SwingModifier.testTag("root")) {
-                    SwingNode(factory = { JPanel(FlowLayout(FlowLayout.LEADING, 30, 30)) }) {
+                    Panel(PanelLayout.Flow(FlowLayout.LEADING, 30, 30)) {
                         Canvas(
                             modifier =
                                 SwingModifier

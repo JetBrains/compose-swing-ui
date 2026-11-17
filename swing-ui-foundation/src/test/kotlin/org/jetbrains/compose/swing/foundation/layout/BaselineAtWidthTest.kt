@@ -42,7 +42,7 @@ class BaselineAtWidthTest {
                     slotName,
                     leaf = { modifier ->
                         if (slotName == "JSplitPane first side") {
-                            SwingNode(factory = { JLabel(HTML) }, modifier = modifier)
+                            Label(HTML, modifier = modifier)
                         } else {
                             Box(modifier = modifier) { Label("Content") }
                         }
@@ -69,7 +69,7 @@ class BaselineAtWidthTest {
         val baselinesAtWidths =
             baselineReads(
                 "BorderLayout NORTH",
-                leaf = { SwingNode(factory = { JLabel(HTML) }, modifier = it) },
+                leaf = { Label(HTML, modifier = it) },
                 width = { if (it.hasBoundedWidth) it.maxWidth / 2 else null },
             )
         runSwingTest {

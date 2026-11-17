@@ -68,7 +68,7 @@ class SwingExecutionControlSettlementTest {
                 object : ComposeTestCase {
                     @Composable
                     override fun Content() {
-                        SwingNode(factory = { JLabel() })
+                        Label(text = "")
                     }
                 }
             SwingExecutionControl(listOf(subject), coroutineContext).use { control ->

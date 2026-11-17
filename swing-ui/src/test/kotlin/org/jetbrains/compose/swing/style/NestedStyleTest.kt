@@ -556,8 +556,8 @@ class NestedStyleTest {
                     }
                 },
             ) {
-                SwingNode(
-                    factory = { JLabel("third party") },
+                Label(
+                    text = "third party",
                     modifier = SwingModifier.styleable(ThirdPartyNestingKind, SwingStyle),
                 )
             }
@@ -575,8 +575,8 @@ class NestedStyleTest {
             assertFailsWith<IllegalStateException> {
                 setContent {
                     Panel(style = { provideNestedStyle(AllComponents) { background(Color.BLUE) } }) {
-                        SwingNode(
-                            factory = { JLabel("writing") },
+                        Label(
+                            text = "writing",
                             modifier = SwingModifier.styleable(WritingNestingKind, SwingStyle),
                         )
                     }
@@ -637,8 +637,8 @@ class NestedStyleTest {
             }
             val thirdParty: @Composable () -> Unit = {
                 Panel(style = { provideNestedStyle(AllComponents) { background(Color.BLUE) } }) {
-                    SwingNode(
-                        factory = { JLabel("third party") },
+                    Label(
+                        text = "third party",
                         modifier = SwingModifier.styleable(ThirdPartyNestingKind, SwingStyle),
                     )
                 }

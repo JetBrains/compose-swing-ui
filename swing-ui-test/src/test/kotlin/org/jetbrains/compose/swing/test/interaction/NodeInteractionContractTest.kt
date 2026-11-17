@@ -9,11 +9,13 @@ import org.jetbrains.compose.swing.components.text.rememberDocumentState
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.name
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.maximumSize
+import org.jetbrains.compose.swing.style.minimumSize
+import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.style.visible
 import org.jetbrains.compose.swing.test.SwingMatcher
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
-import java.awt.Dimension
 import java.awt.datatransfer.Transferable
 import javax.swing.JComponent
 import javax.swing.JLabel
@@ -116,15 +118,12 @@ class NodeInteractionContractTest {
     fun assertIsDisplayedFailsForANodeCollapsedToZeroSize() = runComposeSwingTest {
         setContent {
             Panel(PanelLayout.Box()) {
-                SwingNode(
-                    factory = { JLabel() },
-                    update = {
-                        set("collapsed") { this.text = it }
-                        set(Dimension(0, 0)) {
-                            this.preferredSize = it
-                            this.maximumSize = it
-                            this.minimumSize = it
-                        }
+                Label(
+                    "collapsed",
+                    style = {
+                        preferredSize(0, 0)
+                        minimumSize(0, 0)
+                        maximumSize(0, 0)
                     },
                 )
             }

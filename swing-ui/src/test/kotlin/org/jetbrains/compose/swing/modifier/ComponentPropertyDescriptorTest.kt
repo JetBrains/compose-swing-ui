@@ -4,15 +4,16 @@ package org.jetbrains.compose.swing.modifier
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.components.button.Button
+import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor.Companion.accessor
-import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.AbstractButton
 import javax.swing.JButton
 import javax.swing.JLabel
-import javax.swing.JPanel
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -29,8 +30,8 @@ class ComponentPropertyDescriptorTest {
     @Test
     fun aMultiTypePropertyReachesEveryServedTypeThroughItsOwnAccessor() = runComposeSwingTest {
         setContent {
-            SwingNode(factory = { JLabel("label") }, modifier = SwingModifier.property(GreetingProperty, "hi"))
-            SwingNode(factory = { JButton("button") }, modifier = SwingModifier.property(GreetingProperty, "hi"))
+            Label(text = "label", modifier = SwingModifier.property(GreetingProperty, "hi"))
+            Button(text = "button", onClick = {}, modifier = SwingModifier.property(GreetingProperty, "hi"))
         }
         val label = onNodeOfType<JLabel>()
         val button = onNodeOfType<JButton>()
@@ -63,7 +64,7 @@ class ComponentPropertyDescriptorTest {
         var value by mutableStateOf("first")
         setContent {
             val property = if (useReplacement) replacement else initial
-            SwingNode(factory = { JLabel() }, modifier = SwingModifier.property(property, value))
+            Label(text = "", modifier = SwingModifier.property(property, value))
         }
         assertEquals(listOf("initial:first"), writes, "the initial handle writes the initial value")
 
@@ -89,7 +90,7 @@ class ComponentPropertyDescriptorTest {
         val failure =
             assertFailsWith<IllegalStateException> {
                 setContent {
-                    SwingNode(factory = { JPanel() }, modifier = SwingModifier.property(GreetingProperty, "hi"))
+                    Panel(modifier = SwingModifier.property(GreetingProperty, "hi")) { }
                 }
             }
         assertTrue(

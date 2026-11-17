@@ -7,9 +7,9 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.style.font
 import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.style.styleable
@@ -229,12 +229,12 @@ class RowColumnReactivityTest {
                                     .alignByBaseline(),
                             style = { font(Font(Font.SANS_SERIF, Font.PLAIN, 12)) },
                         )
-                        SwingNode(
-                            factory = { JTextField("Text field", 12) },
+                        TextField(
+                            value = "Text field",
+                            onValueChange = {},
                             modifier = SwingModifier.alignByBaseline(),
-                            update = {
-                                set(fontSize) { font = Font(Font.SANS_SERIF, Font.PLAIN, it) }
-                            },
+                            style = { font(Font(Font.SANS_SERIF, Font.PLAIN, fontSize)) },
+                            columns = 12,
                         )
                     }
                 }

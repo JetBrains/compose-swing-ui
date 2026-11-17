@@ -3,10 +3,11 @@ package org.jetbrains.compose.swing.fixtures.modifier.layout
 
 import androidx.compose.runtime.Composable
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.fixtures.ComposableFixture
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.layout.layoutConstraint
-import org.jetbrains.compose.swing.node.SwingNode
 import java.awt.BorderLayout
 import javax.swing.JLabel
 import javax.swing.JPanel
@@ -35,7 +36,7 @@ public object LayoutConstraintFixture : ComposableFixture<LayoutConstraintParame
     /** Composes a border-layout host panel holding a [Label] placed under [constraint]. */
     @Composable
     public fun Content(constraint: String) {
-        SwingNode(factory = { JPanel(BorderLayout()) }) {
+        Panel(PanelLayout.Border()) {
             Label(
                 PLACED_TEXT,
                 modifier = SwingModifier.layoutConstraint(constraint),

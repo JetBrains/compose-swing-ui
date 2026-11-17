@@ -4,6 +4,9 @@ package org.jetbrains.compose.swing.foundation.layout
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.foundation.Canvas
 import org.jetbrains.compose.swing.foundation.graphics.Brush
 import org.jetbrains.compose.swing.foundation.graphics.background
@@ -14,9 +17,11 @@ import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.style.SwingComponentStyleScope
 import org.jetbrains.compose.swing.style.SwingStyle
+import org.jetbrains.compose.swing.style.background
 import org.jetbrains.compose.swing.style.emptyBorder
 import org.jetbrains.compose.swing.style.maximumSize
 import org.jetbrains.compose.swing.style.minimumSize
+import org.jetbrains.compose.swing.style.opaque
 import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -36,7 +41,6 @@ import java.awt.image.BufferedImage
 import javax.swing.BoxLayout
 import javax.swing.GroupLayout
 import javax.swing.JComponent
-import javax.swing.JLabel
 import javax.swing.JPanel
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -159,14 +163,10 @@ class PaintOutsetsUnderSwingParentTest {
     fun aShadowedCardBesideALabelInABoxLayout() =
         runComposeSwingTest {
             setContent {
-                SwingNode(
-                    factory = {
-                        JPanel().apply {
-                            layout = BoxLayout(this, BoxLayout.X_AXIS)
-                            background = Color.WHITE
-                        }
-                    },
+                Panel(
+                    PanelLayout.Box(BoxLayout.X_AXIS),
                     modifier = SwingModifier.testTag("stock"),
+                    style = { background(Color.WHITE) },
                 ) {
                     Box(
                         modifier =
@@ -178,14 +178,13 @@ class PaintOutsetsUnderSwingParentTest {
                                     maximumSize(Dimension(48, 32))
                                 },
                     )
-                    SwingNode(
-                        factory = {
-                            JLabel().apply {
-                                isOpaque = true
-                                background = Color(0xF4, 0xC4, 0x30)
-                                preferredSize = Dimension(24, 32)
-                                maximumSize = Dimension(24, 32)
-                            }
+                    Label(
+                        text = "",
+                        style = {
+                            opaque(true)
+                            background(Color(0xF4, 0xC4, 0x30))
+                            preferredSize(Dimension(24, 32))
+                            maximumSize(Dimension(24, 32))
                         },
                     )
                 }

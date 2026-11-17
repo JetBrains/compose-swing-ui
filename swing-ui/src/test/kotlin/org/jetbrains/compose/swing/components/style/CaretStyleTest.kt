@@ -225,8 +225,9 @@ class CaretStyleTest {
         var swapped by mutableStateOf(false)
         var rate by mutableStateOf(250)
         setContent {
-            SwingNode(
-                factory = { JTextField("hello world") },
+            TextField(
+                "hello world",
+                onValueChange = {},
                 modifier =
                     SwingModifier.styleable(TestTextNodeKind) {
                         caret(if (swapped) second else first)
@@ -261,8 +262,9 @@ class CaretStyleTest {
     fun rateSurvivesNullCaretAndRestoresOntoTheReplacement() = runComposeSwingTest {
         var declared by mutableStateOf(true)
         setContent {
-            SwingNode(
-                factory = { JTextField("hello world") },
+            TextField(
+                "hello world",
+                onValueChange = {},
                 modifier = SwingModifier.styleable(TestTextNodeKind) { if (declared) caretBlinkRate(250) },
             )
         }
@@ -293,8 +295,9 @@ class CaretStyleTest {
         var swapped by mutableStateOf(false)
         var declared by mutableStateOf(true)
         setContent {
-            SwingNode(
-                factory = { JTextField("hello world") },
+            TextField(
+                "hello world",
+                onValueChange = {},
                 modifier =
                     SwingModifier.styleable(TestTextNodeKind) {
                         caret(if (swapped) second else first)
@@ -322,8 +325,9 @@ class CaretStyleTest {
         val declaredCaret = DefaultCaret()
         var decorated by mutableStateOf(true)
         setContent {
-            SwingNode(
-                factory = { JTextField("hello world") },
+            TextField(
+                "hello world",
+                onValueChange = {},
                 modifier =
                     SwingModifier.styleable(TestTextNodeKind) {
                         if (decorated) {
@@ -352,8 +356,9 @@ class CaretStyleTest {
         var declared by mutableStateOf(true)
         var styled by mutableStateOf(true)
         setContent {
-            SwingNode(
-                factory = { JTextField("hello world") },
+            TextField(
+                "hello world",
+                onValueChange = {},
                 modifier =
                     SwingModifier.styleable(TestTextNodeKind) {
                         if (styled) {
@@ -385,8 +390,9 @@ class CaretStyleTest {
     @Test
     fun lookAndFeelReplacementKeepsRateAndPolicy() = runComposeSwingTest {
         setContent {
-            SwingNode(
-                factory = { JTextField("hello world") },
+            TextField(
+                "hello world",
+                onValueChange = {},
                 modifier =
                     SwingModifier.styleable(TestTextNodeKind) {
                         caretBlinkRate(250)

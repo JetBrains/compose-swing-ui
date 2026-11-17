@@ -13,11 +13,11 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.yield
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.menu.Menu
 import org.jetbrains.compose.swing.components.menu.MenuItem
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.ObserverModifierNode
-import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.observeReads
 import org.jetbrains.compose.swing.node.requestAfterValidation
 import org.jetbrains.compose.swing.runSwingTest
@@ -216,10 +216,7 @@ class EventDispatchThreadContractTest {
         SwingUtilities.invokeAndWait {
             recomposer = SwingRecomposer.create(panel)
             panel.setContent(parent = recomposer.compositionContext) {
-                SwingNode(
-                    factory = { JPanel() },
-                    modifier = SwingModifier then ObservingProbe { created = it },
-                )
+                Panel(modifier = SwingModifier then ObservingProbe { created = it }) { }
             }
         }
         try {

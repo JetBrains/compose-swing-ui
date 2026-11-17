@@ -14,6 +14,7 @@ import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.name
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.accessibleDescription
 import org.jetbrains.compose.swing.style.enabled
 import javax.accessibility.AccessibleRole
 import javax.swing.JComboBox
@@ -64,13 +65,7 @@ class MatcherContractTest {
     fun accessibleMatchersReadTheAccessibleContext() = runComposeSwingTest {
         setContent {
             Panel(PanelLayout.Box()) {
-                SwingNode(
-                    factory = { JLabel() },
-                    update = {
-                        set("a11y-label") { this.text = it }
-                        set("a11y-description") { this.accessibleContext.accessibleDescription = it }
-                    },
-                )
+                Label(text = "a11y-label", style = { accessibleDescription("a11y-description") })
                 Label(text = "plain")
             }
         }

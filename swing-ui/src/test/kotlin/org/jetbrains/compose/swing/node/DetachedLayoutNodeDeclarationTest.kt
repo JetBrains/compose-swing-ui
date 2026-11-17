@@ -7,6 +7,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.RecordingMeasurementLayout
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.layout.MeasurementLayoutManager
 import org.jetbrains.compose.swing.layout.ParentDataModifier
 import org.jetbrains.compose.swing.layout.ParentLayoutElement
@@ -212,7 +213,7 @@ class DetachedLayoutNodeDeclarationTest {
         val padding = TestParentLayoutElement("padding")
         setContent {
             if (shown) {
-                SwingNode(factory = { JPanel() }, content = {
+                Panel(content = {
                     SwingNode(factory = { JPanel(layout) }, content = {
                         SwingNode(
                             factory = { JLabel() },

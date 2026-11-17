@@ -11,8 +11,8 @@ import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.appearance.name
 import org.jetbrains.compose.swing.modifier.listener.mouseListener
-import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.style.enabled
 import org.jetbrains.compose.swing.test.interaction.performClick
 import org.jetbrains.compose.swing.test.interaction.performTextInput
@@ -84,13 +84,7 @@ class TestApiContractTest {
         setContent {
             Panel(PanelLayout.Box()) {
                 Label(text = "noname")
-                SwingNode(
-                    factory = { JLabel() },
-                    update = {
-                        set("named") { this.text = it }
-                        set("labelId") { this.name = it }
-                    },
-                )
+                Label(text = "named", modifier = SwingModifier.name("labelId"))
             }
         }
 

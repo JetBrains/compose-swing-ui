@@ -44,7 +44,6 @@ import org.jetbrains.compose.swing.modifier.layout.visible
 import org.jetbrains.compose.swing.modifier.layout.width
 import org.jetbrains.compose.swing.modifier.layout.x
 import org.jetbrains.compose.swing.modifier.layout.y
-import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.style.SwingComponentStyleScope
 import org.jetbrains.compose.swing.style.SwingStyle
 import org.jetbrains.compose.swing.style.TestNodeKind
@@ -387,7 +386,7 @@ internal class DeprecatedComponentModifiersTest {
                 modifier,
                 SwingStyle(style),
             ) { hostModifier, hostStyle ->
-                SwingNode(factory = { JLabel("stock") }, modifier = hostModifier.styleable(TestNodeKind, hostStyle))
+                Label("stock", modifier = hostModifier.styleable(TestNodeKind, hostStyle))
             },
         )
     }

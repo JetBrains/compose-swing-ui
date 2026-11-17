@@ -2,6 +2,7 @@
 package org.jetbrains.compose.swing.foundation.layout
 
 import org.jetbrains.compose.swing.assertPixelColor
+import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.core.SwingRecomposer
 import org.jetbrains.compose.swing.countTests
 import org.jetbrains.compose.swing.foundation.fixtures.layout.ClipToBoundsFixture
@@ -253,7 +254,7 @@ class ClipToBoundsTest {
             val recomposer = SwingRecomposer.create(host)
             val composition =
                 host.setContent(parent = recomposer.compositionContext) {
-                    Row { SwingNode(factory = { JPanel() }, modifier = SwingModifier.clipToBounds()) }
+                    Row { Panel(modifier = SwingModifier.clipToBounds()) {} }
                 }
             try {
                 val row = host.components.single() as Container

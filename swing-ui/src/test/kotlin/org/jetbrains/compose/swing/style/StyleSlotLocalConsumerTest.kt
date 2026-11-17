@@ -10,6 +10,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import org.jetbrains.compose.swing.RecordingMeasurementLayout
+import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.layout.ParentLayoutNode
 import org.jetbrains.compose.swing.layout.ParentLayoutNodeElement
 import org.jetbrains.compose.swing.layout.ParentProtocol
@@ -45,8 +46,8 @@ class StyleSlotLocalConsumerTest {
     fun aStyleTooltipRefreshPreservesALaterDirectTooltip() = runComposeSwingTest {
         val tooltip = stylePropertyOf<Unit> { MouseToolTipElement }
         setContent {
-            SwingNode(
-                factory = { JLabel() },
+            Label(
+                text = "",
                 modifier =
                     SwingModifier
                         .styleable(PlainProbe) { tooltip.provide(Unit) }
@@ -134,10 +135,7 @@ class StyleSlotLocalConsumerTest {
                         }
                     },
                 ) {
-                    SwingNode(
-                        factory = { JLabel("styled") },
-                        modifier = SwingModifier.styleable(PlainProbe) { layoutProperty.provide(Unit) },
-                    )
+                    Label("styled", modifier = SwingModifier.styleable(PlainProbe) { layoutProperty.provide(Unit) })
                 }
             }
         }

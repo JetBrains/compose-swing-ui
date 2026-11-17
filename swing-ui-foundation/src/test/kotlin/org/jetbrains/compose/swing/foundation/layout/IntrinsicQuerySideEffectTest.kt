@@ -202,7 +202,13 @@ class IntrinsicQuerySideEffectTest {
 
         @Composable
         fun WrappingChild(modifier: SwingModifier) {
-            SwingNode(factory = { wrappingArea() }, modifier = SwingModifier.testTag("child") then modifier)
+            TextArea(
+                WRAPPING_TEXT,
+                {},
+                modifier = SwingModifier.testTag("child") then modifier,
+                lineWrap = true,
+                wrapStyleWord = true,
+            )
         }
 
         val SizeReadCases: List<SizeReadCase<*>> =

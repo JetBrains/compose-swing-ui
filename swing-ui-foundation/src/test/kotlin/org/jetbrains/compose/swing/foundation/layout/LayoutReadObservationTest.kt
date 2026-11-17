@@ -7,9 +7,10 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.Snapshot
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.interaction.assertIsOfType
@@ -25,7 +26,6 @@ import java.awt.FlowLayout
 import java.awt.GraphicsEnvironment
 import java.awt.Rectangle
 import javax.swing.JComponent
-import javax.swing.JPanel
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -310,7 +310,7 @@ private fun runWindowTest(block: suspend ComposeSwingTest.() -> Unit) =
 /** Shows [policy]'s container under a stock parent, which lays it out at its preferred size. */
 private suspend fun ComposeSwingTest.setStockParentContainer(policy: MeasurePolicy) =
     setWindowContent {
-        SwingNode(factory = { JPanel(FlowLayout(FlowLayout.LEADING, 0, 0)) }) {
+        Panel(PanelLayout.Flow(alignment = FlowLayout.LEADING, hgap = 0, vgap = 0)) {
             Layout(
                 content = { SizedChild(0) },
                 measurePolicy = policy,

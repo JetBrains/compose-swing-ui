@@ -5,6 +5,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.assertPixelColor
+import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.foundation.graphics.Brush
 import org.jetbrains.compose.swing.foundation.graphics.Decorator
 import org.jetbrains.compose.swing.foundation.graphics.RectangleShape
@@ -22,6 +23,7 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.listener.mouseListener
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.background
 import org.jetbrains.compose.swing.style.opaque
 import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.style.styleable
@@ -45,7 +47,6 @@ import java.awt.Rectangle
 import java.awt.Shape
 import java.awt.geom.Area
 import javax.swing.JComponent
-import javax.swing.JPanel
 import javax.swing.SwingUtilities
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -139,8 +140,7 @@ class ChildOverflowTest {
                                 .padding(20)
                                 .styleable { opaque(true) },
                     ) {
-                        SwingNode(
-                            factory = { JPanel().apply { background = Color.BLUE } },
+                        Panel(
                             modifier =
                                 SwingModifier
                                     .size(
@@ -148,7 +148,8 @@ class ChildOverflowTest {
                                         20,
                                     ).offset(x = -10)
                                     .styleable { visible(visible) },
-                        )
+                            style = { background(Color.BLUE) },
+                        ) {}
                     }
                 }
             }
@@ -346,14 +347,13 @@ class ChildOverflowTest {
                                 else -> shadowed
                             }
                         Row(modifier = row) {
-                            SwingNode(
-                                factory = { JPanel() },
+                            Panel(
                                 modifier =
                                     SwingModifier
                                         .size(40, 40)
                                         .offset(x = -20)
                                         .mouseListener(onMousePressed = { presses++ }),
-                            )
+                            ) {}
                         }
                     }
                 }
@@ -396,14 +396,13 @@ class ChildOverflowTest {
                                     .clip(RectangleShape)
                                     .padding(8),
                         ) {
-                            SwingNode(
-                                factory = { JPanel() },
+                            Panel(
                                 modifier =
                                     SwingModifier
                                         .size(40, 40)
                                         .offset(x = -20)
                                         .mouseListener(onMousePressed = { presses++ }),
-                            )
+                            ) {}
                         }
                     }
                 }

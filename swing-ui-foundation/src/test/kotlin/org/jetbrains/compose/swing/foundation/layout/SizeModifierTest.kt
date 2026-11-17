@@ -2,6 +2,7 @@
 package org.jetbrains.compose.swing.foundation.layout
 
 import androidx.compose.runtime.Composable
+import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.countTests
 import org.jetbrains.compose.swing.foundation.fixtures.layout.HeightFixture
 import org.jetbrains.compose.swing.foundation.fixtures.layout.HeightInFixture
@@ -17,11 +18,9 @@ import org.jetbrains.compose.swing.foundation.fixtures.layout.WidthFixture
 import org.jetbrains.compose.swing.foundation.fixtures.layout.WidthInFixture
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.TestFactory
 import java.awt.Rectangle
-import javax.swing.JPanel
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -344,7 +343,7 @@ class SizeModifierTest {
                     minIntrinsicWidth = measurables[0].minIntrinsicWidth(100)
                     layout(0, 0) {}
                 }) {
-                    SwingNode(factory = { JPanel() }, modifier = SwingModifier.heightIn(max = 30).aspectRatio(2f))
+                    Panel(modifier = SwingModifier.heightIn(max = 30).aspectRatio(2f)) {}
                 }
             }
 
@@ -370,10 +369,9 @@ class SizeModifierTest {
                     maxIntrinsicHeights = listOf(100, 400).map { measurables[0].maxIntrinsicHeight(it) }
                     layout(0, 0) {}
                 }) {
-                    SwingNode(
-                        factory = { JPanel() },
+                    Panel(
                         modifier = SwingModifier.requiredWidthIn(max = 200).aspectRatio(2f),
-                    )
+                    ) {}
                 }
             }
 

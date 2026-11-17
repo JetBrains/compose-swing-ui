@@ -302,16 +302,15 @@ class ModifierChainFailureTest {
         val node = ProbeNode(cancellationFailure = IllegalStateException("cancel failed"))
         setContent {
             if (shown) {
-                SwingNode(factory = { JPanel() }, content = {
+                Panel {
                     SwingNode(factory = { JPanel(layout) }, content = {
-                        SwingNode(
-                            factory = { JPanel() },
+                        Panel(
                             modifier =
                                 SwingModifier then padding then RecordingLayoutNodeElement("a", mutableListOf()) then
                                     NodeOf(node),
-                        )
+                        ) {}
                     })
-                })
+                }
             }
         }
         val declarations = layout.declarations.size
@@ -334,10 +333,9 @@ class ModifierChainFailureTest {
         val node = ProbeNode(cancellationFailure = cancellation)
         val content =
             JPanel().setContent(parent = recomposer.compositionContext) {
-                SwingNode(
-                    factory = { JPanel() },
+                Panel(
                     modifier = if (present) SwingModifier.then(NodeOf(node)) else SwingModifier,
-                )
+                ) {}
             }
         try {
             val reported =
@@ -435,10 +433,9 @@ class ModifierChainFailureTest {
         val failure =
             assertFailsWith<IllegalStateException> {
                 setContent {
-                    SwingNode(
-                        factory = { JPanel() },
+                    Panel(
                         modifier = SwingModifier.then(NodeOf(node)),
-                    )
+                    ) {}
                 }
             }
         assertSame(attachFailure, failure)

@@ -2,10 +2,10 @@
 package org.jetbrains.compose.swing.fixtures.modifier.datatransfer
 
 import androidx.compose.runtime.Composable
+import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.fixtures.ComposableFixture
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.datatransfer.onExportDone
-import org.jetbrains.compose.swing.node.SwingNode
 import java.awt.datatransfer.Transferable
 import javax.swing.JButton
 import javax.swing.JComponent
@@ -32,8 +32,9 @@ public object OnExportDoneFixture : ComposableFixture<OnExportDoneParameters, JB
     /** Composes a [JButton] whose completed exports are reported to [onExportDone]. */
     @Composable
     public fun Content(onExportDone: (Transferable?, Int) -> Unit) {
-        SwingNode(
-            factory = { JButton("Event") },
+        Button(
+            text = "Event",
+            onClick = {},
             modifier = SwingModifier.onExportDone(onExportDone = onExportDone),
         )
     }

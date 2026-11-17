@@ -15,7 +15,6 @@ import org.jetbrains.compose.swing.foundation.graphics.paintOutsets
 import org.jetbrains.compose.swing.foundation.graphics.shadow
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.interaction.assertIsOfType
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.onChildren
@@ -32,7 +31,6 @@ import java.awt.Dimension
 import java.awt.Insets
 import java.awt.Rectangle
 import javax.swing.JComponent
-import javax.swing.JPanel
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -127,7 +125,7 @@ class StepAfterShadowChangeTest {
                     Row(modifier = SwingModifier.testTag("row")) {
                         val haloed = SwingModifier.testTag("box").then(HaloElement(reach)).size(20, 20)
                         Box(modifier = if (reach == 4) haloed.then(AttachedMeasureElement()) else haloed)
-                        SwingNode(factory = { JPanel() }, modifier = SwingModifier.size(20, 20))
+                        Box(modifier = SwingModifier.size(20, 20))
                     }
                 }
             }
@@ -164,7 +162,7 @@ class StepAfterShadowChangeTest {
                     Row {
                         val asking = SwingModifier.then(AskingElement(tick, ask))
                         Box(modifier = if (tick == 0) asking.then(AttachedMeasureElement()) else asking) {
-                            SwingNode(factory = { JPanel() }, modifier = SwingModifier.size(20, 20))
+                            Box(modifier = SwingModifier.size(20, 20))
                         }
                     }
                 }

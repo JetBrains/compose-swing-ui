@@ -7,6 +7,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.foundation.Canvas
 import org.jetbrains.compose.swing.foundation.graphics.Brush
 import org.jetbrains.compose.swing.foundation.graphics.DecoratedBox
@@ -20,12 +21,14 @@ import org.jetbrains.compose.swing.foundation.graphics.spill
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.background
 import org.jetbrains.compose.swing.style.emptyBorder
 import org.jetbrains.compose.swing.style.maximumSize
 import org.jetbrains.compose.swing.style.minimumSize
 import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.interaction.assertProperty
+import org.jetbrains.compose.swing.test.interaction.onChild
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.assertImagesPixelPerfect
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
@@ -308,10 +311,10 @@ class PaintOutsetsInFoundationTest {
                                 .shadow(6, Color.BLACK)
                                 .styleable { preferredSize(60, 40) },
                     ) {
-                        SwingNode(
-                            factory = { JPanel().apply { background = Color.BLUE } },
+                        Panel(
                             modifier = SwingModifier.testTag("content"),
-                        )
+                            style = { background(Color.BLUE) },
+                        ) {}
                     }
                 }
             }
@@ -441,18 +444,18 @@ class PaintOutsetsInFoundationTest {
                                 .spill(outsets)
                                 .styleable { preferredSize(40, 30) },
                     ) {
-                        SwingNode(factory = { JPanel() }, modifier = SwingModifier.testTag("child"))
+                        Box()
                     }
                 }
             }
-            val child = onNodeWithTag("child").fetch<JComponent>()
-            assertEquals(Rectangle(8, 0, 40, 30), child.bounds, "the child starts after the start outset")
+            val child = onNodeWithTag("panel").onChild()
+            child.assertProperty(Rectangle(8, 0, 40, 30), "the child starts after the start outset") { bounds }
 
             outsets = Insets(0, 0, 0, 8)
             awaitIdle()
 
             assertEquals(Dimension(48, 30), onNodeWithTag("panel").fetch<JComponent>().size, "the same total")
-            assertEquals(Rectangle(0, 0, 40, 30), child.bounds, "the child is laid out inside the new insets")
+            child.assertProperty(Rectangle(0, 0, 40, 30), "the child is laid out inside the new insets") { bounds }
         }
 
     @Test

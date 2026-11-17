@@ -8,6 +8,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import kotlinx.coroutines.launch
+import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.node.SwingNode
@@ -39,10 +40,7 @@ class LayoutModifierNodeTest {
             setContent {
                 Row {
                     if (present) {
-                        SwingNode(
-                            factory = { JPanel() },
-                            modifier = SwingModifier then frameCountingLayoutModifier { frames++ },
-                        )
+                        Panel(modifier = SwingModifier then frameCountingLayoutModifier { frames++ }) {}
                     }
                 }
             }
@@ -80,10 +78,9 @@ class LayoutModifierNodeTest {
                 val child =
                     remember {
                         movableContentOf {
-                            SwingNode(
-                                factory = { JPanel() },
+                            Panel(
                                 modifier = frameCountingLayoutModifier(onAttach = { attaches++ }) { frames++ },
-                            )
+                            ) {}
                         }
                     }
                 Column {
@@ -112,14 +109,13 @@ class LayoutModifierNodeTest {
             setContent {
                 Row {
                     if (present) {
-                        SwingNode(
-                            factory = { JPanel() },
+                        Panel(
                             modifier =
                                 SwingModifier then
                                     ChainLayoutElement("first", chain, sightings) then
                                     ChainComponentElement("component", chain, sightings) then
                                     ChainLayoutElement("second", chain, sightings),
-                        )
+                        ) {}
                     }
                 }
             }
@@ -146,11 +142,10 @@ class LayoutModifierNodeTest {
             var measures = 0
             setContent {
                 Row(modifier = SwingModifier.testTag("row")) {
-                    SwingNode(
-                        factory = { JPanel() },
+                    Panel(
                         modifier =
                             SwingModifier.countingMeasures { measures++ }.styleable { maximumSize(40, 20) },
-                    )
+                    ) {}
                 }
             }
             val row = onNodeWithTag("row").fetch<JComponent>()

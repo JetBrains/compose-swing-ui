@@ -8,9 +8,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.style.opaque
 import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
@@ -23,7 +25,6 @@ import java.awt.FlowLayout
 import java.awt.Rectangle
 import javax.swing.JComponent
 import javax.swing.JLabel
-import javax.swing.JPanel
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
@@ -125,7 +126,7 @@ private fun StockAncestor(
 ) {
     val slot = remember(content) { movableContentOf(content) }
     if (present) {
-        SwingNode(factory = { JPanel(FlowLayout(FlowLayout.LEADING, 0, 0)).apply { isOpaque = false } }) { slot() }
+        Panel(PanelLayout.Flow(FlowLayout.LEADING, 0, 0), style = { opaque(false) }) { slot() }
     } else {
         slot()
     }

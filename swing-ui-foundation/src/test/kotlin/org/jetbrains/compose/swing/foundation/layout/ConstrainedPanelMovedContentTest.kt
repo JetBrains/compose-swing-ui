@@ -10,10 +10,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.NestedContentHost
-import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.BorderLayout
-import javax.swing.JPanel
 import kotlin.test.Test
 import kotlin.test.assertTrue
 
@@ -30,7 +30,7 @@ class ConstrainedPanelMovedContentTest {
             setContent {
                 content =
                     remember {
-                        movableContentOf { SwingNode(factory = { JPanel(BorderLayout()) }) { Layout(policy) } }
+                        movableContentOf { Panel(PanelLayout.Border()) { Layout(policy) } }
                     }
                 if (hosted) NestedContentHost(layout = BorderLayout()) { if (!inOuter) content() }
                 if (inOuter) content()

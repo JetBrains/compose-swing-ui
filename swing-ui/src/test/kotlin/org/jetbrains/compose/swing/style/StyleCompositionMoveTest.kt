@@ -24,7 +24,6 @@ import org.jetbrains.compose.swing.modifier.RestorePolicy
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.property
-import org.jetbrains.compose.swing.node.MenuNode
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.test.ComposeSwingTest
@@ -108,7 +107,7 @@ internal class StyleCompositionMoveTest {
                 property.provide(Unit)
                 layoutProperty.provide(Unit)
             }
-        val moved = movableContentOf { SwingNode(factory = { JLabel("moved") }, modifier = modifier) }
+        val moved = movableContentOf { Label("moved", modifier = modifier) }
         nestedContent({ inOuter }, moved) { hosted }
         awaitIdle()
         inOuter = true
@@ -238,8 +237,8 @@ internal class StyleCompositionMoveTest {
         val tooltipFromText = stylePropertyOf(::TooltipFromTextElement)
         val moved =
             movableContentOf {
-                SwingNode(
-                    factory = { JLabel("original") },
+                Label(
+                    "original",
                     modifier =
                         SwingModifier.styleable(PlainProbe) {
                             LabelText.provide("earlier")
@@ -580,8 +579,8 @@ private fun MenuParent(
     value: String,
     content: @Composable () -> Unit,
 ) {
-    MenuNode(
-        factory = { JMenu() },
+    Menu(
+        "",
         modifier =
             SwingModifier.styleable(PlainProbeContainer) { provideNestedStyle(Probes) { MenuText.provide(value) } },
     ) {
