@@ -5,7 +5,6 @@ import org.jetbrains.compose.swing.fixtures.components.ComboBoxFixture
 import org.jetbrains.compose.swing.fixtures.components.ComboBoxModelFixture
 import org.jetbrains.compose.swing.fixtures.components.LabelFixture
 import org.jetbrains.compose.swing.fixtures.components.LayerFixture
-import org.jetbrains.compose.swing.fixtures.components.LayerUiFixture
 import org.jetbrains.compose.swing.fixtures.components.ProgressBarFixture
 import org.jetbrains.compose.swing.fixtures.components.ProgressBarModelFixture
 import org.jetbrains.compose.swing.fixtures.components.SeparatorFixture
@@ -162,7 +161,6 @@ public val swingUiFixtures: List<ComposableFixture<*, *>> =
         ComboBoxModelFixture,
         LabelFixture,
         LayerFixture,
-        LayerUiFixture,
         ProgressBarFixture,
         ProgressBarModelFixture,
         SeparatorFixture,

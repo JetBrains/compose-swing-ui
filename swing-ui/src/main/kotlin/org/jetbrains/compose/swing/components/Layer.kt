@@ -6,7 +6,6 @@ package org.jetbrains.compose.swing.components
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
-import org.jetbrains.compose.swing.annotations.AWTEventMask
 import org.jetbrains.compose.swing.annotations.SwingComponentLibraryApi
 import org.jetbrains.compose.swing.components.style.Layers
 import org.jetbrains.compose.swing.modifier.SwingModifier
@@ -73,9 +72,6 @@ import javax.swing.plaf.LayerUI
  * merely a callback here. A cursor set on the glass pane changes only the cursor shown over the view, and
  * the view still receives the events.
  *
- * Reach for the overload taking a `LayerUI` where a layer needs the rest of that type - the events
- * these callbacks do not cover, a preferred size of its own, a layout of the view of its own.
- *
  * @param modifier the [SwingModifier] applied to the underlying `JLayer`.
  * @param style the [SwingStyle] applied to the underlying `JLayer`.
  * @param onPaint paints the layer, in place of the view painting itself. It receives the layer's
@@ -107,7 +103,7 @@ public fun Layer(
 ) {
     // One delegate per layer, never one shared between two - see CallbackLayerUI.
     val delegate = remember { CallbackLayerUI() }
-    LayerNode<Component>(
+    LayerNode(
         ui = delegate,
         eventMask = declaredEventMask(onMouseEvent, onMouseMotionEvent, onMouseWheelEvent),
         modifier = modifier then PaintObserverElement(delegate),
@@ -129,100 +125,31 @@ public fun Layer(
 }
 
 /**
- * A layer over one live component - a `JLayer` - painted and driven by a `LayerUI` of your own,
- * which is the whole of what the JDK type offers: the events the callback overload of [Layer] does not
- * cover, a preferred size the delegate answers for, a layout of the view of its own.
+ * The node [Layer] declares.
  *
- * The wrapped component is the child that names no region, and the overlay over it is declared in the
- * glass pane of [LayerScope], exactly as for the callback overload.
- *
- * ```
- * Layer(ui = remember { HoverHighlightLayerUI() }, eventMask = AWTEvent.MOUSE_MOTION_EVENT_MASK) {
- *     Table(model = rows)
- * }
- * ```
- *
- * The type parameter is the view type [ui] is written against. It fixes which delegates this call
- * accepts - a `LayerUI<JComponent>`, a `LayerUI<Component>` and a `LayerUI<JTable>` all bind without a
- * type argument at the call site - and says nothing about the child that is the view: no type
- * relates the two.
- *
- * @param ui the delegate the layer installs: what paints it, lays its view out, and answers for its
- *   preferred size. It is required, because a layer without a delegate paints nothing and reports a
- *   preferred size of 0x0, so the view it holds never reaches its parent's layout. It is installed by
- *   identity, so a remembered instance stays put while a fresh one on every pass is uninstalled and
- *   installed again. Give each layer a delegate of its own: installing one puts the layer on the
- *   delegate's own listener list and only installing another delegate takes it off again, so a delegate
- *   shared between two layers holds both alive and hands each of them the other's property changes.
- * @param modifier the [SwingModifier] applied to the underlying `JLayer`.
- * @param style the [SwingStyle] applied to the underlying `JLayer`.
- * @param eventMask the events the layer observes. `null`, the default, leaves the mask to [ui], which is
- *   where a `LayerUI` usually sets it - from `installUI`, on the layer it was handed. A non-null value
- *   takes the mask over instead, written after the delegate is installed, so a delegate declared beside
- *   one must not set the mask itself. Withdrawing it - a non-null mask and then `null` - clears the mask
- *   and installs [ui] again, so the layer observes what [ui] sets for itself, and nothing if it sets
- *   none. The mask reaches the layer while it is displayable, and what it observes it cannot swallow: an
- *   event reaches [ui] as it is dispatched, several steps before the component it is addressed to
- *   receives it.
- * @param content the composable content of the layer; see [LayerScope].
- * @see javax.swing.JLayer
- * @see javax.swing.JLayer.setLayerEventMask
- */
-@Composable
-// `V` only types the delegate; the layer builds its own component and takes none.
-@Suppress("SwingComponentInComposableSignature")
-public fun <V : Component> Layer(
-    ui: LayerUI<in V>,
-    modifier: SwingModifier = SwingModifier,
-    style: SwingStyle<ContainerStyleScope> = SwingStyle,
-    @AWTEventMask eventMask: Long? = null,
-    content: @Composable LayerScope.() -> Unit,
-) {
-    LayerNode<V>(
-        ui = ui,
-        eventMask = eventMask,
-        modifier = modifier,
-        style = style,
-        declareCallbacks = {},
-        content = content,
-    )
-}
-
-/**
- * The node both [Layer] overloads declare.
- *
- * The delegate and the mask travel as one value because an update runs again only when its own value
- * changes: a mask declared beside a delegate that is then replaced has to be written again after the
- * replacement, and a declaration of its own would not be. The delegate is installed only when it is not
- * the one already in place, since installing a delegate uninstalls the one in place whether or not it is
- * the same object.
+ * The delegate and the mask travel as one value so the mask is written after the delegate is installed.
+ * The delegate is installed only when it is not the one already in place, since installing a delegate
+ * uninstalls the one in place whether or not it is the same object.
  *
  * `declareCallbacks` writes the event callbacks the declaration holds into the delegate, for the delegate to
- * read as events arrive; the raw overload writes none.
+ * read as events arrive.
  */
 @Composable
 @SwingComponentLibraryApi
-private fun <V : Component> LayerNode(
-    ui: LayerUI<in V>,
-    eventMask: Long?,
+private inline fun LayerNode(
+    ui: LayerUI<Component>,
+    eventMask: Long,
     modifier: SwingModifier,
     style: SwingStyle<ContainerStyleScope>,
-    declareCallbacks: SwingNodeUpdater<JLayer<V>>.() -> Unit,
-    content: @Composable LayerScope.() -> Unit,
+    noinline declareCallbacks: SwingNodeUpdater<JLayer<Component>>.() -> Unit,
+    crossinline content: @Composable LayerScope.() -> Unit,
 ) {
     val scope = remember { LayerScopeImpl() }
     SwingNode(
-        factory = { JLayer<V>() },
+        factory = { JLayer<Component>() },
         modifier = modifier.styleable(LayerKind, style),
         update = {
-            set(LayerDeclaration(ui, eventMask)) { declaration ->
-                val mask = declaration.eventMask
-                // A delegate sets its own mask from installUI, so a null mask - the delegate unchanged, a
-                // mask withdrawn - reinstalls the delegate over a cleared mask.
-                if (mask == null) layerEventMask = 0
-                if (mask == null || getUI() !== declaration.ui) setUI(declaration.ui)
-                if (mask != null) layerEventMask = mask
-            }
+            set(LayerDeclaration(ui, eventMask)) { it.applyTo(this) }
             declareCallbacks()
         },
         onRelease = { setUI(null) },
@@ -242,20 +169,21 @@ private fun declaredEventMask(
         (if (declared(onMouseWheelEvent)) AWTEvent.MOUSE_WHEEL_EVENT_MASK else 0L)
 
 /**
- * The declaration paired by [LayerNode] so the delegate and event mask settle together.
- *
- * The node updater's `set` uses [equals] to decide whether to run an update. A [LayerUI] can override it
- * to make distinct delegates equal, but replacing a delegate is identity-sensitive because Swing owns
- * installation state on the exact instance. The mask, in contrast, is a scalar declaration and keeps
- * value equality so changing it alone still updates the layer while an equal value does not.
+ * The declaration paired by [LayerNode] so the delegate and event mask settle together. The delegate is
+ * compared by identity, because Swing owns installation state on the exact instance; the mask by value.
  */
-private class LayerDeclaration<V : Component>(
-    val ui: LayerUI<in V>,
-    val eventMask: Long?,
+private class LayerDeclaration(
+    private val ui: LayerUI<Component>,
+    private val eventMask: Long,
 ) {
+    fun applyTo(layer: JLayer<Component>) {
+        if (layer.getUI() !== ui) layer.setUI(ui)
+        layer.layerEventMask = eventMask
+    }
+
     override fun equals(other: Any?): Boolean =
         this === other ||
-            (other is LayerDeclaration<*> && ui === other.ui && eventMask == other.eventMask)
+            (other is LayerDeclaration && ui === other.ui && eventMask == other.eventMask)
 
     override fun hashCode(): Int = 31 * System.identityHashCode(ui) + eventMask.hashCode()
 }

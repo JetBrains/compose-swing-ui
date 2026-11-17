@@ -5,7 +5,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.movableContentOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.referentialEqualityPolicy
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.assertPixelColor
@@ -16,7 +15,6 @@ import org.jetbrains.compose.swing.components.selection.Table
 import org.jetbrains.compose.swing.countTests
 import org.jetbrains.compose.swing.failureOf
 import org.jetbrains.compose.swing.fixtures.components.LayerFixture
-import org.jetbrains.compose.swing.fixtures.components.LayerUiFixture
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.rawSwingTests
@@ -28,18 +26,14 @@ import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import org.junit.jupiter.api.TestFactory
-import java.awt.AWTEvent
 import java.awt.Color
-import java.awt.Component
 import java.awt.Dimension
 import java.awt.Point
-import javax.swing.JComponent
 import javax.swing.JLabel
 import javax.swing.JLayer
 import javax.swing.JPanel
 import javax.swing.JScrollPane
 import javax.swing.JTable
-import javax.swing.plaf.LayerUI
 import javax.swing.table.DefaultTableModel
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -51,8 +45,8 @@ import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 /**
- * Behavioral tests for [Layer]: the two regions a `JLayer` holds its children in, the delegate and the
- * event mask the raw overload declares, and the event callbacks the other one runs. What a paint
+ * Behavioral tests for [Layer]: the two regions a `JLayer` holds its children in, the event callbacks
+ * it runs and the delegate it always carries. What a paint
  * callback shows is in [LayerCallbackTest], and what a declared glass pane answers for is in
  * [LayerGlassPaneTest].
  */
@@ -60,7 +54,7 @@ class LayerTest {
     @Test
     fun theChildNamingNoRegionBecomesTheLayersView() = runComposeSwingTest {
         setContent {
-            Layer(ui = remember { LayerUI<Component>() }) {
+            Layer {
                 Label(text = "body")
             }
         }
@@ -75,7 +69,7 @@ class LayerTest {
     fun removingTheViewChildReleasesTheSlot() = runComposeSwingTest {
         var present by mutableStateOf(true)
         setContent {
-            Layer(ui = remember { LayerUI<Component>() }) {
+            Layer {
                 if (present) Label(text = "body")
             }
         }
@@ -96,7 +90,7 @@ class LayerTest {
     fun swappingWhichComposableFillsTheViewKeepsFillingIt() = runComposeSwingTest {
         var alternate by mutableStateOf(false)
         setContent {
-            Layer(ui = remember { LayerUI<Component>() }) {
+            Layer {
                 // Two declarations of one region, one at a time: the pass that swaps them may hold both
                 // children while it runs, and one child in the slot is what it settles at.
                 if (alternate) {
@@ -122,7 +116,7 @@ class LayerTest {
         val message =
             failureOf {
                 setContent {
-                    Layer(ui = remember { LayerUI<Component>() }) {
+                    Layer {
                         Label(text = "one")
                         Table(model = rows())
                     }
@@ -136,19 +130,20 @@ class LayerTest {
 
     @Test
     fun contentMovedBetweenAPanelAndALayerLandsInBoth() = runComposeSwingTest {
+        val layerTag = "content-layer"
         var inLayer by mutableStateOf(false)
         setContent {
             val content = remember { movableContentOf { Table(model = rows(), rowHeight = ROW_HEIGHT) } }
             Panel(PanelLayout.Box()) {
                 Panel(modifier = SwingModifier.testTag(PANEL)) { if (!inLayer) content() }
-                Layer(ui = remember { LayerUI<Component>() }, modifier = SwingModifier.testTag(RAW_LAYER)) {
+                Layer(modifier = SwingModifier.testTag(layerTag)) {
                     if (inLayer) content()
                 }
             }
         }
         val table = onNodeOfType<JTable>().fetch()
         val panel = onNodeWithTag(PANEL).fetch<JPanel>()
-        val layer = onNodeWithTag(RAW_LAYER).fetch<JLayer<*>>()
+        val layer = onNodeWithTag(layerTag).fetch<JLayer<*>>()
         assertSame(panel, table.parent, "the content starts in the panel, added by index")
         assertNull(layer.view, "the layer starts with no view")
 
@@ -261,132 +256,9 @@ class LayerTest {
     }
 
     @Test
-    fun aDeclaredMaskStandsAfterTheDelegateItWasDeclaredBesideIsReplaced() = runComposeSwingTest {
-        // The two writes are one declaration because a delegate sets its own mask from installUI: a mask
-        // written before the delegate is installed is overwritten by it. Declared here beside a delegate
-        // that does exactly that, the declared mask is the one that must stand.
-        val plain = LayerUI<Component>()
-        val opinionated = MaskSettingLayerUI(AWTEvent.MOUSE_EVENT_MASK)
-        var installed by mutableStateOf(plain)
-        setContent {
-            Layer(ui = installed, eventMask = AWTEvent.MOUSE_WHEEL_EVENT_MASK) {
-                Label(text = "body")
-            }
-        }
-
-        val layer = onNodeOfType<JLayer<*>>().fetch()
-        assertSame(plain, layer.ui, "the declared delegate should be installed")
-        assertEquals(AWTEvent.MOUSE_WHEEL_EVENT_MASK, layer.layerEventMask, "the declared mask should be written")
-
-        installed = opinionated
-        awaitIdle()
-
-        assertSame(opinionated, layer.ui, "the delegate now declared should be installed")
-        assertEquals(1, opinionated.installs, "and installed once")
-        assertEquals(
-            AWTEvent.MOUSE_WHEEL_EVENT_MASK,
-            layer.layerEventMask,
-            "the declared mask must be written after the delegate is installed, so it stands over the " +
-                "mask that delegate sets for itself",
-        )
-    }
-
-    @Test
-    fun replacingAnEqualButDistinctDelegateInstallsTheNewOne() = runComposeSwingTest {
-        val first = EqualLayerUI()
-        val second = EqualLayerUI()
-        var installed by mutableStateOf<LayerUI<Component>>(first, referentialEqualityPolicy())
-        setContent {
-            Layer(ui = installed, eventMask = AWTEvent.MOUSE_EVENT_MASK) {
-                Label(text = "body")
-            }
-        }
-
-        val layer = onNodeOfType<JLayer<*>>().fetch()
-        assertSame(first, layer.ui, "the first delegate should be installed")
-        assertEquals(1, first.installs, "the first delegate should be installed once")
-
-        installed = second
-        awaitIdle()
-
-        assertSame(second, layer.ui, "a distinct delegate must replace an equal one")
-        assertEquals(1, first.uninstalls, "the replaced delegate should be uninstalled")
-        assertEquals(1, second.installs, "the new delegate should be installed once")
-        assertEquals(
-            AWTEvent.MOUSE_EVENT_MASK,
-            layer.layerEventMask,
-            "the value-equal mask should still be written after delegate replacement",
-        )
-    }
-
-    @Test
-    fun changingOnlyTheMaskLeavesTheDelegateInstalled() = runComposeSwingTest {
-        // Installing a delegate uninstalls and reinstalls whether or not it is the one already in place,
-        // so a mask change alone must not reach setUI.
-        val delegate = MaskSettingLayerUI(ownMask = null)
-        var mask by mutableStateOf(AWTEvent.MOUSE_EVENT_MASK)
-        setContent {
-            Layer(ui = delegate, eventMask = mask) {
-                Label(text = "body")
-            }
-        }
-
-        val layer = onNodeOfType<JLayer<*>>().fetch()
-        assertSame(delegate, layer.ui, "the declared delegate should be installed")
-        assertEquals(1, delegate.installs, "installed once")
-
-        mask = AWTEvent.MOUSE_MOTION_EVENT_MASK
-        awaitIdle()
-
-        assertEquals(AWTEvent.MOUSE_MOTION_EVENT_MASK, layer.layerEventMask, "the new mask should be written")
-        assertSame(delegate, layer.ui, "the delegate should be the one that was there")
-        assertEquals(1, delegate.installs, "and it should not have been installed again")
-        assertEquals(0, delegate.uninstalls, "nor uninstalled")
-    }
-
-    @Test
-    fun withdrawingTheMaskHandsItBackToTheDelegate() = runComposeSwingTest {
-        val opinionated = MaskSettingLayerUI(AWTEvent.MOUSE_MOTION_EVENT_MASK)
-        var mask by mutableStateOf<Long?>(AWTEvent.MOUSE_WHEEL_EVENT_MASK)
-        setContent {
-            Panel(PanelLayout.Box()) {
-                Layer(ui = opinionated, eventMask = mask, modifier = SwingModifier.testTag(OPINIONATED_LAYER)) {
-                    Label(text = "body")
-                }
-                Layer(
-                    ui = remember { LayerUI<Component>() },
-                    eventMask = mask,
-                    modifier = SwingModifier.testTag(RAW_LAYER),
-                ) {
-                    Label(text = "body")
-                }
-            }
-        }
-
-        val withOwnMask = onNodeWithTag(OPINIONATED_LAYER).fetch<JLayer<*>>()
-        val withoutOwnMask = onNodeWithTag(RAW_LAYER).fetch<JLayer<*>>()
-        assertEquals(AWTEvent.MOUSE_WHEEL_EVENT_MASK, withOwnMask.layerEventMask, "the declared mask should be written")
-
-        mask = null
-        awaitIdle()
-
-        assertEquals(
-            AWTEvent.MOUSE_MOTION_EVENT_MASK,
-            withOwnMask.layerEventMask,
-            "withdrawing the mask should let the delegate set its own again",
-        )
-        assertSame(opinionated, withOwnMask.ui, "the delegate should stay the one declared")
-        assertEquals(
-            0L,
-            withoutOwnMask.layerEventMask,
-            "a delegate setting no mask should leave the layer observing nothing",
-        )
-    }
-
-    @Test
     fun aLayerAlwaysCarriesADelegateAndTakesItsPreferredSizeFromItsView() = runComposeSwingTest {
         // Without a delegate a layer paints nothing, lays its view out never, and returns 0x0 as its
-        // preferred size, so the view's own preferred size never reaches the parent. Both overloads must leave one in.
+        // preferred size, so the view's own preferred size never reaches the parent.
         setContent {
             Panel(PanelLayout.Box()) {
                 Layer(
@@ -395,21 +267,16 @@ class LayerTest {
                 ) {
                     Label(text = "body", style = { preferredSize(VIEW_SIZE) })
                 }
-                Layer(ui = remember { LayerUI<Component>() }, modifier = SwingModifier.testTag(RAW_LAYER)) {
-                    Label(text = "body", style = { preferredSize(VIEW_SIZE) })
-                }
             }
         }
 
-        for (tag in listOf(CALLBACK_LAYER, RAW_LAYER)) {
-            val layer = onNodeWithTag(tag).fetch<JLayer<*>>()
-            assertNotNull(layer.ui, "$tag should carry a delegate")
-            assertEquals(
-                VIEW_SIZE,
-                layer.preferredSize,
-                "$tag should return its view's size as its preferred size rather than collapse",
-            )
-        }
+        val layer = onNodeWithTag(CALLBACK_LAYER).fetch<JLayer<*>>()
+        assertNotNull(layer.ui, "the layer should carry a delegate")
+        assertEquals(
+            VIEW_SIZE,
+            layer.preferredSize,
+            "the layer should return its view's size as its preferred size rather than collapse",
+        )
     }
 
     @Test
@@ -472,8 +339,6 @@ class LayerTest {
         const val WRAPPED_PANE = "wrapped-pane"
         const val CALLBACK_LAYER = "callback-layer"
         const val PANEL = "plain-panel"
-        const val RAW_LAYER = "raw-layer"
-        const val OPINIONATED_LAYER = "opinionated-layer"
 
         /** A row tall enough that no font's line height could be mistaken for it. */
         const val ROW_HEIGHT = 37
@@ -489,58 +354,4 @@ class LayerTest {
 
     @TestFactory
     fun layerRawSwing() = LayerFixture.rawSwingTests()
-
-    @TestFactory
-    fun layerUiCounts() = LayerUiFixture.countTests()
-
-    @TestFactory
-    fun layerUiRawSwing() = LayerUiFixture.rawSwingTests()
-}
-
-/**
- * A delegate that counts its own installs, and sets a mask of its own from `installUI` the way a
- * `LayerUI` that owns the mask does.
- */
-private class MaskSettingLayerUI(
-    private val ownMask: Long?,
-) : LayerUI<Component>() {
-    var installs: Int = 0
-        private set
-
-    var uninstalls: Int = 0
-        private set
-
-    override fun installUI(c: JComponent) {
-        super.installUI(c)
-        installs++
-        if (ownMask != null) (c as JLayer<*>).layerEventMask = ownMask
-    }
-
-    override fun uninstallUI(c: JComponent) {
-        super.uninstallUI(c)
-        uninstalls++
-    }
-}
-
-/** A delegate whose equality intentionally hides identity, as a value-like UI might. */
-private class EqualLayerUI : LayerUI<Component>() {
-    var installs: Int = 0
-        private set
-
-    var uninstalls: Int = 0
-        private set
-
-    override fun installUI(c: JComponent) {
-        super.installUI(c)
-        installs++
-    }
-
-    override fun uninstallUI(c: JComponent) {
-        super.uninstallUI(c)
-        uninstalls++
-    }
-
-    override fun equals(other: Any?): Boolean = other is EqualLayerUI
-
-    override fun hashCode(): Int = EqualLayerUI::class.hashCode()
 }

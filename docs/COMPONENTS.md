@@ -765,7 +765,7 @@ ToolBar(floatable = false, rollover = true) {
 <!--- CLEAR -->
 
 `Layer` wraps one component in a `JLayer` while keeping that component as the layer's view, so its
-preferred size and component-specific behavior continue through the layer. Use the callback overload
+preferred size and component-specific behavior continue through the layer. Use the callbacks
 for painting or observing mouse events. `onPaint` may call `paintView` before or after its own drawing,
 more than once, or not at all. The graphics copy and `paintView` are
 valid only during the callback. Snapshot state read by `onPaint` causes the layer to repaint when that
@@ -773,9 +773,7 @@ state changes.
 
 The mouse callbacks observe mouse, mouse-motion and mouse-wheel events. Returning from a callback does not
 consume the mutable event or prevent it from reaching the view; a callback may consume it explicitly by
-calling `consume()`. Use the `LayerUI` overload when the delegate needs its own painting,
-preferred size, layout or other event handling. Give each layer its own `LayerUI` instance. A null
-`eventMask` leaves event selection to the delegate; a non-null mask overrides it.
+calling `consume()`.
 
 ```kotlin
 Layer(
