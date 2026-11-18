@@ -38,6 +38,8 @@ import java.awt.Component
  * `key(part) { ExistingSwingNode(...) }` - and a new node claims the new part. Replacing a claimed part from
  * outside that code is undefined behavior.
  *
+ * To show a component the caller builds and keeps, use [movableComponentOf].
+ *
  * The node never adds, removes or moves the claimed component. When the node leaves the composition,
  * every property [modifier] declared is given back and every listener it installed is removed; the
  * component stays where its parent holds it. What [update] wrote stays on the component.

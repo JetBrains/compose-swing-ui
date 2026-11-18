@@ -651,6 +651,38 @@ class ScrollPaneRegionTest {
         fun textAt(pane: JScrollPane): String? = (read(pane) as? JLabel)?.text
     }
 
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("headerRegions")
+    fun aLeavingHeaderChildLeavesTheHeaderViewportShowingOnlyThePanesOwnView(region: PaneRegion) = runComposeSwingTest {
+        var shown by mutableStateOf(true)
+        lateinit var pane: JScrollPane
+        lateinit var ownView: Component
+        val views = ArrayList<Component?>()
+        setContent {
+            ScrollPane(
+                factory = {
+                    paneWith(ownParts = true).also {
+                        pane = it
+                        ownView = region.read(it)!!
+                        val header = region.viewport!!(it)!!
+                        header.addChangeListener { views += header.view }
+                    }
+                },
+            ) {
+                if (shown) Label("child", region.declare(this))
+            }
+        }
+        awaitIdle()
+        views.clear()
+
+        shown = false
+        awaitIdle()
+
+        assertTrue(views.isNotEmpty(), "the header viewport should report the change")
+        assertTrue(views.all { it === ownView }, "the header viewport should show only the pane's own view")
+        assertSame(ownView, region.read(pane))
+    }
+
     private fun paneWith(ownParts: Boolean): JScrollPane = JScrollPane().apply {
         if (ownParts) {
             setViewport(OwnViewport())

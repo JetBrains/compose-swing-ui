@@ -1116,10 +1116,9 @@ public final class org/jetbrains/compose/swing/modifier/listener/ListenerRegistr
 public abstract interface class org/jetbrains/compose/swing/node/CompositionLocalConsumerModifierNode {
 }
 
-public final class org/jetbrains/compose/swing/node/CreatedNodeHolder : org/jetbrains/compose/swing/node/SwingNodeHolder {
+public final class org/jetbrains/compose/swing/node/CreatedNodeHolder : org/jetbrains/compose/swing/node/PlacingNodeHolder {
 	public static final field $stable I
 	public fun <init> (Ljava/awt/Component;)V
-	public fun attachTo (Lorg/jetbrains/compose/swing/node/NodeHolder;Ljava/awt/Container;ILorg/jetbrains/compose/swing/node/ChildRegions;)V
 	public fun getComponent ()Ljava/awt/Component;
 }
 
@@ -1166,6 +1165,11 @@ public abstract interface class org/jetbrains/compose/swing/node/MirrorState$Set
 	public abstract fun unchanged ()V
 }
 
+public final class org/jetbrains/compose/swing/node/MovableComponent {
+	public static final field $stable I
+	public final fun invoke (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Landroidx/compose/runtime/Composer;II)V
+}
+
 public final class org/jetbrains/compose/swing/node/NodeKt {
 	public static final fun GroupDeclarationEffect (Landroidx/compose/runtime/Composer;I)V
 	public static final fun VirtualSwingNode (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;II)V
@@ -1177,6 +1181,7 @@ public final class org/jetbrains/compose/swing/node/NodeKt {
 	public static synthetic fun declare-aOxawFc$default (Landroidx/compose/runtime/Composer;Ljava/lang/Object;Lorg/jetbrains/compose/swing/node/MirrorState;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function2;ILjava/lang/Object;)V
 	public static final fun groupDeclarationsOf (Lorg/jetbrains/compose/swing/modifier/SwingModifier;)Ljava/util/List;
 	public static final fun invalidateLayout (Lorg/jetbrains/compose/swing/node/SwingComponentNode;)V
+	public static final fun movableComponentOf (Ljavax/swing/JComponent;)Lorg/jetbrains/compose/swing/node/MovableComponent;
 	public static final fun observeReads (Lorg/jetbrains/compose/swing/modifier/SwingModifier$Node;Lkotlin/jvm/functions/Function0;)V
 	public static final fun observeReads (Lorg/jetbrains/compose/swing/modifier/SwingModifier$Node;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function0;)V
 	public static final fun observeReads (Lorg/jetbrains/compose/swing/node/SwingComponentNode;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function0;)V
@@ -1191,6 +1196,11 @@ public final class org/jetbrains/compose/swing/node/NodeKt {
 
 public abstract interface class org/jetbrains/compose/swing/node/ObserverModifierNode {
 	public abstract fun onObservedReadsChanged ()V
+}
+
+public abstract class org/jetbrains/compose/swing/node/PlacingNodeHolder : org/jetbrains/compose/swing/node/SwingNodeHolder {
+	public static final field $stable I
+	public fun attachTo (Lorg/jetbrains/compose/swing/node/NodeHolder;Ljava/awt/Container;ILorg/jetbrains/compose/swing/node/ChildRegions;)V
 }
 
 public abstract interface class org/jetbrains/compose/swing/node/ReconcileWithChildrenScope {

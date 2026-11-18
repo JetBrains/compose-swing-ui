@@ -20,6 +20,9 @@ internal class TestCompositionOwner(
 
     override val styleCollector: StyleCollector by lazy(LazyThreadSafetyMode.NONE) { StyleCollector() }
 
+    override var isReleased: Boolean = false
+        private set
+
     private val afterValidationActions = AfterValidationActions(this, coordinator)
 
     override fun <N : SwingModifier.Node> requestAfterValidation(
@@ -58,6 +61,7 @@ internal class TestCompositionOwner(
 
     /** Stops the observer this owner started, if it started one, and cancels what its effect context ran. */
     fun dispose() {
+        isReleased = true
         afterValidationActions.dispose()
         snapshotObserver.dispose()
         coroutineContext[Job]?.cancel()

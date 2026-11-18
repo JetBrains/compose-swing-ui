@@ -201,5 +201,6 @@ private fun KtExpression?.resultsThrough(wrapper: KtExpression): List<KtExpressi
 private fun reusesComponentMessage(): String =
     "This `factory` returns a component it did not build. A node that is released and rebuilt calls " +
         "`factory` again, so the new node gets the same component another node still holds. Build the " +
-        "component inside `factory`. To configure a part that its parent built and keeps, use " +
+        "component inside `factory`. To show a component that the caller keeps, use `movableComponentOf`. " +
+        "To configure a part its parent built and keeps, use " +
         "`ExistingSwingNode`."

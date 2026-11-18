@@ -152,7 +152,8 @@ internal class SwingContentComposition internal constructor(
     /** The diagnostics told this composition exists, until they have been told it is gone. */
     private var announcedTo: SwingCompositionDiagnostics? = null
 
-    private var released = false
+    override var isReleased: Boolean = false
+        private set
 
     /**
      * The observer's callbacks run on the event dispatch thread: inline when the change is published
@@ -318,8 +319,8 @@ internal class SwingContentComposition internal constructor(
      * steps once: a later call does nothing.
      */
     private fun release() {
-        if (released) return
-        released = true
+        if (isReleased) return
+        isReleased = true
         runEveryStep(
             { root.attachedTo(null) },
             { afterValidationActions.dispose() },

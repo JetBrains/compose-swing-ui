@@ -18,9 +18,11 @@ import java.awt.Component
  *
  * A node with no modifier state yet has applied no modifier, so its first declaration diffs; a node
  * whose state was reset - released, reused, parked - is in that same position and rebuilds from scratch. A node
- * whose last diff threw partway diffs its next declaration too.
+ * whose last diff threw partway diffs its next declaration too. A node whose use of its
+ * component ended, such as one another node took the component from, writes nothing.
  */
 internal fun SwingNodeHolder<Component>.applyDeclaredModifier(modifier: SwingModifier) {
+    if (usedUp) return
     val state = modifierState
     var needsDeclaredNodes = false
     var diffLayoutChange = ModifierChanges.None

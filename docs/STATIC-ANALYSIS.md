@@ -1264,7 +1264,7 @@ fun StatusBanner(text: String) {
 
 ### SwingNodeFactoryReusesComponent
 
-Create a fresh component each time a `SwingNode` or `MenuNode` factory runs. Attaching a shared panel to one parent can take it away from another. Reusing the panel after a node is recreated can also carry widget state into the new node. The rule reports direct references returned by factory lambdas when the component is declared outside the lambda. A helper that creates a fresh component on each call is safe. If the parent already owns the part you want to configure, use `ExistingSwingNode`. See [Configuring a component its parent owns](CUSTOM-COMPONENTS.md#configuring-a-component-its-parent-owns).
+Create a fresh component each time a `SwingNode` or `MenuNode` factory runs. Attaching a shared panel to one parent can take it away from another. Reusing the panel after a node is recreated can also carry widget state into the new node. The rule reports direct references returned by factory lambdas when the component is declared outside the lambda. A helper that creates a fresh component on each call is safe. To show a component that the caller builds and keeps, use `movableComponentOf`. See [Showing a component the caller owns](CUSTOM-COMPONENTS.md#showing-a-component-the-caller-owns). If the parent already owns the part you want to configure, use `ExistingSwingNode`. See [Configuring a component its parent owns](CUSTOM-COMPONENTS.md#configuring-a-component-its-parent-owns).
 
 <table>
 <thead>

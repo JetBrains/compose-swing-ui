@@ -329,8 +329,12 @@ internal class ScrollPaneScopeImpl : ScrollPaneScope {
             val header = ownRegions.rowHeader
             pane.setRowHeaderView(component)
             return@SlotAttachment {
-                if (pane.rowHeader?.view === component) {
-                    if (pane.rowHeader !== header.viewport) pane.setRowHeader(header.viewport)
+                val standing = pane.rowHeader
+                if (standing?.view === component) {
+                    if (standing !== header.viewport) {
+                        standing.view = null
+                        pane.setRowHeader(header.viewport)
+                    }
                     header.viewport?.view = header.view
                 }
             }
@@ -343,8 +347,12 @@ internal class ScrollPaneScopeImpl : ScrollPaneScope {
             val header = ownRegions.columnHeader
             pane.setColumnHeaderView(component)
             return@SlotAttachment {
-                if (pane.columnHeader?.view === component) {
-                    if (pane.columnHeader !== header.viewport) pane.setColumnHeader(header.viewport)
+                val standing = pane.columnHeader
+                if (standing?.view === component) {
+                    if (standing !== header.viewport) {
+                        standing.view = null
+                        pane.setColumnHeader(header.viewport)
+                    }
                     header.viewport?.view = header.view
                 }
             }

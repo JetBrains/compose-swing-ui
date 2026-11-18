@@ -252,6 +252,8 @@ public class OnDemandComposition private constructor(
         disposingOnFailure(::dispose) {
             reportPlacementFailure()
             rootHolder.flattenedChildren.fastForEach { child ->
+                // A superseded call installs nothing, so what it declares is no refusal.
+                if (child.deactivated) return@fastForEach
                 check(
                     child.declaration.parentProtocol == null &&
                         child.declaration.parentLayoutElements.fastFirstOrNull {

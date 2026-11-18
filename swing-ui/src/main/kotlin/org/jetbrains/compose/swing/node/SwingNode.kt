@@ -37,7 +37,8 @@ import java.awt.Component
  * is driving.
  *
  * @param factory builds and returns a new backing Swing component on every call, never one built elsewhere.
- *   To configure a component a parent already built and keeps, use [ExistingSwingNode].
+ *   To show a component the caller builds and keeps, use [movableComponentOf]. To configure a component a
+ *   parent already built and keeps, use [ExistingSwingNode].
  * @param modifier the [SwingModifier] applied after component property updates. Forward the chain the
  *   enclosing composable took; defaults to [SwingModifier], the empty chain.
  * @param update typed update block; see [SwingNodeUpdater]. Install listeners through the modifier
@@ -102,7 +103,8 @@ public inline fun <reified T : Component> SwingNode(
  * the structure this composition declared and derive from all of it at measure or layout time.
  *
  * @param factory builds and returns a new backing Swing container on every call, never one built elsewhere.
- *   To configure a component a parent already built and keeps, use [ExistingSwingNode].
+ *   To show a component the caller builds and keeps, use [movableComponentOf]. To configure a component a
+ *   parent already built and keeps, use [ExistingSwingNode].
  * @param modifier the [SwingModifier] applied after component property updates. Forward the chain the
  *   enclosing composable took; defaults to [SwingModifier], the empty chain.
  * @param update typed update block; see [SwingNodeUpdater]. Install listeners through the modifier

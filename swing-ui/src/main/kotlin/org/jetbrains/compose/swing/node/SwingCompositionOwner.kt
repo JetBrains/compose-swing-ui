@@ -24,6 +24,9 @@ import kotlin.coroutines.CoroutineContext
  * its first pass is what it reads on every later one, until the node moves to another composition.
  */
 internal interface SwingCompositionOwner {
+    /** Whether this owner's composition has been released, so none of its nodes is in a composition any more. */
+    val isReleased: Boolean
+
     /**
      * The observer every attached node's [observeReads] records with, under a scope of its own: a modifier
      * node, or a [SwingComponentNode].

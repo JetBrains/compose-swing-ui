@@ -14,6 +14,7 @@ import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.test.interaction.assertIsOfType
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.onChild
+import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.Named
 import org.junit.jupiter.params.ParameterizedTest
@@ -21,6 +22,7 @@ import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
 import org.junit.jupiter.params.provider.ValueSource
 import java.awt.BorderLayout
+import java.awt.Component
 import java.awt.Container
 import java.awt.Rectangle
 import javax.swing.JButton
@@ -224,6 +226,27 @@ class SwingApplierTest {
         }
     }
 
+    /** A host that hands `add` and `remove` on to a container inside it. */
+    private class ForwardingPanel : JPanel() {
+        val inner = JPanel()
+
+        init {
+            super.addImpl(inner, null, -1)
+        }
+
+        override fun addImpl(
+            comp: Component,
+            constraints: Any?,
+            index: Int,
+        ) {
+            inner.add(comp, constraints, index)
+        }
+
+        override fun remove(comp: Component) {
+            inner.remove(comp)
+        }
+    }
+
     /**
      * Positions the applier's `current` on [holder], runs [block] against the applier,
      * and returns to the root. [insertBottomUp] and friends always operate on `current`, so tests
@@ -329,6 +352,19 @@ class SwingApplierTest {
         applier.onEndChanges()
 
         assertEquals(listOf("a", "d"), childNames(root))
+    }
+
+    @Test
+    fun aChildOfAHostThatForwardsAddAndRemoveLeavesWithIt() = runComposeSwingTest {
+        var shown by mutableStateOf(true)
+        setContent { SwingNode(factory = { ForwardingPanel() }) { if (shown) Label("child") } }
+        awaitIdle()
+        onNodeOfType<ForwardingPanel>().assertProperty(1) { inner.componentCount }
+
+        shown = false
+        awaitIdle()
+
+        onNodeOfType<ForwardingPanel>().assertProperty(0) { inner.componentCount }
     }
 
     @ParameterizedTest(name = "{0}")

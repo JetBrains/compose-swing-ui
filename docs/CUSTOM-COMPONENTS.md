@@ -1,5 +1,8 @@
 # Writing components
 
+> [!IMPORTANT]
+> Build layouts and screens by composing the existing components. You need this document only when the UI must use a Swing component that you already have: a widget of your own or one from another library. `SwingNode`, `ExistingSwingNode` and `movableComponentOf` are not for regular layouts.
+
 Build reusable UI by composing existing components. When you need a Swing binding those components do not provide, wrap the widget in a composable of your own.
 
 Further documents carry the rest:
@@ -231,6 +234,43 @@ fun Titled(text: String) {
 
 A wrapper offers this call to its callers through its content scope. The `ExistingSwingNode` KDoc holds the lifecycle contract. `update` writes stay on the part, so declare a property that must be given back through the part's style or modifier. To expose the part's properties to callers, accept a `style` parameter and apply it with `styleable` on the part's modifier. Within one composition, a component is claimed by at most one node at a time; a second claim is refused. When Swing types a getter wider than the part it returns, write the part's type as the third type argument: `ExistingSwingNode<JInternalFrame, Component, Container>(claim = JInternalFrame::getGlassPane)`. Under a host that uses indexed children, `declaringCall` names the declaration in that refusal.
 
+## Showing a component the caller owns
+
+Some code outside the composition builds a component and keeps it. `movableComponentOf` returns a `MovableComponent` for it. Calling the `MovableComponent` places the component in the composition, with a `SwingModifier`. `ConsoleArea` shows a `console` that its caller keeps:
+
+<!--- INCLUDE .*custom-03.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.layout.ScrollPane
+import org.jetbrains.compose.swing.node.movableComponentOf
+import javax.swing.JTextArea
+-->
+
+```kotlin
+@Composable
+fun ConsoleArea(console: JTextArea, scrolling: Boolean) {
+    val movableConsole = remember(console) { movableComponentOf(console) }
+    if (scrolling) {
+        ScrollPane { Viewport { movableConsole() } }
+    } else {
+        Panel { movableConsole() }
+    }
+}
+```
+
+<!--- KNIT example-custom-03.kt -->
+
+When `scrolling` changes, the same `console` moves between the two containers and keeps its text, caret and listeners. A changed `key` around the call and a move into a nested content composition relocate it the same way.
+
+The component stays the caller's:
+
+- Placing it takes it out of the container it is in. When the placement ends, everything the modifier wrote is given back and the component leaves the container the placement put it in. The library never puts it back: add it where you keep it, from the code that ends the placement or later.
+- While the call stays composed, the composition decides where the component is. Do not add it to another container.
+- One component is placed by one call at a time. Two calls composed at once in one `Recomposer` throw `IllegalStateException`. Under independent roots, such as two windows, the call composed last takes the component over.
+
+The `movableComponentOf` KDoc holds the full contract.
+
 ## Inside `update`: `set` for properties, `SwingModifier` for styling and listeners
 
 The `update` block runs with a `SwingNodeUpdater<T>` receiver. Its core tool is `set`; for lifecycle-safe listeners you apply a `SwingModifier`, and the properties a caller sets are its style.
@@ -345,7 +385,7 @@ SwingNode(
 Here is a complete, compilable wrapper for `JSpinner`, mirroring how `TextField`/`Slider` are built
 - a `value` in, an `onValueChange` out:
 
-<!--- INCLUDE .*custom-03.*
+<!--- INCLUDE .*custom-04.*
 import androidx.compose.runtime.Composable
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.modifier.SwingModifier
@@ -402,6 +442,6 @@ private val SpinnerKind =
 private val JSpinner.numberModel: SpinnerNumberModel get() = model as SpinnerNumberModel
 ```
 
-<!--- KNIT example-custom-03.kt -->
+<!--- KNIT example-custom-04.kt -->
 
 The `if (this.value != it)` guard in the `value` setter prevents a feedback loop where applying the incoming state would itself fire the change listener.

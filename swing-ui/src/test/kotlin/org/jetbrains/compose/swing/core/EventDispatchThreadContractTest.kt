@@ -18,6 +18,7 @@ import org.jetbrains.compose.swing.components.menu.Menu
 import org.jetbrains.compose.swing.components.menu.MenuItem
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.ObserverModifierNode
+import org.jetbrains.compose.swing.node.movableComponentOf
 import org.jetbrains.compose.swing.node.observeReads
 import org.jetbrains.compose.swing.node.requestAfterValidation
 import org.jetbrains.compose.swing.runSwingTest
@@ -34,6 +35,7 @@ import javax.swing.JFrame
 import javax.swing.JMenuBar
 import javax.swing.JPanel
 import javax.swing.JPopupMenu
+import javax.swing.JTextField
 import javax.swing.SwingUtilities
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -56,9 +58,10 @@ import kotlin.time.Duration.Companion.seconds
  */
 class EventDispatchThreadContractTest {
     @TestFactory
-    fun setContentOffTheEventDispatchThreadFailsFast(): List<DynamicTest> = listOf<Pair<String, () -> Unit>>(
+    fun entryPointsOffTheEventDispatchThreadFailsFast(): List<DynamicTest> = listOf<Pair<String, () -> Unit>>(
         "container" to { JPanel().setContent { } },
         "menu bar" to { JMenuBar().setContent { } },
+        "movable component" to { movableComponentOf(JTextField()) },
     ).map { (name, setContent) -> dynamicTest(name) { assertRejectedOffEdt(setContent) } } +
         dynamicTest("popup") {
             runTest {

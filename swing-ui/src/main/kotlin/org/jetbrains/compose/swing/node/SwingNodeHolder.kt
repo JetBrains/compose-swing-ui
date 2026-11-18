@@ -3,6 +3,7 @@ package org.jetbrains.compose.swing.node
 
 import androidx.compose.runtime.CompositionLocalMap
 import androidx.compose.runtime.State
+import kotlinx.coroutines.Job
 import org.jetbrains.annotations.VisibleForTesting
 import org.jetbrains.compose.swing.core.runEveryStep
 import org.jetbrains.compose.swing.layout.ChildPlacement
@@ -322,10 +323,17 @@ internal sealed class SwingNodeHolder<out T : Component> :
      * component already detached and its region, if it filled one, already released. Only the
      * applier's own `remove`/`move` calls ever take such a holder out of a host's children.
      *
-     * Only [onDeactivate] writes it.
+     * [onDeactivate] writes it, and so does a [CallerComponentNodeHolder] another node took the component from.
      */
     final override var deactivated: Boolean = false
-        private set
+        protected set
+
+    /**
+     * Whether this node's use of its component ended for good, so it tells the component nothing and writes
+     * nothing. Unlike [deactivated], which the runtime leaves set while it reuses a parked node, this never
+     * holds for a node that is parked and reactivated. Only a [CallerComponentNodeHolder] ends its use.
+     */
+    internal open val usedUp: Boolean get() = false
 
     /**
      * How this node holds its children, as declared on [SwingNode] or [ExistingSwingNode]. It is
@@ -513,11 +521,12 @@ internal sealed class SwingNodeHolder<out T : Component> :
      * not the reset throws. A component [ExistingSwingNode] claims stays where its parent holds it.
      */
     override fun onDeactivate() {
+        val wasActive = !usedUp
         // Told before deactivated is set, so the node reports attached to the listener, as on release.
-        tellComponentDetached()
+        if (wasActive) tellComponentDetached()
         deactivated = true
         try {
-            reset(resetNodes = true, detaching = false)
+            if (wasActive) reset(resetNodes = true, detaching = false)
         } finally {
             try {
                 val installed = installation
@@ -579,56 +588,148 @@ private fun SwingNodeHolder<*>.reset(
     }
 }
 
+/**
+ * A node whose component the composition places in its parent's container: installed into the region it
+ * names, or added by index.
+ */
+@PublishedApi
+internal sealed class PlacingNodeHolder<out T : Component> : SwingNodeHolder<T>() {
+    /**
+     * The composition puts the component into the container of [parent]'s host: installed into the region it
+     * names, or added by index. Under a group whose declaration changed in this pass, the component waits for
+     * [GroupDeclarationEffect] instead.
+     */
+    override fun attachTo(
+        parent: NodeHolder,
+        container: Container,
+        index: Int,
+        regions: ChildRegions,
+    ) {
+        if (awaitsGroupEffect) {
+            attachmentWait = AttachmentWait.Placement
+            return
+        }
+        attachmentWait = AttachmentWait.None
+        val host = parent.componentHost
+        val componentIndex = host.childProjection.indexOf(this, index)
+        with(regions) { host.attachCreated(container, this@PlacingNodeHolder, componentIndex) }
+    }
+
+    override fun noRegionRefusal(
+        host: Container,
+        placement: ChildPlacement,
+    ): String =
+        "A ${host.declaredName} holds each child in one of its own regions rather than as an indexed child, " +
+            "so every child must declare which region it fills. The ${component.declaredName} declared here " +
+            "names none. ${placement.throughRegionCalls("Name the region it fills")}"
+
+    /** The composition installs the component into the region it names, so the region needs an attachment. */
+    override fun checkDeclaredPlacement(
+        slot: SlotElement?,
+        parentDeclarations: List<ParentElement>,
+    ) {
+        if (slot == null) return
+        requireNotNull(slot.attachment) {
+            "A ${component.declaredName} names the region ${slot.regionName} without a SlotAttachment, so " +
+                "nothing would put it there: slot(parentProtocol, name) only names the region a component " +
+                "claimed by ExistingSwingNode already stands in. Pass the attachment that installs it: " +
+                "SwingModifier.slot(parentProtocol, name, attachment)."
+        }
+    }
+}
+
 /** A node whose component its own factory built; the composition owns the component. */
 @PublishedApi
 internal class CreatedNodeHolder<out T : Component>
     @PublishedApi
     internal constructor(
         override val component: T,
-    ) : SwingNodeHolder<T>() {
-        /**
-         * The composition puts the component into the container of [parent]'s host: installed into the region it
-         * names, or added by index. Under a group whose declaration changed in this pass, the component waits for
-         * [GroupDeclarationEffect] instead.
-         */
-        override fun attachTo(
-            parent: NodeHolder,
-            container: Container,
-            index: Int,
-            regions: ChildRegions,
-        ) {
-            if (awaitsGroupEffect) {
-                attachmentWait = AttachmentWait.Placement
-                return
-            }
-            attachmentWait = AttachmentWait.None
-            val host = parent.componentHost
-            val componentIndex = host.childProjection.indexOf(this, index)
-            with(regions) { host.attachCreated(container, this@CreatedNodeHolder, componentIndex) }
-        }
+    ) : PlacingNodeHolder<T>()
 
-        override fun noRegionRefusal(
-            host: Container,
-            placement: ChildPlacement,
-        ): String =
-            "A ${host.declaredName} holds each child in one of its own regions rather than as an indexed child, " +
-                "so every child must declare which region it fills. The ${component.declaredName} declared here " +
-                "names none. ${placement.throughRegionCalls("Name the region it fills")}"
+/**
+ * A node whose component the caller built and keeps, placed through its [MovableComponent] while its call is
+ * composed. See [movableComponentOf].
+ *
+ * The node claims the component as it is first inserted, before it publishes itself or applies its modifier. A
+ * move may replace its installation but never ends the claim; release, deactivation and another node taking the
+ * component do, through [finishUse]. A node another one took the component from is deactivated: it tells the
+ * component nothing, writes nothing and is attached nowhere.
+ *
+ * A throw while attaching, validating or writing the modifier ends no claim: it stops this node's recomposer,
+ * and the next node to place the component from another one takes the claim over.
+ */
+internal class CallerComponentNodeHolder(
+    override val component: JComponent,
+    private val movable: MovableComponent,
+) : PlacingNodeHolder<JComponent>() {
+    override var usedUp: Boolean = false
+        private set
 
-        /** The composition installs the component into the region it names, so the region needs an attachment. */
-        override fun checkDeclaredPlacement(
-            slot: SlotElement?,
-            parentDeclarations: List<ParentElement>,
-        ) {
-            if (slot == null) return
-            requireNotNull(slot.attachment) {
-                "A ${component.declaredName} names the region ${slot.regionName} without a SlotAttachment, so " +
-                    "nothing would put it there: slot(parentProtocol, name) only names the region a component " +
-                    "claimed by ExistingSwingNode already stands in. Pass the attachment that installs it: " +
-                    "SwingModifier.slot(parentProtocol, name, attachment)."
-            }
+    /** Claims the component for this node, then takes it from the container it is in. */
+    override fun insertedUnder(parent: NodeHolder) {
+        val owner = parent.componentHost.owner
+        movable.claim(this, owner?.coroutineContext?.get(Job))
+        component.parent?.let { it.takeOut(component, component.bounds) }
+    }
+
+    /** Whether this node uses the component in a composition that runs in [recomposer] and is not released. */
+    internal fun isUsedIn(recomposer: Job?): Boolean {
+        val owner = owner ?: return false
+        return !owner.isReleased && owner.coroutineContext[Job] === recomposer
+    }
+
+    override fun onRelease() {
+        try {
+            finishUse()
+        } finally {
+            super.onRelease()
         }
     }
+
+    override fun onDeactivate() {
+        try {
+            finishUse(resetNodes = true)
+        } finally {
+            super.onDeactivate()
+        }
+    }
+
+    /**
+     * Ends this node's use of the component, once: the modifier is given back, the component leaves where the
+     * installation put it - a region through its undo, the host's container otherwise - and
+     * the claim is cleared. The node is deactivated after, so the later callbacks of the runtime find nothing to
+     * do. Every step is attempted; the first failure propagates.
+     *
+     * @param resetNodes whether the modifier is reset as on deactivation rather than as on release.
+     */
+    internal fun finishUse(resetNodes: Boolean = false) {
+        if (usedUp) return
+        val installed = installation
+        installation = null
+        try {
+            runEveryStep(
+                { reset(resetNodes, detaching = isAttached) },
+                {
+                    val stoodIn = component.parent
+                    val area = component.bounds
+                    // An indexed installation stays after its release: the host's container holds the child.
+                    if (installed?.release() != null) {
+                        (parent?.componentHost?.component as? Container)?.childHost?.remove(component)
+                    }
+                    // No batch runs for a takeover or a deactivation, and `Container.remove` only invalidates.
+                    if (stoodIn != null && component.parent !== stoodIn) {
+                        stoodIn.revalidate()
+                        stoodIn.repaint(area.x, area.y, area.width, area.height)
+                    }
+                },
+            )
+        } finally {
+            usedUp = true
+            deactivated = true
+            movable.release(this)
+        }
+    }
+}
 
 /**
  * A node whose component its claim found; the composition only borrows it. See [ExistingSwingNode].
@@ -794,13 +895,13 @@ internal fun SwingNodeHolder<*>.declaredCall(element: ParentElement): String {
 }
 
 /**
- * Publishes this node on its own component, if [isDebugInspectorInfoEnabled] is on and the component is
- * a [JComponent]. Called by the applier's `insertTopDown`, on the node's way into the composition - not
- * from [SwingNodeHolder.attachedTo], whose caller for the composition's root node never runs it through
- * the applier, so anything published there would never be cleared.
+ * Publishes this node on its own component, if [isDebugInspectorInfoEnabled] is on, the component is
+ * a [JComponent] and the node still uses it. Called by the applier's `insertTopDown`, on the node's way into
+ * the composition - not from [SwingNodeHolder.attachedTo], whose caller for the composition's root node never
+ * runs it through the applier, so anything published there would never be cleared.
  */
 internal fun SwingNodeHolder<*>.publishForInspection() {
-    if (!isDebugInspectorInfoEnabled) return
+    if (!isDebugInspectorInfoEnabled || usedUp) return
     val host = component as? JComponent ?: return
     host[NODE_KEY] = this
 }

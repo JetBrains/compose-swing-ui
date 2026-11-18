@@ -99,7 +99,7 @@ internal class ChildRegions(
      */
     fun SwingNodeHolder<*>.attachCreated(
         container: Container,
-        child: CreatedNodeHolder<*>,
+        child: PlacingNodeHolder<*>,
         index: Int,
     ) {
         // A child naming no region keeps the attachment its host installed it through.
