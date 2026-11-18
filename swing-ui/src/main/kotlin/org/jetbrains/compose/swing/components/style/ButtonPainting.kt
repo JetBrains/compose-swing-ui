@@ -6,7 +6,7 @@ package org.jetbrains.compose.swing.components.style
 
 import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
 import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor.Companion.accessor
-import org.jetbrains.compose.swing.style.OpaqueDescriptor
+import org.jetbrains.compose.swing.modifier.RestorePolicy
 import org.jetbrains.compose.swing.style.stylePropertyOf
 import javax.swing.AbstractButton
 import javax.swing.JMenuBar
@@ -151,7 +151,7 @@ internal val FocusPaintedDescriptor =
 private val BorderPaintedProperty = stylePropertyOf(BorderPaintedDescriptor)
 
 private val ContentAreaFilledProperty =
-    stylePropertyOf(ContentAreaFilledDescriptor, alsoOverwrites = listOf(OpaqueDescriptor))
+    stylePropertyOf(ContentAreaFilledDescriptor, restores = RestorePolicy.DeclaredPropertyOnly)
 
 private val RolloverEnabledProperty =
     stylePropertyOf(

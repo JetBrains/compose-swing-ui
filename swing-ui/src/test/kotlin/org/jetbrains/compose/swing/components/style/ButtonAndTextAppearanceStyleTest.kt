@@ -102,7 +102,7 @@ class ButtonAndTextAppearanceStyleTest {
     }
 
     @Test
-    fun removedFillRestoresOriginalOpacity() = runComposeSwingTest {
+    fun removedFillLetsTheLookAndFeelRederiveOpacity() = runComposeSwingTest {
         underMetal {
             var declared by mutableStateOf(true)
             setContent {
@@ -122,7 +122,7 @@ class ButtonAndTextAppearanceStyleTest {
 
             onNodeOfType<JButton>().apply {
                 assertProperty(true, "dropping the fill restores the one the button had") { isContentAreaFilled }
-                assertProperty(false, "the flag nothing declares is left where the button carried it") { isOpaque }
+                assertProperty(true, "the look and feel derives the flag again once the fill is back") { isOpaque }
             }
         }
     }
@@ -167,7 +167,7 @@ class ButtonAndTextAppearanceStyleTest {
     }
 
     @Test
-    fun staggeredFillAndOpacityRestoreOriginals() = runComposeSwingTest {
+    fun staggeredFillAndOpacityLetTheLookAndFeelRederiveOpacity() = runComposeSwingTest {
         underMetal {
             var flag by mutableStateOf(false)
             var fill by mutableStateOf(false)
@@ -192,12 +192,16 @@ class ButtonAndTextAppearanceStyleTest {
             awaitIdle()
             flag = false
             awaitIdle()
+            onNodeOfType<JButton>().assertProperty(
+                false,
+                "the withdrawn opaque(true) no longer holds the flag while the declared fill is false",
+            ) { isOpaque }
             fill = false
             awaitIdle()
 
             onNodeOfType<JButton>().apply {
                 assertProperty(true, "dropping the fill restores the one the button had") { isContentAreaFilled }
-                assertProperty(false, "and the flag it came with rather than the one that fill implies") { isOpaque }
+                assertProperty(true, "and the look and feel derives the flag from the restored fill") { isOpaque }
             }
         }
     }
