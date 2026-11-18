@@ -264,6 +264,6 @@ internal fun SwingModifierState.reassertPropertySlotsFrom(
     except: SwingModifier.Node?,
     from: (ComponentNodeRecord<*, *>) -> Boolean,
 ): Boolean =
-    rewriteRecordsFrom(records, null, except, { record, _ ->
+    rewriteRecordsFrom(records, RewriteScope(null, except), { record, _ ->
         record.refresh(target, diagnostics, WriteMode.RewriteEqual)
     }, from)

@@ -5,13 +5,10 @@
 package org.jetbrains.compose.swing.components.style
 
 import org.jetbrains.compose.swing.annotations.CaretUpdatePolicy
-import org.jetbrains.compose.swing.modifier.PropertyCaptures
+import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
 import org.jetbrains.compose.swing.modifier.RestorePolicy
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.node.runReportingUncaught
 import org.jetbrains.compose.swing.style.stylePropertyOf
-import java.beans.PropertyChangeEvent
-import java.beans.PropertyChangeListener
 import javax.swing.text.Caret
 import javax.swing.text.DefaultCaret
 import javax.swing.text.JTextComponent
@@ -75,17 +72,10 @@ internal fun caretBlinkRateElement(rate: Int): SwingModifier.Element =
     CaretPropertyElement(
         name = "caretBlinkRate",
         value = rate,
-        read = { it.blinkRate },
+        overwritten = CaretBlinkRateDescriptor,
         // Every declaration of one value passes the same lambda instance: equality and the key compare it
         // by identity.
-        write = { caret, value ->
-            // Zeroed first: a caret given a rate before it has an editable component stashes it, and a later
-            // nonzero write reaches the blink timer while the caret returns the cached rate. Only a zero
-            // rate drops the stash, and a look and feel that gives its caret a rate as it installs - before the
-            // caret is told which component it is on - leaves every caret it builds in that state.
-            caret.blinkRate = 0
-            if (value != 0) caret.blinkRate = value
-        },
+        write = Caret::writeBlinkRate,
     )
 
 /** The element that sets the caret's update policy to [policy]. */
@@ -95,15 +85,51 @@ internal fun caretUpdatePolicyElement(
     CaretPropertyElement(
         name = "caretUpdatePolicy",
         value = policy,
-        read = { it.asDefaultCaret().updatePolicy },
+        overwritten = CaretUpdatePolicyDescriptor,
         // Every declaration of one value passes the same lambda instance: equality and the key compare it
         // by identity.
-        write = { caret, value -> caret.asDefaultCaret().updatePolicy = value },
+        write = Caret::writeUpdatePolicy,
     )
 
 internal val CaretProperty = stylePropertyOf { caret: Caret -> CaretElement(caret) }
 internal val CaretBlinkRateProperty = stylePropertyOf(::caretBlinkRateElement)
 internal val CaretUpdatePolicyProperty = stylePropertyOf(::caretUpdatePolicyElement)
+
+/** The blink rate of the caret the component carries, which is the one a replacement caret is given. */
+private val CaretBlinkRateDescriptor =
+    ComponentPropertyDescriptor<JTextComponent, Int?>(
+        "caretBlinkRate",
+        read = { it.caret?.blinkRate },
+        write = { component, value -> if (value != null) component.caret?.writeBlinkRate(value) },
+    )
+
+/** The update policy of the caret the component carries, which is the one a replacement caret is given. */
+private val CaretUpdatePolicyDescriptor =
+    ComponentPropertyDescriptor<JTextComponent, Int?>(
+        "caretUpdatePolicy",
+        read = { it.caret?.asDefaultCaret()?.updatePolicy },
+        write = { component, value -> if (value != null) component.caret?.writeUpdatePolicy(value) },
+    )
+
+private val CaretDescriptor =
+    ComponentPropertyDescriptor<JTextComponent, Caret?>(
+        "caret",
+        read = { it.caret },
+        write = { component, value -> if (component.caret !== value) component.replaceCaretKeepingSelection(value) },
+    )
+
+// Zeroed first: a caret given a rate before it has an editable component stashes it, and a later nonzero write
+// reaches the blink timer while the caret returns the cached rate. Only a zero rate drops the stash, and a look
+// and feel that gives its caret a rate as it installs - before the caret is told which component it is on - leaves
+// every caret it builds in that state.
+private fun Caret.writeBlinkRate(rate: Int) {
+    blinkRate = 0
+    if (rate != 0) blinkRate = rate
+}
+
+private fun Caret.writeUpdatePolicy(policy: Int) {
+    asDefaultCaret().updatePolicy = policy
+}
 
 /** This caret as the [DefaultCaret] a policy is written to. */
 private fun Caret.asDefaultCaret(): DefaultCaret {
@@ -128,7 +154,7 @@ private fun Caret.asDefaultCaret(): DefaultCaret {
 private class CaretPropertyElement(
     override val name: String,
     private val value: Int,
-    private val read: (Caret) -> Int,
+    private val overwritten: ComponentPropertyDescriptor<JTextComponent, Int?>,
     private val write: (Caret, Int) -> Unit,
 ) : SwingModifier.NodeElement<JTextComponent, CaretPropertyElement.Node>() {
     override val targetType: Class<JTextComponent> get() = JTextComponent::class.java
@@ -140,7 +166,11 @@ private class CaretPropertyElement(
     /** A caret the style let go of keeps what it was given, so this element answers for no caret of its own. */
     override val restores: RestorePolicy get() = RestorePolicy.None
 
-    override fun create(): Node = Node(name, read, write)
+    override val overwrites: List<ComponentPropertyDescriptor<JTextComponent, *>> get() = listOf(overwritten)
+
+    override val rewriteOn: List<String> get() = listOf("caret", "UI")
+
+    override fun create(): Node = Node(write)
 
     override fun update(node: Node) = node.apply(value)
 
@@ -150,42 +180,10 @@ private class CaretPropertyElement(
     override fun hashCode(): Int = 31 * System.identityHashCode(write) + value
 
     class Node(
-        private val name: String,
-        private val read: (Caret) -> Int,
         private val write: (Caret, Int) -> Unit,
-    ) : SwingModifier.ComponentNode<JTextComponent>(),
-        PropertyChangeListener {
-        private var captured: PropertyCaptures.Capture<*, *>? = null
-
-        override fun onAttach() {
-            val component = component
-            captured =
-                checkNotNull(holder?.modifierState).captures().capture(
-                    name,
-                    component,
-                    { it.caret?.let(read) },
-                    { component, value ->
-                        if (value != null) component.caret?.let { write(it, value) }
-                    },
-                )
-            component.addPropertyChangeListener("caret", this)
-            component.addPropertyChangeListener("UI", this)
-        }
-
+    ) : SwingModifier.ComponentNode<JTextComponent>() {
         fun apply(value: Int) {
             component.caret?.let { write(it, value) }
-        }
-
-        override fun propertyChange(event: PropertyChangeEvent) {
-            if (component.caret != null) holder?.modifierState?.refreshLocalConsumer(this)
-        }
-
-        override fun onDetach() {
-            val component = component
-            component.removePropertyChangeListener("caret", this)
-            component.removePropertyChangeListener("UI", this)
-            captured?.release()
-            captured = null
         }
     }
 }
@@ -209,6 +207,8 @@ internal class CaretElement(
     /** Installing a caret resets its position and selection, which a removal carries across, not back. */
     override val restores: RestorePolicy get() = RestorePolicy.DeclaredPropertyOnly
 
+    override val overwrites: List<ComponentPropertyDescriptor<JTextComponent, *>> get() = listOf(CaretDescriptor)
+
     override fun create(): Node = Node()
 
     override fun update(node: Node) {
@@ -220,37 +220,18 @@ internal class CaretElement(
     override fun hashCode(): Int = System.identityHashCode(caret)
 
     class Node : SwingModifier.ComponentNode<JTextComponent>() {
-        private var captured: PropertyCaptures.Capture<*, *>? = null
-
         private var installed: Caret? = null
-
-        override fun onAttach() {
-            captured =
-                checkNotNull(holder?.modifierState).captures().capture(
-                    "caret",
-                    component,
-                    { it.caret },
-                    { component, value ->
-                        if (component.caret !== value) component.replaceCaretKeepingSelection(value)
-                    },
-                )
-        }
 
         fun apply(caret: Caret) {
             // Installing a caret resets offset and selection, so skip the write when it is already installed.
             if (component.caret === caret) return
             // A listener on the component that throws from the install is reported; the install stands.
             if (caret === installed) {
-                component.replaceCaretKeepingSelection(caret) { runReportingUncaught { component.caret = it } }
+                component.replaceCaretKeepingSelection(caret) { report { component.caret = it } }
             } else {
-                runReportingUncaught { component.caret = caret }
+                report { component.caret = caret }
             }
             installed = caret
-        }
-
-        override fun onDetach() {
-            captured?.release()
-            captured = null
         }
     }
 }

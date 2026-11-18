@@ -4,6 +4,7 @@
 
 package org.jetbrains.compose.swing.modifier
 
+import org.jetbrains.compose.swing.annotations.SwingComponentLibraryApi
 import java.awt.Component
 
 /**
@@ -55,6 +56,7 @@ import java.awt.Component
  *   the write touched, not only the one this declaration names.
  * @return this modifier with [descriptor] declared on it.
  */
+@SwingComponentLibraryApi
 public fun <T : Component, V> SwingModifier.property(
     descriptor: ComponentPropertyDescriptor<T, V>,
     value: V,
@@ -72,15 +74,15 @@ public fun <T : Component, V> SwingModifier.property(
  *
  * Two elements are equal when they declare the *same* [descriptor] - identity, so a pair allocated once,
  * beside the builder or on the property object, compares equal across passes - and carry an equal
- * [value]. [restores], [rewriteOn] and [alsoOverwrites] take no part in equality.
- * Adopting an equal declaration keeps the existing node without updating it, including the [rewriteOn]
+ * [value]. [restores], [rewriteEvent] and [alsoOverwrites] take no part in equality.
+ * Adopting an equal declaration keeps the existing node without updating it, including the [rewriteEvent]
  * and [alsoOverwrites] supplied when that node was created.
  */
 internal class PropertyElement<T : Component, V>(
     private val descriptor: ComponentPropertyDescriptor<T, V>,
     private val value: V,
     override val restores: RestorePolicy,
-    internal val rewriteOn: String?,
+    internal val rewriteEvent: String?,
     private val alsoOverwrites: List<ComponentPropertyDescriptor<T, *>>,
 ) : SwingModifier.NodeElement<T, PropertyNode<T, V>>() {
     @Suppress("UNCHECKED_CAST")
@@ -142,7 +144,7 @@ internal class PropertyElement<T : Component, V>(
     }
 
     override fun create(): PropertyNode<T, V> =
-        PropertyNode(descriptor.name, descriptor.read, descriptor.write, rewriteOn, alsoOverwrites)
+        PropertyNode(descriptor.name, descriptor.read, descriptor.write, rewriteEvent, alsoOverwrites)
 
     override fun update(node: PropertyNode<T, V>) {
         node.rebind(descriptor.read, descriptor.write)

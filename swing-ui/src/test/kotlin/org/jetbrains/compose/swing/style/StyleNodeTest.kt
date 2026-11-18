@@ -2,6 +2,7 @@
 package org.jetbrains.compose.swing.style
 
 import androidx.compose.runtime.RememberObserver
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -486,6 +487,27 @@ internal class StyleNodeTest {
         )
     }
 
+    @ParameterizedTest
+    @MethodSource("replayedStyles")
+    fun aReplayWritesOnlyLaterEntriesThatHoldWhatTheElementHolds(
+        declare: (SwingModifier) -> SwingModifier,
+        background: Color,
+        foreground: Color,
+        laterStyleStands: Boolean,
+    ) = runComposeSwingTest {
+        setContent { Label("x", modifier = declare(SwingModifier.then(BackgroundWriter()))) }
+        val label = onNodeOfType<JLabel>().fetch()
+        awaitIdle()
+        if (laterStyleStands) assertEquals(Color.BLUE, label.background, "the later style stands")
+        label.background = Color.GREEN
+        label.foreground = Color.GREEN
+
+        label.putClientProperty("shared", "changed")
+
+        assertEquals(background, label.background)
+        assertEquals(foreground, label.foreground)
+    }
+
     companion object {
         @JvmStatic
         fun combinedStyles(): List<CombinedStyleCase> = listOf(
@@ -494,6 +516,44 @@ internal class StyleNodeTest {
             CombinedStyleCase.ApplyAfterOwnWrite,
             CombinedStyleCase.OwnWriteAfterApply,
         )
+
+        @JvmStatic
+        fun replayedStyles(): List<Arguments> {
+            fun row(
+                name: String,
+                background: Color,
+                foreground: Color,
+                laterStyleStands: Boolean = false,
+                declare: (SwingModifier) -> SwingModifier,
+            ) = Arguments.of(Named.of(name, declare), background, foreground, laterStyleStands)
+            return listOf(
+                row("laterStyleHoldsElementProperty", Color.BLUE, Color.GREEN, laterStyleStands = true) {
+                    it.styleable(TestLabelKind) { background(Color.BLUE) }
+                },
+                row("laterStyleHoldsOtherProperty", Color.RED, Color.GREEN) {
+                    it.styleable(TestLabelKind) { foreground(Color.BLUE) }
+                },
+                row("overlappingStyleWithCustomElement", Color.BLUE, Color.GREEN) {
+                    it.styleable(TestLabelKind) {
+                        background(Color.BLUE)
+                        ForegroundProperty.provide(Color.RED)
+                    }
+                },
+                row("unrelatedCustomElementHoldsLaterDeclaration", Color.BLUE, Color.GREEN) {
+                    it
+                        .styleable(TestLabelKind) {
+                            background(Color.BLUE)
+                            ForegroundProperty.provide(Color.RED)
+                        }.then(ForegroundWriter())
+                },
+                row("styleReadsLocal", Color.BLUE, Color.GREEN) {
+                    it.styleable(TestLabelKind) {
+                        background(if (LocalShade.currentValue) Color.BLUE else Color.BLACK)
+                        ForegroundProperty.provide(Color.RED)
+                    }
+                },
+            )
+        }
 
         @JvmStatic
         fun rejectedElements(): List<Arguments> = listOf(
@@ -543,4 +603,96 @@ private object DualRoleElement :
     override fun equals(other: Any?): Boolean = other === this
 
     override fun hashCode(): Int = 1
+}
+
+private val LocalShade = compositionLocalOf { true }
+
+private val ForegroundProperty = stylePropertyOf<Color> { ForegroundElement(it) }
+
+private class ForegroundWriter : SwingModifier.NodeElement<JLabel, ForegroundWriter.Node>() {
+    override val targetType: Class<JLabel> get() = JLabel::class.java
+
+    override val heldProperties: Set<String> get() = setOf("foreground")
+
+    override fun create(): Node = Node()
+
+    override fun update(node: Node) {
+        node.component.foreground = Color.RED
+    }
+
+    override fun equals(other: Any?): Boolean = other is ForegroundWriter
+
+    override fun hashCode(): Int = ForegroundWriter::class.hashCode()
+
+    class Node : SwingModifier.ComponentNode<JLabel>() {
+        private var original: Color? = null
+
+        override fun onAttach() {
+            original = component.foreground
+        }
+
+        override fun onDetach() {
+            component.foreground = original
+        }
+    }
+}
+
+private class ForegroundElement(
+    private val color: Color,
+) : SwingModifier.NodeElement<JLabel, ForegroundElement.Node>() {
+    override val targetType: Class<JLabel> get() = JLabel::class.java
+
+    override val heldProperties: Set<String> get() = setOf("foreground")
+
+    override fun create(): Node = Node()
+
+    override fun update(node: Node) {
+        node.component.foreground = color
+    }
+
+    override fun equals(other: Any?): Boolean = other is ForegroundElement && other.color == color
+
+    override fun hashCode(): Int = color.hashCode()
+
+    class Node : SwingModifier.ComponentNode<JLabel>() {
+        private var original: Color? = null
+
+        override fun onAttach() {
+            original = component.foreground
+        }
+
+        override fun onDetach() {
+            component.foreground = original
+        }
+    }
+}
+
+private class BackgroundWriter : SwingModifier.NodeElement<JLabel, BackgroundWriter.Node>() {
+    override val targetType: Class<JLabel> get() = JLabel::class.java
+
+    override val rewriteOn: List<String> get() = listOf("shared")
+
+    override val heldProperties: Set<String> get() = setOf("background")
+
+    override fun create(): Node = Node()
+
+    override fun update(node: Node) {
+        node.component.background = Color.RED
+    }
+
+    override fun equals(other: Any?): Boolean = other is BackgroundWriter
+
+    override fun hashCode(): Int = BackgroundWriter::class.hashCode()
+
+    class Node : SwingModifier.ComponentNode<JLabel>() {
+        private var original: Color? = null
+
+        override fun onAttach() {
+            original = component.background
+        }
+
+        override fun onDetach() {
+            component.background = original
+        }
+    }
 }

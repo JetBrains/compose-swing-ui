@@ -278,6 +278,130 @@ class PropertyTest {
         ) { toolTipText }
     }
 
+    @Test
+    fun anElementPutsBackAnOverwrittenPropertyAfterItDetaches() = runComposeSwingTest {
+        val seen = ArrayList<String?>()
+        var declared by mutableStateOf(false)
+        setContent {
+            Label("x", modifier = if (declared) SwingModifier.then(ToolTipElement("declared", seen)) else SwingModifier)
+        }
+        val label = onNodeOfType<JLabel>().fetch()
+        label.toolTipText = "original"
+
+        declared = true
+        awaitIdle()
+        assertEquals("declared", label.toolTipText, "the element writes the property it overwrites")
+
+        declared = false
+        awaitIdle()
+
+        assertEquals(listOf<String?>("declared"), seen, "onDetach runs before the original is put back")
+        assertEquals("original", label.toolTipText, "the property holds what it held before the element")
+    }
+
+    @Test
+    fun anElementRewritingOnAPropertyDoesNotReapplyOverALaterOne() = runComposeSwingTest {
+        val earlierUpdates = ArrayList<String>()
+        setContent {
+            Label(
+                "x",
+                modifier =
+                    SwingModifier
+                        .then(SharedWriter("earlier", earlierUpdates))
+                        .then(SharedWriter("later", ArrayList())),
+            )
+        }
+        val label = onNodeOfType<JLabel>().fetch()
+        awaitIdle()
+
+        assertEquals("later", label.getClientProperty(SHARED), "the later declaration stands")
+        assertEquals(1, earlierUpdates.size, "the earlier declaration is written once, not again for the later write")
+
+        label.putClientProperty(SHARED, "outside")
+
+        assertEquals("later", label.getClientProperty(SHARED), "a change from outside leaves the later declaration")
+        assertEquals(2, earlierUpdates.size, "the earlier declaration answers a change from outside once")
+    }
+
+    @Test
+    fun anElementOverwritingAPropertyIsWrittenAgainWhenAnEarlierDeclarationOfItReplays() = runComposeSwingTest {
+        setContent {
+            Label(
+                "x",
+                modifier =
+                    SwingModifier
+                        .then(ReplayingToolTipElement("earlier"))
+                        .then(ToolTipElement("later", ArrayList())),
+            )
+        }
+        onNodeOfType<JLabel>().apply {
+            assertProperty("later", "the later element's write stands over the earlier declaration") { toolTipText }
+            fetch().name = "elsewhere"
+        }
+        awaitIdle()
+        onNodeOfType<JLabel>().assertProperty(
+            "later",
+            "the replay of the earlier declaration is followed by the element that overwrites its property",
+        ) { toolTipText }
+    }
+
+    @Test
+    fun aDepartedElementOverwritingAPropertyLeavesTheDeclarationOfItStanding() = runComposeSwingTest {
+        var styled by mutableStateOf(true)
+        setContent {
+            Label(
+                "x",
+                modifier =
+                    SwingModifier.property(ToolTipProperty, "modifier").styleable {
+                        if (styled) ToolTipStyleProperty.provide("style")
+                    },
+            )
+        }
+        awaitIdle()
+        onNodeOfType<JLabel>().assertProperty("style", "the style's element writes the property it overwrites") {
+            toolTipText
+        }
+
+        styled = false
+        awaitIdle()
+
+        onNodeOfType<JLabel>().assertProperty("modifier", "the declaration of the property stands once it leaves") {
+            toolTipText
+        }
+    }
+
+    @Test
+    fun anElementWhoseOverwrittenPropertyThrowsOnPutBackIsReportedOnceAndALaterUpdateStillApplies() =
+        runComposeSwingTest {
+            var armed = false
+            var declared by mutableStateOf<String?>(null)
+            setContent {
+                Label("x", modifier = declared?.let { SwingModifier.then(ClientWriter(it)) } ?: SwingModifier)
+            }
+            val label = onNodeOfType<JLabel>().fetch()
+            label.addPropertyChangeListener(CLIENT) { if (armed) error("restore") }
+            label.putClientProperty(CLIENT, "original")
+
+            declared = "first"
+            awaitIdle()
+            assertEquals("first", label.getClientProperty(CLIENT))
+            declared = null
+            awaitIdle()
+            assertEquals("original", label.getClientProperty(CLIENT), "the original is put back")
+
+            declared = "declared"
+            awaitIdle()
+            armed = true
+            declared = null
+            assertEquals("restore", assertFailsWith<IllegalStateException> { awaitIdle() }.message, "reported once")
+            assertEquals("original", label.getClientProperty(CLIENT), "the original is put back despite the failure")
+
+            armed = false
+            declared = "again"
+            awaitIdle()
+            assertEquals("again", label.getClientProperty(CLIENT), "a later update still applies")
+        }
+
     @ParameterizedTest
     @CsvSource("false, false", "false, true", "true, false")
     fun lastDeclarationWinsRewrites(
@@ -393,3 +517,110 @@ internal val BackgroundProperty =
         read = { if (it.isBackgroundSet) it.background else null },
         write = { label, color -> label.background = color },
     )
+
+private const val SHARED = "shared"
+
+private const val CLIENT = "client"
+
+private class ClientWriter(
+    private val value: String,
+) : SwingModifier.NodeElement<JLabel, ClientWriter.Node>() {
+    override val targetType: Class<JLabel> get() = JLabel::class.java
+
+    override val overwrites: List<ComponentPropertyDescriptor<JLabel, *>> get() = listOf(ClientProperty)
+
+    override fun create(): Node = Node()
+
+    override fun update(node: Node) {
+        node.component.putClientProperty(CLIENT, value)
+    }
+
+    override fun equals(other: Any?): Boolean = other is ClientWriter && other.value == value
+
+    override fun hashCode(): Int = value.hashCode()
+
+    class Node : SwingModifier.ComponentNode<JLabel>()
+}
+
+private val ClientProperty =
+    ComponentPropertyDescriptor<JLabel, Any?>(
+        CLIENT,
+        read = { it.getClientProperty(CLIENT) },
+        write = { label, value -> label.putClientProperty(CLIENT, value) },
+    )
+
+private class ToolTipElement(
+    private val value: String,
+    private val seen: MutableList<String?>,
+) : SwingModifier.NodeElement<JLabel, ToolTipElement.Node>() {
+    override val targetType: Class<JLabel> get() = JLabel::class.java
+
+    override val overwrites: List<ComponentPropertyDescriptor<JLabel, *>> get() = listOf(ToolTipProperty)
+
+    override fun create(): Node = Node(seen)
+
+    override fun update(node: Node) {
+        node.component.toolTipText = value
+    }
+
+    override fun equals(other: Any?): Boolean = other is ToolTipElement && other.value == value
+
+    override fun hashCode(): Int = value.hashCode()
+
+    class Node(
+        private val seen: MutableList<String?>,
+    ) : SwingModifier.ComponentNode<JLabel>() {
+        override fun onDetach() {
+            seen.add(component.toolTipText)
+        }
+    }
+}
+
+/** Writes the tooltip it overwrites and writes it again whenever the component's name changes. */
+private class ReplayingToolTipElement(
+    private val value: String,
+) : SwingModifier.NodeElement<JLabel, ReplayingToolTipElement.Node>() {
+    override val targetType: Class<JLabel> get() = JLabel::class.java
+
+    override val overwrites: List<ComponentPropertyDescriptor<JLabel, *>> get() = listOf(ToolTipProperty)
+
+    override val rewriteOn: List<String> get() = listOf("name")
+
+    override fun create(): Node = Node()
+
+    override fun update(node: Node) {
+        node.component.toolTipText = value
+    }
+
+    override fun equals(other: Any?): Boolean = other is ReplayingToolTipElement && other.value == value
+
+    override fun hashCode(): Int = value.hashCode()
+
+    class Node : SwingModifier.ComponentNode<JLabel>()
+}
+
+private val ToolTipStyleProperty = stylePropertyOf<String> { ToolTipElement(it, ArrayList()) }
+
+private class SharedWriter(
+    private val tag: String,
+    private val updates: MutableList<String>,
+) : SwingModifier.NodeElement<JLabel, SharedWriter.Node>() {
+    override val targetType: Class<JLabel> get() = JLabel::class.java
+
+    override val key: Any get() = tag
+
+    override val rewriteOn: List<String> get() = listOf(SHARED)
+
+    override fun create(): Node = Node()
+
+    override fun update(node: Node) {
+        updates.add(tag)
+        node.component.putClientProperty(SHARED, tag)
+    }
+
+    override fun equals(other: Any?): Boolean = other is SharedWriter && other.tag == tag
+
+    override fun hashCode(): Int = tag.hashCode()
+
+    class Node : SwingModifier.ComponentNode<JLabel>()
+}

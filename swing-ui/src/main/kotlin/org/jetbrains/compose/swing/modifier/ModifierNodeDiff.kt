@@ -4,6 +4,8 @@ package org.jetbrains.compose.swing.modifier
 import org.jetbrains.compose.swing.core.SwingCompositionDiagnostics
 import org.jetbrains.compose.swing.core.collectFailure
 import org.jetbrains.compose.swing.node.SwingNodeHolder
+import org.jetbrains.compose.swing.style.StyleNode
+import org.jetbrains.compose.swing.util.fastAny
 import org.jetbrains.compose.swing.util.fastFirstOrNull
 import org.jetbrains.compose.swing.util.fastForEach
 import org.jetbrains.compose.swing.util.fastForEachIn
@@ -85,19 +87,24 @@ internal object ComponentNodeType : ModifierNodeType<ComponentNodeRecord<*, *>>(
      * @param holder the component holder supplying the component and its diagnostics.
      * @param declaringNode the node declaring the records, or `null` for the outer modifier.
      * @param mode whether equal declarations may be reused or must be written again.
+     * @param within the property names written so far; only the records overlapping it are refreshed, each adding
+     *   its own, or `null` to refresh every record.
      */
     fun refresh(
         records: NodeRecords?,
         holder: SwingNodeHolder<*>,
         declaringNode: SwingModifier.Node?,
         mode: WriteMode,
+        within: PropertyFootprint? = null,
     ): Boolean {
         var invalidates = false
         records?.fastForEach { record ->
-            if (record.isStandingFor(this, declaringNode) &&
-                record.refresh(holder.component, holder.owner?.diagnostics, mode)
-            ) {
-                invalidates = true
+            if (record.isStandingFor(this, declaringNode)) {
+                if ((within == null || within.overlaps(records, typed(record))) &&
+                    record.refresh(holder.component, holder.owner?.diagnostics, mode)
+                ) {
+                    invalidates = true
+                }
             }
         }
         return invalidates
@@ -430,31 +437,86 @@ internal fun NodeRecords.indexAfter(
 }
 
 /**
- * Rewrites the selected property record and every later declaration owned by [declaringNode]. Returns whether
- * [from] selected a record.
+ * The records [rewriteRecordsFrom] visits: those [declaringNode] declares, skipping the records of [except].
+ *
+ * @property declaringNode the node declaring the records, or `null` for the outer modifier.
+ * @property except the node whose records are skipped, or `null` to skip none.
+ */
+internal class RewriteScope(
+    val declaringNode: SwingModifier.Node?,
+    val except: SwingModifier.Node? = null,
+)
+
+/**
+ * The property names a rewrite has written so far; a later declaration is rewritten only where it holds one of them.
+ *
+ * @param names the property names the rewrite starts from.
+ */
+internal class PropertyFootprint(
+    names: Set<String>,
+) {
+    private val written = HashSet(names)
+
+    /**
+     * Whether [record] writes a property of this footprint, adding the properties it writes when it does. A style's
+     * record holds none itself, so the keyed declarations of [records] that it declares stand for it, and so do the
+     * descriptor entries it retains: the style is handed this footprint so it writes again only the records and
+     * entries that overlap it, each adding its own.
+     */
+    fun overlaps(
+        records: NodeRecords,
+        record: ComponentNodeRecord<*, *>,
+    ): Boolean {
+        val style = record.node as? StyleNode
+        if (style == null) return overlaps(record.heldProperties)
+        val overlapping =
+            records.standing(ComponentNodeType, style).fastAny { it.key != null && holdsWritten(it.heldProperties) } ||
+                style.holdsAny(written)
+        if (overlapping) style.replayFootprint = this
+        return overlapping
+    }
+
+    private fun holdsWritten(names: Set<String>): Boolean = names.any { it in written }
+
+    /** Whether [names] hold one of this footprint's, adding them all when they do. */
+    fun overlaps(names: Set<String>): Boolean {
+        val overlapping = holdsWritten(names)
+        if (overlapping) written.addAll(names)
+        return overlapping
+    }
+}
+
+/**
+ * Rewrites the selected property record and every later declaration within [scope]; with a [footprint], only the
+ * later declarations overlapping it. Returns whether [from] selected a record.
  *
  * @param records the records searched, or `null` for none.
- * @param declaringNode the node declaring the records, or `null` for the outer modifier.
- * @param except the node whose records are skipped, or `null` to skip none.
+ * @param scope the declarations visited.
  * @param rewrite writes one record under the given mode.
  * @param from selects the first record to rewrite.
+ * @param footprint the property names written so far, or `null` to rewrite every later declaration. A later
+ *   declaration holding any of them is rewritten and adds its own.
  */
 internal fun rewriteRecordsFrom(
     records: NodeRecords?,
-    declaringNode: SwingModifier.Node?,
-    except: SwingModifier.Node?,
+    scope: RewriteScope,
     rewrite: (ComponentNodeRecord<*, *>, WriteMode) -> Unit,
     from: (ComponentNodeRecord<*, *>) -> Boolean,
+    footprint: PropertyFootprint? = null,
 ): Boolean {
+    if (records == null) return false
     var writing = false
-    records?.standing(ComponentNodeType, declaringNode)?.fastForEach { standing ->
-        if (standing.isStandingFor(ComponentNodeType, declaringNode)) {
+    records.standing(ComponentNodeType, scope.declaringNode).fastForEach { standing ->
+        if (standing.isStandingFor(ComponentNodeType, scope.declaringNode)) {
             val record = ComponentNodeType.typed(standing)
-            if (record.key != null && record.node !== except) {
-                if (writing || from(record)) {
-                    val mode = if (writing) WriteMode.RewriteEqual else WriteMode.ReuseEqual
+            if (record.key != null && record.node !== scope.except) {
+                if (writing) {
+                    if (footprint == null || footprint.overlaps(records, record)) {
+                        rewrite(record, WriteMode.RewriteEqual)
+                    }
+                } else if (from(record)) {
                     writing = true
-                    rewrite(record, mode)
+                    rewrite(record, WriteMode.ReuseEqual)
                 }
             }
         }

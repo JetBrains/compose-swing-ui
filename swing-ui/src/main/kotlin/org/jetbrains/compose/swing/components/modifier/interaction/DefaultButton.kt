@@ -5,7 +5,6 @@
 package org.jetbrains.compose.swing.components.modifier.interaction
 
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.node.runReportingUncaught
 import java.awt.event.HierarchyEvent
 import java.awt.event.HierarchyListener
 import javax.swing.JButton
@@ -71,13 +70,13 @@ private class DefaultButtonElement(
                 return
             }
             if (madeDefaultOn !== rootPane) release()
-            runReportingUncaught { rootPane.defaultButton = component }
+            report { rootPane.defaultButton = component }
             madeDefaultOn = rootPane
         }
 
         private fun release() {
             val rootPane = madeDefaultOn ?: return
-            if (rootPane.defaultButton === component) runReportingUncaught { rootPane.defaultButton = null }
+            if (rootPane.defaultButton === component) report { rootPane.defaultButton = null }
             madeDefaultOn = null
         }
 

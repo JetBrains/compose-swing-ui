@@ -276,7 +276,7 @@ public interface SwingModifier {
             this.holder = holder
         }
 
-        internal fun runAttachLifecycle() {
+        internal open fun runAttachLifecycle() {
             check(isAttached) { "attach(holder) must run before runAttachLifecycle()" }
             onAttach()
         }
@@ -340,6 +340,32 @@ public interface SwingModifier {
          * detaches its layout records itself, so its record runs without the diagnostics the chain passes.
          */
         internal open fun diagnosticsFor(given: SwingCompositionDiagnostics?): SwingCompositionDiagnostics? = given
+
+        /** What the element declared through [NodeElement.overwrites] and [NodeElement.rewriteOn], while attached. */
+        internal var declared: DeclaredOverwrites<T>? = null
+
+        internal override fun runAttachLifecycle() {
+            val declaration = declared
+            if (declaration == null) {
+                super.runAttachLifecycle()
+                return
+            }
+            declaration.capture()
+            super.runAttachLifecycle()
+            declaration.listen()
+        }
+
+        /**
+         * Runs [block], which writes onto the component where a listener of a caller may throw. A throw out of
+         * [block] goes unchanged to the current thread's uncaught-exception handler and this function returns
+         * normally, so the pass goes on applying.
+         *
+         * Keep the component's own checks outside [block], so their failures reach the caller.
+         *
+         * @param block performs the write.
+         */
+        @SwingComponentLibraryApi
+        protected fun report(block: () -> Unit): Unit = runReportingUncaught(block)
 
         /**
          * The typed target, valid from [onAttach] until [onDetach]. Reading it outside that window -
@@ -430,6 +456,36 @@ public interface SwingModifier {
          */
         @SwingComponentLibraryApi
         public open val allowsRedeclaration: Boolean get() = true
+
+        /**
+         * The properties this element's write lands on that no declaration of them names, besides the one
+         * [name] names. Each is captured before [ComponentNode.onAttach] and put back after
+         * [ComponentNode.onDetach], and the original is shared by property name with every other declaration
+         * of the same name in the chain, so the last restore leaves the value the component came with.
+         *
+         * Read once, when the node attaches; a later element handed to the same slot does not change it.
+         */
+        @SwingComponentLibraryApi
+        public open val overwrites: List<ComponentPropertyDescriptor<T, *>> get() = emptyList()
+
+        /**
+         * The bean properties whose announced change means something other than this element overwrote what it
+         * declared, such as a look and feel installing its own value. While the node is attached, a change of
+         * any of them runs [update] again with the element last declared, and then writes again the later
+         * declarations of the chain that hold a property this element holds ([heldProperties]) or overwrites
+         * ([overwrites]), or one that a declaration so written holds, so they keep precedence. A later declaration
+         * holding none of those is not written, so a value changed from outside stays; a style writes again only
+         * its own entries that qualify.
+         *
+         * An element that declares any is ordered with the others that do: an earlier declaration does not
+         * answer a change a later declaration's write announced, and every [update] and
+         * [ComponentNode.onDetach] of this element is part of that order. The node is retained, so it tells a
+         * first [update] from a replay by its own state.
+         *
+         * Read once, when the node attaches; a later element handed to the same slot does not change it.
+         */
+        @SwingComponentLibraryApi
+        public open val rewriteOn: List<String> get() = emptyList()
 
         /**
          * What detaching this element puts back, [RestorePolicy.EverythingWritten] by default. See
@@ -817,7 +873,13 @@ internal class ComponentNodeRecord<T : Component, N : SwingModifier.ComponentNod
     /** The family used by the shared store for this record. */
     override val nodeType: ModifierNodeType<*> get() = ComponentNodeType
 
-    override val heldProperties: Set<String> get() = element.heldProperties
+    /** The element's held properties and those it overwrites; the union is built only where it declares any. */
+    override val heldProperties: Set<String>
+        get() {
+            val held = element.heldProperties
+            val overwrites = element.overwrites
+            return if (overwrites.isEmpty()) held else overwrites.mapTo(HashSet(held)) { it.name }
+        }
 
     override fun updateChanges(
         holder: SwingNodeHolder<*>,
@@ -830,6 +892,10 @@ internal class ComponentNodeRecord<T : Component, N : SwingModifier.ComponentNod
         replacing: NodeRecord<*, *>?,
     ): Boolean {
         var invalidates = false
+        if (element.overwrites.isNotEmpty() || element.rewriteOn.isNotEmpty()) {
+            node.declared =
+                DeclaredOverwrites(node, state, element.overwrites, element.rewriteOn, element.heldProperties)
+        }
         // A record's install is one write however the node splits it: some capture an original in onAttach and
         // write the declaration in update, others write in onAttach and have nothing to add.
         node.diagnosticsFor(diagnostics).watchWrite(this) {
@@ -845,7 +911,13 @@ internal class ComponentNodeRecord<T : Component, N : SwingModifier.ComponentNod
     ): Unit =
         // A node restores its captured original through component.
         node.diagnosticsFor(diagnostics).watchRestore(this) {
-            node.runDetachLifecycle(reportCallbackFailure)
+            val declaration = node.declared
+            node.declared = null
+            if (declaration == null) {
+                node.runDetachLifecycle(reportCallbackFailure)
+            } else {
+                declaration.detach(reportCallbackFailure)
+            }
         }
 
     /**
@@ -899,13 +971,19 @@ internal class ComponentNodeRecord<T : Component, N : SwingModifier.ComponentNod
             // identical to first apply.
             checkedTarget(element, target)
             if (node is CompositionLocalConsumerModifierNode) {
-                node.observeReads(OnLocalReadChanged) { invalidates = element.update(node, mode) }
+                node.observeReads(OnLocalReadChanged) { invalidates = update(element, node, mode) }
             } else {
-                invalidates = element.update(node, mode)
+                invalidates = update(element, node, mode)
             }
         }
         return invalidates
     }
+
+    private fun update(
+        element: SwingModifier.NodeElement<T, N>,
+        node: N,
+        mode: WriteMode,
+    ): Boolean = node.declared?.ordered { element.update(node, mode) } ?: element.update(node, mode)
 
     companion object {
         /**
@@ -1511,17 +1589,25 @@ public class SwingModifierState internal constructor() {
      * [DeclaredNodesListener] its nodes where the rewritten node automatically invalidates its consumer.
      *
      * @param node the node whose record is updated again.
+     * @param overwritten the property names the node's element holds or overwrites, or `null` to write every
+     *   later declaration again. Given names, only the later declarations holding one of them, or one that a
+     *   declaration so written holds, are written again; a style writes again only its own entries that do.
      */
-    internal fun refreshLocalConsumer(node: SwingModifier.ComponentNode<*>) {
+    internal fun refreshLocalConsumer(
+        node: SwingModifier.ComponentNode<*>,
+        overwritten: Set<String>? = null,
+    ) {
         val holder = node.holder
         val diagnostics = holder?.owner?.diagnostics
         val handed = handedNodes
         val held = startWrite()
         var needsDeclaredNodes = false
+        val footprint = overwritten?.let { PropertyFootprint(it) }
         if (!rewritePropertySlotsFrom(
                 node.component,
                 diagnostics,
                 onInvalidates = { needsDeclaredNodes = true },
+                footprint = footprint,
             ) { it.node === node }
         ) {
             val rewritten = records?.fastFirstOrNull { it.key == null && it.node === node }
@@ -1534,9 +1620,10 @@ public class SwingModifierState internal constructor() {
                 // node, so when no record above holds it, the lookup below rewrites each style's slots and only the
                 // style holding it matches.
                 forEachStyle(holder) { style ->
-                    style.rewriteSlotsFrom(onInvalidates = { needsDeclaredNodes = true }) { record ->
-                        record.node === node
-                    }
+                    style.rewriteSlotsFrom(
+                        onInvalidates = { needsDeclaredNodes = true },
+                        footprint = footprint,
+                    ) { record -> record.node === node }
                 }
             }
         }
@@ -1554,19 +1641,19 @@ public class SwingModifierState internal constructor() {
      * @param target the component the records write to.
      * @param diagnostics where a failing write is reported, or `null` for none.
      * @param onInvalidates called for each record whose update automatically invalidates its consumer.
-     * @param except the node whose records are skipped, or `null` to skip none.
+     * @param footprint the property names written so far, or `null` to update every later record.
      * @param from selects the first record to update.
      */
     internal fun rewritePropertySlotsFrom(
         target: Component,
         diagnostics: SwingCompositionDiagnostics?,
         onInvalidates: () -> Unit = {},
-        except: SwingModifier.Node? = null,
+        footprint: PropertyFootprint? = null,
         from: (ComponentNodeRecord<*, *>) -> Boolean,
     ): Boolean =
-        rewriteRecordsFrom(records, null, except, { record, mode ->
+        rewriteRecordsFrom(records, RewriteScope(null), { record, mode ->
             if (record.refresh(target, diagnostics, mode)) onInvalidates()
-        }, from)
+        }, from, footprint)
 }
 
 /**

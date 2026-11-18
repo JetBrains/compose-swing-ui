@@ -16,6 +16,7 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.style.SwingStyle
 import org.jetbrains.compose.swing.style.TestTextNodeKind
+import org.jetbrains.compose.swing.style.background
 import org.jetbrains.compose.swing.style.setterCaseTests
 import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.style.toolTip
@@ -28,6 +29,7 @@ import org.junit.jupiter.api.TestFactory
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
 import org.junit.jupiter.params.provider.ValueSource
+import java.awt.Color
 import javax.swing.JTextField
 import javax.swing.SwingUtilities
 import javax.swing.text.DefaultCaret
@@ -438,6 +440,38 @@ class CaretStyleTest {
         assertSame(stashed, onNodeOfType<JTextField>().fetch().caret, "the field should still carry that caret")
         assertEquals(250, stashed.blinkRate)
     }
+
+    @ParameterizedTest
+    @ValueSource(booleans = [false, true])
+    fun aCaretEventLeavesAnOutsideChangeToAnUnrelatedLaterDeclarationAlone(laterInOwnStyle: Boolean) =
+        runComposeSwingTest {
+            setContent {
+                TextField(
+                    "hello",
+                    onValueChange = {},
+                    modifier =
+                        if (laterInOwnStyle) {
+                            SwingModifier
+                                .styleable(TestTextNodeKind) { caretBlinkRate(250) }
+                                .styleable(TestTextNodeKind) { background(Color.RED) }
+                        } else {
+                            SwingModifier.styleable(TestTextNodeKind) {
+                                caretBlinkRate(250)
+                                background(Color.RED)
+                            }
+                        },
+                )
+            }
+            val field = onNodeOfType<JTextField>().fetch()
+            assertEquals(Color.RED, field.background)
+
+            field.background = Color.BLUE
+            val arriving = DefaultCaret()
+            field.caret = arriving
+
+            assertEquals(250, arriving.blinkRate, "the rate declaration answers the new caret")
+            assertEquals(Color.BLUE, field.background, "a property the rate does not overwrite is not written again")
+        }
 
     companion object {
         @JvmStatic

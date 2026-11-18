@@ -17,7 +17,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.job
 import org.jetbrains.compose.swing.RecordingMeasurementLayout
 import org.jetbrains.compose.swing.components.layout.Panel
-import org.jetbrains.compose.swing.components.style.displayedMnemonicIndex
 import org.jetbrains.compose.swing.core.SwingCompositionDiagnostics
 import org.jetbrains.compose.swing.core.SwingRecomposer
 import org.jetbrains.compose.swing.core.awaitUntil
@@ -37,6 +36,7 @@ import org.jetbrains.compose.swing.reportedUncaught
 import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.style.TestButtonKind
+import org.jetbrains.compose.swing.style.stylePropertyOf
 import org.jetbrains.compose.swing.style.styleable
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -414,15 +414,20 @@ class ModifierChainFailureTest {
 
     @Test
     fun aNodeRefusedOnAttachThrowsTheRefusalWithTheRollbacksRepeatOfItSuppressed() = runComposeSwingTest {
+        val refusal = IllegalStateException("attach refused")
+        val repeat = IllegalStateException("detach refused again")
+        val node = AttachRefusingNode(refusal, repeat)
+        val refusingProperty = stylePropertyOf<Unit> { NodeOf(node, additive = false) }
         val failure =
             assertFailsWith<IllegalStateException> {
                 setContent {
                     Panel(
-                        modifier = SwingModifier.styleable(TestButtonKind) { displayedMnemonicIndex(0) },
+                        modifier = SwingModifier.styleable(TestButtonKind) { refusingProperty.provide(Unit) },
                     ) {}
                 }
             }
-        assertIs<IllegalStateException>(failure.suppressed.single())
+        assertSame(refusal, failure)
+        assertSame(repeat, failure.suppressed.single())
     }
 
     @Test
@@ -558,9 +563,9 @@ class ModifierChainFailureTest {
 
     private class NodeOf<N : SwingModifier.ComponentNode<JPanel>>(
         private val node: N,
+        override val additive: Boolean = true,
     ) : SwingModifier.NodeElement<JPanel, N>() {
         override val targetType: Class<JPanel> get() = JPanel::class.java
-        override val additive: Boolean get() = true
 
         override fun create(): N = node
 

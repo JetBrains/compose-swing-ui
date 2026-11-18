@@ -952,6 +952,7 @@ public class org/jetbrains/compose/swing/modifier/SwingModifier$ComponentNode : 
 	public fun <init> ()V
 	public final fun getComponent ()Ljava/awt/Component;
 	public fun getShouldAutoInvalidate ()Z
+	protected final fun report (Lkotlin/jvm/functions/Function0;)V
 }
 
 public abstract interface class org/jetbrains/compose/swing/modifier/SwingModifier$Element : org/jetbrains/compose/swing/modifier/SwingModifier {
@@ -986,7 +987,9 @@ public abstract class org/jetbrains/compose/swing/modifier/SwingModifier$NodeEle
 	public fun getHeldProperties ()Ljava/util/Set;
 	public fun getKey ()Ljava/lang/Object;
 	public fun getName ()Ljava/lang/String;
+	public fun getOverwrites ()Ljava/util/List;
 	public fun getRestores-sp8GJzU ()I
+	public fun getRewriteOn ()Ljava/util/List;
 	public abstract fun getTargetType ()Ljava/lang/Class;
 	public abstract fun hashCode ()I
 	public abstract fun update (Lorg/jetbrains/compose/swing/modifier/SwingModifier$ComponentNode;)V

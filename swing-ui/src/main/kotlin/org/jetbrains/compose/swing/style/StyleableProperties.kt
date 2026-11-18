@@ -7,18 +7,21 @@ import org.jetbrains.compose.swing.core.watchWrite
 import org.jetbrains.compose.swing.modifier.ModifierInfo
 import org.jetbrains.compose.swing.modifier.PropertyCaptures
 import org.jetbrains.compose.swing.modifier.PropertyElement
+import org.jetbrains.compose.swing.modifier.PropertyFootprint
 import org.jetbrains.compose.swing.modifier.PropertyRewrites
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.WriteMode
 import org.jetbrains.compose.swing.modifier.reassertPropertySlotsFrom
+import org.jetbrains.compose.swing.util.fastForEach
+import org.jetbrains.compose.swing.util.fastForEachReversed
 import java.awt.Component
 import java.beans.PropertyChangeEvent
 import java.beans.PropertyChangeListener
 
 /** Retains descriptor declarations in their current write order. */
 internal class StyleableProperties {
-    private var entries: Array<PropertyEntry?>? = null
-    private var size = 0
+    private var entries: List<PropertyEntry>? = null
+    private val size: Int get() = entries?.size ?: 0
 
     fun resolve(
         incoming: List<PropertyElement<*, *>>,
@@ -58,23 +61,17 @@ internal class StyleableProperties {
         index: Int,
         found: Int,
     ): Boolean {
-        val previous = entries
-        if (found == size) {
-            if (previous == null) {
-                entries = arrayOfNulls(1)
-            } else if (size == previous.size) {
-                entries = previous.copyOf(size * 2)
-            }
+        val standing = entries.orEmpty()
+        val appended = found == standing.size
+        val moved = appended || found != index
+        if (moved) {
+            entries =
+                buildList(standing.size + 1) {
+                    addAll(standing)
+                    if (!appended) removeAt(found)
+                    add(index, entry)
+                }
         }
-        val entries = checkNotNull(entries)
-        val moved = found != index || found == size
-        if (found == size) {
-            entries.copyInto(entries, index + 1, index, size)
-            size++
-        } else if (found != index) {
-            entries.copyInto(entries, index + 1, index, found)
-        }
-        entries[index] = entry
         return moved
     }
 
@@ -96,19 +93,18 @@ internal class StyleableProperties {
         incoming: List<PropertyElement<*, *>>,
         style: StyleNode,
     ): Boolean {
-        val entries = entries ?: return false
+        val standing = entries ?: return false
         var released: Set<String>? = null
         var failure: Throwable? = null
         try {
             for (i in size - 1 downTo 0) {
-                val entry = checkNotNull(entries[i])
+                val entry = standing[i]
                 // An unchanged restyle keeps each entry at its index, so the same-position key skips the search.
                 val key = entry.element.key
                 if ((i < incoming.size && incoming[i].key == key) || incoming.any { it.key == key }) continue
                 released = released?.plus(entry.element.heldProperties) ?: entry.element.heldProperties
                 failure = collectFailure(failure) { entry.detach() }
-                entries.copyInto(entries, i, i + 1, size)
-                entries[--size] = null
+                entries = entries.orEmpty().toMutableList().also { it.removeAt(i) }
             }
         } finally {
             released?.let { names -> failure = collectFailure(failure) { style.reassertReleased(names) } }
@@ -124,22 +120,40 @@ internal class StyleableProperties {
     fun rewriteReleased(names: Set<String>) {
         val entries = entries ?: return
         var rewriting = false
-        for (i in 0 until size) {
-            val entry = checkNotNull(entries[i])
+        entries.fastForEach { entry ->
             if (!rewriting) rewriting = entry.element.heldProperties.any { it in names }
             if (rewriting && entry.attached) entry.write()
         }
     }
 
-    fun refresh(mode: WriteMode) {
+    /**
+     * Writes the attached entries again where [mode] rewrites equal declarations. With a [footprint], only the
+     * entries holding one of its properties are written, in declared order, each adding its own.
+     */
+    fun refresh(
+        mode: WriteMode,
+        footprint: PropertyFootprint? = null,
+    ) {
         val entries = entries ?: return
-        if (mode.rewritesEqual) for (i in 0 until size) entries[i]?.takeIf { it.attached }?.write()
+        if (!mode.rewritesEqual) return
+        entries.fastForEach { entry ->
+            if (entry.attached && (footprint == null || footprint.overlaps(entry.element.heldProperties))) entry.write()
+        }
+    }
+
+    /** Whether an attached entry holds one of [names]. */
+    fun holdsAny(names: Set<String>): Boolean {
+        var holds = false
+        entries?.fastForEach { entry ->
+            if (entry.attached && entry.element.heldProperties.any { it in names }) holds = true
+        }
+        return holds
     }
 
     fun detach() {
         val entries = entries ?: return
         var failure: Throwable? = null
-        for (i in size - 1 downTo 0) failure = collectFailure(failure) { entries[i]?.detach() }
+        entries.fastForEachReversed { entry -> failure = collectFailure(failure) { entry.detach() } }
         failure?.let { throw it }
     }
 }
@@ -165,7 +179,7 @@ internal class PropertyEntry(
 
     fun rebind(element: PropertyElement<*, *>): Boolean {
         this.element = element
-        return attached && updateRegistration(element.rewriteOn)
+        return attached && updateRegistration(element.rewriteEvent)
     }
 
     fun reconcileCaptures(element: PropertyElement<*, *>): Boolean {
@@ -280,7 +294,7 @@ internal class PropertyEntry(
                         additional[index] = element.captureOverwritten(index, component, state.captures())
                     }
                 }
-                updateRegistration(element.rewriteOn)
+                updateRegistration(element.rewriteEvent)
                 attached = true
             }
         if (failure != null) {

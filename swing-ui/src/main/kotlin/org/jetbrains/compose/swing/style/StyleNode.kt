@@ -15,7 +15,9 @@ import org.jetbrains.compose.swing.modifier.ComponentNodeType
 import org.jetbrains.compose.swing.modifier.NodeRecord
 import org.jetbrains.compose.swing.modifier.ParentLayoutNodeRecord
 import org.jetbrains.compose.swing.modifier.ParentLayoutNodeType
+import org.jetbrains.compose.swing.modifier.PropertyFootprint
 import org.jetbrains.compose.swing.modifier.RestorePolicy
+import org.jetbrains.compose.swing.modifier.RewriteScope
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.WriteMode
 import org.jetbrains.compose.swing.modifier.attachElement
@@ -158,6 +160,9 @@ internal class StyleNode(
 
     private var properties: StyleableProperties? = null
 
+    /** Whether an attached style property holds one of [names]. */
+    internal fun holdsAny(names: Set<String>): Boolean = properties?.holdsAny(names) == true
+
     override fun diagnosticsFor(given: SwingCompositionDiagnostics?): SwingCompositionDiagnostics? = null
 
     /**
@@ -273,7 +278,7 @@ internal class StyleNode(
         }
 
     /** The nested blocks and locals this node provides, read as a descendant resolves. */
-    fun providedStyles(): ProvidedStyles = publication?.value ?: ProvidedStyles.Empty
+    val providedStyles: ProvidedStyles get() = publication?.value ?: ProvidedStyles.Empty
 
     override fun onAttach() {
         val holder = checkNotNull(holder)
@@ -298,13 +303,15 @@ internal class StyleNode(
         mode: WriteMode = WriteMode.ReuseEqual,
     ): Boolean {
         val holder = checkNotNull(holder) { "Node is not attached" }
+        val within = replayFootprint
+        replayFootprint = null
         // The node is reused across kinds, so the requirement is that of the element last applied, not of the first.
         kind = element.kind
         requireKindTarget(kind, holder.component)
         val owner = checkNotNull(holder.owner) { "Node is not attached to a composition" }
         if (!isStale && !readsLocal && element == ownStyle) {
-            properties?.refresh(mode)
-            return ComponentNodeType.refresh(holder.modifierState?.records, holder, this, mode)
+            properties?.refresh(mode, within)
+            return ComponentNodeType.refresh(holder.modifierState?.records, holder, this, mode, within)
         }
         val collector = owner.styleCollector
         readsLocal = false
@@ -320,8 +327,14 @@ internal class StyleNode(
             }
         // A collection that threw left the node stale, so the next resolve collects again.
         isStale = false
-        // Attached slots can reuse equal declarations when no earlier slot wrote.
-        val updating = if (ownStyle != null) mode else WriteMode.RewriteEqual
+        // Attached slots can reuse equal declarations when no earlier slot wrote. A replay within a footprint writes
+        // only what changed, then the entries overlapping it.
+        val updating =
+            when {
+                ownStyle == null -> WriteMode.RewriteEqual
+                within != null -> WriteMode.ReuseEqual
+                else -> mode
+            }
         // A successful apply sets it again; an apply that throws leaves no element behind.
         ownStyle = null
         return try {
@@ -330,7 +343,15 @@ internal class StyleNode(
                 if (properties == null && collected?.declarations?.isNotEmpty() == true) {
                     properties = StyleableProperties()
                 }
-                applyCollected(element, collected, updating, publication?.value ?: ProvidedStyles.Empty, properties)
+                val invalidates =
+                    applyCollected(element, collected, updating, publication?.value ?: ProvidedStyles.Empty, properties)
+                if (within != null) {
+                    // Writes again the descriptor entries and custom records of this style overlapping [within].
+                    properties?.refresh(mode, within)
+                    ComponentNodeType.refresh(holder.modifierState?.records, holder, this, mode, within) || invalidates
+                } else {
+                    invalidates
+                }
             }
         } finally {
             collected?.release()
@@ -372,6 +393,9 @@ internal class StyleNode(
         records.fastForEach { if (it.isStandingFor(ComponentNodeType, this)) it.node.reset() }
         records.fastForEach { if (it.isStandingFor(ParentLayoutNodeType, this)) it.node.reset() }
     }
+
+    /** The footprint the next [resolve] of an unchanged style writes its entries within, or `null` for all of them. */
+    internal var replayFootprint: PropertyFootprint? = null
 
     /** Marks this style stale and, when requested, resolves it against its current ancestors. */
     fun restyle(replay: Boolean = true) {
@@ -520,10 +544,13 @@ internal class StyleNode(
  * reads its own composition locals, which the outer modifier's refresh does not reach.
  *
  * @param onInvalidates called when a rewritten node requires consumer invalidation.
- * @param from selects the first declaration to rewrite; later declarations are rewritten unconditionally.
+ * @param footprint the property names written so far, or `null` to rewrite every later declaration.
+ * @param from selects the first declaration to rewrite; later declarations are rewritten unconditionally, or only
+ *   where they overlap [footprint].
  */
 internal fun StyleNode.rewriteSlotsFrom(
     onInvalidates: () -> Unit = {},
+    footprint: PropertyFootprint? = null,
     from: (ComponentNodeRecord<*, *>) -> Boolean,
 ): Boolean {
     val holder = holder
@@ -531,13 +558,13 @@ internal fun StyleNode.rewriteSlotsFrom(
     if (holder == null || records == null) return false
     val diagnostics = holder.owner?.diagnostics
     val rewritten =
-        rewriteRecordsFrom(records, this, except = null, { record, mode ->
+        rewriteRecordsFrom(records, RewriteScope(this), { record, mode ->
             if (record.refresh(holder.component, diagnostics, mode)) onInvalidates()
-        }, from)
+        }, from, footprint)
     if (rewritten) {
-        rewriteRecordsFrom(records, null, except = null, { record, mode ->
+        rewriteRecordsFrom(records, RewriteScope(null), { record, mode ->
             if (record.node !== this && record.refresh(holder.component, diagnostics, mode)) onInvalidates()
-        }) { it.node === this }
+        }, { it.node === this }, footprint)
     }
     return rewritten
 }

@@ -6,16 +6,12 @@ package org.jetbrains.compose.swing.components.style
 
 import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
 import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor.Companion.accessor
-import org.jetbrains.compose.swing.modifier.PropertyRewrites
 import org.jetbrains.compose.swing.modifier.RestorePolicy
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.node.runReportingUncaught
 import org.jetbrains.compose.swing.style.stylePropertyOf
-import java.awt.Component
 import java.awt.event.KeyEvent
-import java.beans.PropertyChangeEvent
-import java.beans.PropertyChangeListener
 import javax.swing.AbstractButton
+import javax.swing.JComponent
 import javax.swing.JLabel
 
 /*
@@ -84,7 +80,7 @@ public fun ButtonStyleScope.mnemonic(mnemonic: Char): Unit =
  * @param index the zero-based index into the text of the character to underline, or `-1` to underline none of them.
  * @see javax.swing.JLabel.setDisplayedMnemonicIndex
  */
-public fun LabelStyleScope.displayedMnemonicIndex(index: Int): Unit = DisplayedMnemonicIndexProperty.provide(index)
+public fun LabelStyleScope.displayedMnemonicIndex(index: Int): Unit = LabelMnemonicIndexProperty.provide(index)
 
 /**
  * Sets which occurrence of the mnemonic letter in the button's text is underlined, as a zero-based index into the
@@ -100,7 +96,7 @@ public fun LabelStyleScope.displayedMnemonicIndex(index: Int): Unit = DisplayedM
  * @param index the zero-based index into the text of the character to underline, or `-1` to underline none of them.
  * @see javax.swing.AbstractButton.setDisplayedMnemonicIndex
  */
-public fun ButtonStyleScope.displayedMnemonicIndex(index: Int): Unit = DisplayedMnemonicIndexProperty.provide(index)
+public fun ButtonStyleScope.displayedMnemonicIndex(index: Int): Unit = ButtonMnemonicIndexProperty.provide(index)
 
 /**
  * `AbstractButton` and `JLabel` each declare the mnemonic for themselves and under different names, so the
@@ -121,136 +117,109 @@ internal val MnemonicDescriptor =
 
 private val MnemonicProperty = stylePropertyOf(MnemonicDescriptor)
 
-private val DisplayedMnemonicIndexDescriptor =
-    ComponentPropertyDescriptor(
-        "displayedMnemonicIndex",
-        accessor<AbstractButton, Int>(
-            read = { it.displayedMnemonicIndex },
-            write = { component, value -> component.displayedMnemonicIndex = value },
-        ),
-        accessor<JLabel, Int>(
-            read = { it.displayedMnemonicIndex },
-            write = { component, value -> component.displayedMnemonicIndex = value },
-        ),
-    )
+private val LabelMnemonicIndexProperty =
+    stylePropertyOf { index: Int ->
+        DisplayedMnemonicIndexElement(
+            index,
+            JLabel::class.java,
+            JLabel::getText,
+            JLabel::setText,
+            JLabel::setDisplayedMnemonicIndex,
+        )
+    }
 
-private val MnemonicTextDescriptor =
-    ComponentPropertyDescriptor(
-        "text",
-        accessor<AbstractButton, String?>(
-            read = { it.text },
-            write = { component, value -> component.text = value },
-        ),
-        accessor<JLabel, String?>(
-            read = { it.text },
-            write = { component, value -> component.text = value },
-        ),
-    )
+private val ButtonMnemonicIndexProperty =
+    stylePropertyOf { index: Int ->
+        DisplayedMnemonicIndexElement(
+            index,
+            AbstractButton::class.java,
+            AbstractButton::getText,
+            AbstractButton::setText,
+            AbstractButton::setDisplayedMnemonicIndex,
+        )
+    }
 
-internal val DisplayedMnemonicIndexProperty = stylePropertyOf { index: Int -> DisplayedMnemonicIndexElement(index) }
-
-internal class DisplayedMnemonicIndexNode :
-    SwingModifier.ComponentNode<Component>(),
-    PropertyChangeListener {
+/**
+ * The live state behind a displayed mnemonic index: the index the modifier declared and its writes to the
+ * component. It exists so the declared index survives the widget deriving its own from a text or mnemonic
+ * change, and is released when the modifier leaves the component.
+ */
+internal class DisplayedMnemonicIndexNode<C : JComponent>(
+    private val getText: (C) -> String?,
+    private val setText: (C, String?) -> Unit,
+    private val setIndex: (C, Int) -> Unit,
+) : SwingModifier.ComponentNode<C>() {
     var index: Int = -1
         private set
 
-    private lateinit var rewrites: PropertyRewrites
-
-    private var sequence = 0L
-
     fun apply(newIndex: Int) {
-        sequence = rewrites.next()
         val unchanged = newIndex == index
         index = newIndex
         if (!unchanged || reachedByText()) write(newIndex)
     }
 
-    override fun onAttach() {
-        val state = checkNotNull(holder?.modifierState) { "A mnemonic index node belongs to a modifier" }
-        rewrites = state.rewrites()
-        // Refuses a component without a mnemonic text at attach, before any write.
-        MnemonicTextDescriptor.read(component)
-        component.addPropertyChangeListener("displayedMnemonicIndex", this)
-        component.addPropertyChangeListener("text", this)
-    }
-
     override fun onDetach() {
-        component.removePropertyChangeListener("text", this)
-        component.removePropertyChangeListener("displayedMnemonicIndex", this)
         write(null)
     }
 
-    /**
-     * A text or mnemonic write announces its own change before the widget derives the index again, so the node
-     * listens on the index's own announcement, which comes after the derived index is in. It writes back only an
-     * index the text reaches: this runs inside `setText`, where a shorter text may no longer reach it - including
-     * in the pass that shortens the text and withdraws the index - and Swing throws for such an index. A rewrite of
-     * an unchanged index applies the same check.
-     *
-     * A derived index equal to the one standing announces nothing, so a text that reaches the declared index again
-     * after a shorter one derived the same index is announced too: the index is written ahead of the derivation,
-     * which then changes it and brings the index's own announcement.
-     */
-    override fun propertyChange(event: PropertyChangeEvent) {
-        // An earlier declaration must not answer a later declaration's write in the same cascade.
-        if (!rewrites.mayReapply(sequence)) return
-        if (event.propertyName == "text") {
-            if (reachedByText()) write(index)
-        } else if (event.newValue != index && reachedByText()) {
-            write(index)
-        }
-    }
-
-    private fun reachedByText(): Boolean = index < (MnemonicTextDescriptor.read(component)?.length ?: 0)
+    private fun reachedByText(): Boolean = index < (getText(component)?.length ?: 0)
 
     private fun write(value: Int?) {
-        rewrites.enter(sequence)
-        try {
-            if (value == null) {
-                // The read refuses a widget without text, and that refusal stays the caller's; only the write's
-                // listeners are reported.
-                val text = MnemonicTextDescriptor.read(component)
-                runReportingUncaught { MnemonicTextDescriptor.write(component, text) }
-            } else {
-                // Swing refuses an index its text does not carry; that refusal belongs to the caller, while a
-                // listener's throw from the write is reported.
-                require(value in -1 until (MnemonicTextDescriptor.read(component)?.length ?: 0)) {
-                    "displayedMnemonicIndex $value lies outside the text"
-                }
-                runReportingUncaught { DisplayedMnemonicIndexDescriptor.write(component, value) }
+        if (value == null) {
+            // The read refuses a widget without text, and that refusal stays the caller's; only the write's
+            // listeners are reported.
+            val text = getText(component)
+            report { setText(component, text) }
+        } else {
+            // Swing refuses an index its text does not carry; that refusal belongs to the caller, while a
+            // listener's throw from the write is reported.
+            require(value in -1 until (getText(component)?.length ?: 0)) {
+                "displayedMnemonicIndex $value lies outside the text"
             }
-        } finally {
-            rewrites.exit()
+            report { setIndex(component, value) }
         }
     }
 }
 
 /**
- * The element a displayed mnemonic index is written through. Its node writes the index back over each one the
- * widget derives. A pass that rewrites an unchanged index the text no longer reaches skips the write, which
- * would throw, and the widget keeps the index it derives.
+ * The element a displayed mnemonic index is written through. It writes the index back over each one the widget
+ * derives. A pass that rewrites an unchanged index the text no longer reaches skips the write, which would throw,
+ * and the widget keeps the index it derives.
+ *
+ * A text or mnemonic write announces its own change before the widget derives the index again, so the element
+ * also replays on the index's own announcement, which comes after the derived index is in. It writes back only an
+ * index the text reaches: a replay runs inside `setText`, where a shorter text may no longer reach it, and Swing
+ * throws for such an index.
+ *
+ * A derived index equal to the one standing announces nothing, so a text that reaches the declared index again
+ * after a shorter one derived the same index is announced too: the index is written ahead of the derivation,
+ * which then changes it and brings the index's own announcement.
  */
-internal class DisplayedMnemonicIndexElement(
+internal class DisplayedMnemonicIndexElement<C : JComponent>(
     private val index: Int,
-) : SwingModifier.NodeElement<Component, DisplayedMnemonicIndexNode>() {
-    override val targetType: Class<Component> get() = Component::class.java
-
+    override val targetType: Class<C>,
+    private val getText: (C) -> String?,
+    private val setText: (C, String?) -> Unit,
+    private val setIndex: (C, Int) -> Unit,
+) : SwingModifier.NodeElement<C, DisplayedMnemonicIndexNode<C>>() {
     override val name: String get() = "displayedMnemonicIndex"
 
     override val key: Any get() = "displayedMnemonicIndex"
 
     override val restores: RestorePolicy get() = RestorePolicy.None
 
+    override val rewriteOn: List<String> get() = listOf("text", "displayedMnemonicIndex")
+
     override val declaredValues: Map<String, Any?> get() = mapOf(name to index)
 
-    override fun create(): DisplayedMnemonicIndexNode = DisplayedMnemonicIndexNode()
+    override fun create(): DisplayedMnemonicIndexNode<C> = DisplayedMnemonicIndexNode(getText, setText, setIndex)
 
-    override fun update(node: DisplayedMnemonicIndexNode) {
+    override fun update(node: DisplayedMnemonicIndexNode<C>) {
         node.apply(index)
     }
 
-    override fun equals(other: Any?): Boolean = other is DisplayedMnemonicIndexElement && other.index == index
+    override fun equals(other: Any?): Boolean =
+        other is DisplayedMnemonicIndexElement<*> && other.targetType == targetType && other.index == index
 
     override fun hashCode(): Int = index
 }

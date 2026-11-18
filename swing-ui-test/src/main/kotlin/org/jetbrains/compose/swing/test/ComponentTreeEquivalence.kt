@@ -217,8 +217,10 @@ private val TEXT_STATE: List<WidgetState> =
         widgetState<JTextComponent>("caret") { it.caret?.javaClass },
         widgetState<JTextComponent>("caretBlinkRate") { it.caret?.blinkRate },
         widgetState<JTextComponent>("caretUpdatePolicy") { (it.caret as? DefaultCaret)?.updatePolicy },
-        widgetState<JTextComponent>("caretPosition") { it.caretPosition },
-        widgetState<JTextComponent>("selection") { it.selectionStart to it.selectionEnd },
+        widgetState<JTextComponent>("caretPosition") { it.caret?.dot },
+        widgetState<JTextComponent>("selection") {
+            if (it.caret == null) null else it.selectionStart to it.selectionEnd
+        },
         widgetState<JTextComponent>("navigationFilter") { it.navigationFilter?.javaClass },
         widgetState<JTextComponent>("focusAccelerator") { it.focusAccelerator },
         widgetState<JTextComponent>("documentFilter") { (it.document as? AbstractDocument)?.documentFilter?.javaClass },

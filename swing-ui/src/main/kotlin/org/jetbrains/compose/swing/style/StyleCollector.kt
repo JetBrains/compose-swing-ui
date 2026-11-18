@@ -104,7 +104,7 @@ internal class StyleCollector : NestedStyleProviderScope {
         while (node != null) {
             val ancestor = node
             ancestor.modifierState?.forEachStyleReversed(ancestor) { style ->
-                val locals = style.providedStyles().locals
+                val locals = style.providedStyles.locals
                 for ((key, local) in locals) {
                     if (
                         checkNotNull(collected) { "A style property was provided outside a collect" }.declarations.any {
@@ -200,7 +200,7 @@ internal class StyleCollector : NestedStyleProviderScope {
         if (node == null) return
         applyProvidedFrom(node.publisherAbove, consumer, key)
         node.modifierState?.forEachStyle(node) { style ->
-            val styles = style.providedStyles().nested[key]?.value
+            val styles = style.providedStyles.nested[key]?.value
             if (styles != null) {
                 val outerProvider = localProvider
                 blockKeys.add(key)
