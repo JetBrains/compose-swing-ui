@@ -31,7 +31,7 @@ import kotlinx.coroutines.flow.first
 
 /**
  * Creates a [InfiniteTransition] that runs infinite child animations. Child animations can be added
- * using [InfiniteTransition.animateColor][androidx.compose.animation.animateColor],
+ * using [InfiniteTransition.animateColor][org.jetbrains.compose.swing.animation.animateColor],
  * [InfiniteTransition.animateFloat], or [InfiniteTransition.animateValue]. Child animations will
  * start running as soon as they enter the composition, and will not stop until they are removed
  * from the composition.
@@ -47,7 +47,7 @@ public fun rememberInfiniteTransition(label: String = "InfiniteTransition"): Inf
 
 /**
  * [InfiniteTransition] is responsible for running child animations. Child animations can be added
- * using [InfiniteTransition.animateColor][androidx.compose.animation.animateColor],
+ * using [InfiniteTransition.animateColor][org.jetbrains.compose.swing.animation.animateColor],
  * [InfiniteTransition.animateFloat], or [InfiniteTransition.animateValue]. Child animations will
  * start running as soon as they enter the composition, and will not stop until they are removed
  * from the composition.
@@ -58,7 +58,7 @@ public class InfiniteTransition internal constructor(public val label: String) {
 
     /**
      * Each animation created using
-     * [InfiniteTransition.animateColor][androidx.compose.animation.animateColor],
+     * [InfiniteTransition.animateColor][org.jetbrains.compose.swing.animation.animateColor],
      * [InfiniteTransition.animateFloat], or [InfiniteTransition.animateValue] is represented as a
      * [TransitionAnimationState] in [InfiniteTransition]. [typeConverter] converts the animation
      * value from/to an [AnimationVector]. [label] differentiates this animation from others.
@@ -227,7 +227,7 @@ public class InfiniteTransition internal constructor(public val label: String) {
  * A [label] for differentiating this animation from others.
  *
  * @see [InfiniteTransition.animateFloat]
- * @see [androidx.compose.animation.animateColor]
+ * @see [org.jetbrains.compose.swing.animation.animateColor]
  */
 @Composable
 public fun <T, V : AnimationVector> InfiniteTransition.animateValue(
@@ -277,7 +277,7 @@ public fun <T, V : AnimationVector> InfiniteTransition.animateValue(
  * A [label] for differentiating this animation from others.
  *
  * @see [InfiniteTransition.animateValue]
- * @see [androidx.compose.animation.animateColor]
+ * @see [org.jetbrains.compose.swing.animation.animateColor]
  */
 @Composable
 public fun InfiniteTransition.animateFloat(

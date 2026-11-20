@@ -1,25 +1,21 @@
-# Defining a custom Swing component in Compose
+# Writing components
 
-Compose Swing UI ships wrappers for the common widgets (`Button`, `TextField`, `Slider`, ...), but
-real applications host many bespoke Swing components. Wrapping your own component uses the same
-public `SwingNode` API every built-in wrapper is built on. This guide shows how. `SwingNode` and
-the other APIs it uses require opt-in to `SwingComponentLibraryApi`.
+Build reusable UI by composing existing components. When you need a Swing binding those components do not provide, wrap the widget in a composable of your own.
 
 Further documents carry the rest:
 
-- [`COMPONENT-STATE.md`](COMPONENT-STATE.md) - a property the user can change as well as the
-  composition, and the state holders that carry what a declared value cannot.
-- [`MODIFIERS.md`](MODIFIERS.md) - how a modifier is ordered, matched and attached across passes, the
-  `modifier` parameter, and attaching listeners.
-- [`STYLES.md`](STYLES.md) - what a style is, how it resolves, restores and nests, and the style
-  parameter of a component and writing a property of your own.
-- [`CUSTOM-CONTAINERS.md`](CUSTOM-CONTAINERS.md) - containers, the placements they offer their
-  children, and rendering items with a composable cell.
+- [Component state](COMPONENT-STATE.md) - a property the user can change as well as the composition, and the state holders that carry what a declared value cannot.
+- [Containers and item cells](CUSTOM-CONTAINERS.md) - containers, the placements they offer their children, and rendering items with a composable cell.
+
+## When to write a component
+
+Start by combining the existing components at the call site. Give the result a name when it is a reusable piece of UI, such as a search field with its own actions. That composable needs no `SwingNode`. If the behavior attaches to a single existing component, expose it as a [modifier builder](MODIFIERS.md#writing-a-builder). Keep ordinary Swing operations as ordinary calls. For example, a click callback can open a `JFileChooser`.
+
+Use `SwingNode` to implement a new Swing binding, with an opt-in to `SwingComponentLibraryApi`. Give each wrapped widget its own composable and combine those wrappers to build the UI. A composable that emits UI returns `Unit`. The caller creates a state holder or a handle separately and passes it in, so they can read state or invoke an action wherever they need to.
 
 ## The mental model
 
-A composable component is a function that wraps a single Swing `Component`. You describe the
-component once and let Compose keep it in sync with state:
+To wrap a Swing widget, create it with `SwingNode` and let Compose keep it in sync with state:
 
 ```kotlin
 @Composable
@@ -39,84 +35,62 @@ public fun MyWidget(
 
 <!--- CLEAR -->
 
-Use `modifier` for placement, listeners and decoration, and `style` for the component's own properties. Declare it with `modifier.styleable(MyWidgetKind, style)`, last in the modifier, so the style applies after the caller's modifier.
-[`STYLES.md`](STYLES.md) covers the scope, the kind and the keys.
+Use [`modifier`](MODIFIERS.md) for placement, listeners and decoration, and `style` for the component's own properties. Declare it with `modifier.styleable(MyWidgetKind, style)`, last in the modifier, so the style applies after the caller's modifier. [Styles](STYLES.md) covers the scope, the kind and the keys. See [Choosing the signature](#choosing-the-signature) for the rest of the signature.
 
-- `factory` runs **once**, when the node enters the composition. Build (and do one-time
-  configuration of) your Swing component here. Each call builds and returns a new component, never
-  one built elsewhere; to configure a component a parent already built and keeps, use
-  `ExistingSwingNode`. Whatever it reads from the composable body, it reads once: a layout manager,
-  model or value constructed there is rebuilt on every later composition while the component keeps
-  the first one, so anything the component is to go on using is built inside `factory`. The
-  component's own layout manager is the usual one to get wrong - a container that later hands its
-  children placements computed against a freshly built layout is describing a layout nothing is laid
-  out by.
-- `update` runs on the first composition and on **every recomposition**. Inside it you declare which
-  pieces of state map onto which component properties; the framework only re-applies the ones that
-  actually changed. It is not a composable scope: `@DisallowComposableCalls` on it makes a composable
-  call inside it - `remember` included - a compile-time error, so read state in the composable body and
-  pass the value in. A property written directly by a custom `SwingNode` or `MenuNode` `update` block is
-  baseline component state: a modifier element or style that sets the same property wins over it. For the style
-  contract, see [`Styles`](ARCHITECTURE.md#styles).
-- `onRelease` runs **once**, when the node leaves the composition for good. A throw from it is reported to
-  the thread's uncaught-exception handler, and the node is released as if it had returned.
+- `factory` runs once per node. Create a fresh component and any models or layout managers it owns in each call. A caller can supply an existing model or declare a layout policy as an input. When parked content reactivates, a new node creates a new component. Use `ExistingSwingNode` to configure a component its parent already owns.
+- `update` applies values from the composable to the component. Apply every declared input for the component's whole life, including a change back to the default. Read Compose state in the composable body and pass the values to `update`. A modifier element or style that sets the same property takes precedence over a value written directly in `update`. See [Styles](ARCHITECTURE.md#styles).
+- `onRelease` runs **once**, when the node leaves the composition for good. A throw from it is reported to the thread's uncaught-exception handler, and the node is released as if it had returned.
 
-`SwingNode` is `inline` and `reified` on the component type, so inside `update` the component is
-available as the strongly-typed `this`.
+`SwingNode` is `inline` and `reified` on the component type, so inside `update` the component is available as the strongly-typed `this`.
 
 ## What the composition owns
 
 Two things about every component belong to the composition rather than to your code:
 
-- **the value of any property it declares** - a style or a modifier that sets a property records what the
-  component had, and puts that back when the setting goes;
+- **the value of any property it declares** - a style or a modifier that sets a property records what the component had, and puts that back when the setting goes;
 - **the children of any container it builds** - insertion, order and removal are the applier's.
 
-A component a parent built and keeps - a scroll pane's scroll bar, a layer's glass pane - stays its
-parent's; the composition owns only what it declares on it (see
-[Configuring a component its parent owns](#configuring-a-component-its-parent-owns)).
+A component a parent built and keeps - a scroll pane's scroll bar, a layer's glass pane - stays its parent's; the composition owns only what it declares on it (see [Configuring a component its parent owns](#configuring-a-component-its-parent-owns)).
 
-So a component your composition built is not a component to reach into. Writing a property the
-composition also writes means the next recomposition asserts what the composition declares and your
-write is gone; adding or removing a child behind the applier's back leaves the two disagreeing about
-what the container holds. Neither failure is loud - the value simply reverts, or the tree drifts.
+So leave a component your composition built to the composition. Writing a property the composition also writes means the next recomposition asserts what the composition declares and your write is gone; adding or removing a child behind the applier's back leaves the two disagreeing about what the container holds. Neither failure is loud - the value simply reverts, or the tree drifts.
 
-The only component your code constructs is the one its own `factory` returns. A container's children
-arrive as composables the container emits, and the applier turns each into a component and places it;
-a child your code instantiates has no node behind it, so nothing updates it, reuses it or releases it.
+The only component your code constructs is the one its own `factory` returns. A container's children arrive as composables the container emits, and the applier turns each into a component and places it; a child your code instantiates has no node behind it, so nothing updates it, reuses it or releases it.
 
-Structural change is the applier's too. A container re-composes the children this composition declares
-and the applier settles the difference: a child that has gone leaves, a new one arrives, one that moved
-is carried to its new position with the component it already had. Which child is which is the place in
-the caller's code that declared it, so an `if` around one leaves the components its siblings already
-have, and everything those components hold, alone. Children written at one place - a loop over a list -
-share that place, and are told apart by the position they arrive in until `key` gives each an identity
-of its own. Key a child by what identifies it among its siblings rather than by where it sits in the
-loop that emits it: children keyed by position are the same children whatever the declarations did, so
-an insertion hands every component to the declaration that used to follow it, along with the state it
-had. If what the caller declared carries nothing that tells one sibling from another, the key is the
-caller's to supply. There is no rebuild to perform and no previous structure to compare against -
-holding one and re-adding children from it costs the applier the identity it was tracking.
+Structural change is the applier's too. A container re-composes the children this composition declares and the applier settles the difference: a child that has gone leaves, a new one arrives, one that moved is carried to its new position with the component it already had. Which child is which is the place in the caller's code that declared it, so an `if` around one leaves the components its siblings already have, and everything those components hold, alone. Children written at one place - a loop over a list - share that place, and are told apart by the position they arrive in until `key` gives each an identity of its own. Key a child by what identifies it among its siblings rather than by where it sits in the loop that emits it: children keyed by position are the same children whatever the declarations did, so an insertion hands every component to the declaration that used to follow it, along with the state it had. If what the caller declared carries nothing that tells one sibling from another, the key is the caller's to supply. Holding a previous structure and re-adding children from it costs the applier the identity it was tracking.
 
-Emitting is declaring, not doing. The content a container composes runs on every pass, so work done
-there lands again each time: a layout that is asked for another sub-grid while children are being
-emitted accumulates one per composition. Whatever a child needs allocated on something that outlives
-it belongs in a `remember` inside that child's own `key` block, where it lives and dies with the child,
-and is given back from a `DisposableEffect` there. Inside the block is the part that is easy to miss: a
-`remember` sitting in the emitting loop but outside the child's `key` is identified by its position in
-that loop, whatever you pass as its keys, so it survives the child it belongs to and is re-run for a
-child it does not. What the container has to say about a child, the child says for itself: the
-placement it declares on its own modifier.
+Emitting is declaring, not doing. The content a container composes runs on every pass, so work done there lands again each time: a layout that is asked for another sub-grid while children are being emitted accumulates one per composition. Whatever a child needs allocated on something that outlives it belongs in a `remember` inside that child's own `key` block, where it lives and dies with the child, and is given back from a `DisposableEffect` there. Inside the block is the part that is easy to miss: a `remember` sitting in the emitting loop but outside the child's `key` is identified by its position in that loop, whatever you pass as its keys, so it survives the child it belongs to and is re-run for a child it does not. What the container has to say about a child, the child says for itself: the placement it declares on its own modifier.
 
-This is why the API you write for others should not hand out the component either. Take data,
-callbacks, value types (`Icon`, `Border`, `Color`, `Insets`, `KeyStroke`) and models
-(`ListModel`, `TableModel`, `Document`) - the composition manages none of *their* internals, so there
-is nothing to race. Keeping the component out of your signatures is what lets the composition stay the
-single writer.
+The API you write for others should not hand out the component either. Keep `java.awt.Component` and its subclasses out of parameters, callback types, return types, and type bounds, at every visibility. Take data, callbacks, value types (`Icon`, `Border`, `Color`, `Insets`, `KeyStroke`) and models (`ListModel`, `TableModel`, `Document`) - the composition manages none of *their* internals, so there is nothing to race.
 
-The same rule explains where a property belongs. One that only your component has is a parameter of
-your component. One that many unrelated components have is a style property, so it reaches all of them
-without every wrapper repeating it - and so a caller sets it with everything else in one style. See [A property several components share](STYLES.md#a-property-several-components-share).
+A property that only your component has is a parameter of your component. One that many unrelated components have is a style property, so a caller sets it with everything else in one style. See [A property several components share](STYLES.md#a-property-several-components-share).
+
+## Choosing the signature
+
+| What the caller supplies | Where it goes | Example |
+| --- | --- | --- |
+| Data or behavior specific to the component | Parameter | `SplitPane`'s `resizeWeight` |
+| A response to a component event | Callback parameter | `Button`'s `onClick` |
+| Properties shared by several component types | `SwingStyle` | Enabled state, font, tooltip |
+| Placement, decoration, or an attached behavior | `SwingModifier` | A border layout region, a shadow, a focus listener |
+| Components the caller builds | Content slot | The pages of a `TabbedPane` |
+
+Use a data parameter when the widget renders that data itself. `Button` takes text because its `JButton` paints the label. Use a content slot when callers should choose the components or their arrangement. [A container of your own](CUSTOM-CONTAINERS.md#a-container-of-your-own) covers content and its scope.
+
+Pass a component's own inputs as parameters, not through a `CompositionLocal`. Use [nested styles](STYLES.md#nested-styles) when an appearance setting should apply to a subtree.
+
+Put required inputs and callbacks first, optional configuration next, and the main content slot last. For a component the caller places, make a single `modifier: SwingModifier = SwingModifier` the first optional parameter. Pass it to the root so the caller can place and decorate the component. Append any modifiers the component needs after the caller's chain. Declare placements for its own children where it emits them. Use the trailing lambda for content, such as children or drawing commands. [Taking a value in and reporting a change out](COMPONENT-STATE.md#taking-a-value-in-and-reporting-a-change-out) gives the order for state and its callbacks, and [Static analysis](STATIC-ANALYSIS.md) describes the checks.
+
+## Keeping the widget's behavior and defaults
+
+A wrapper keeps the widget's behavior and defaults. Offer any additional behavior as a separate choice for the caller. Use the Swing or AWT name for the concept the API exposes. For example, `DocumentState` holds a `Document`.
+
+Default a widget property to its Swing value. For example, `TextField` uses `columns = 0`, the value of a new `JTextField`. Keep a Swing sentinel such as `SplitPane`'s `dividerLocation = -1`. Require the input when it has no meaningful default. `Window` and `Dialog` default to visible so declaring one shows it.
+
+For a wrapped widget property, use a `null` default when the JDK default is `null` or when omitting the value leaves it to Swing. For example, `Spinner` preserves the model's nullable bounds, and omitting `viewportBorder` keeps the look and feel's border. When Swing supplies a concrete default independent of the look and feel, use that value. A window whose size is unspecified packs to its content. See [A property the look and feel decides](#a-property-the-look-and-feel-decides) to resolve a nullable property.
+
+Type a parameter that takes one of a closed set of JDK constants as an `Int`, or a `String` for string constants, with a `@MagicConstant` annotation over the JDK's own constants. Do not wrap the constants in an enum or a value class. See [Typed constants](../CONTRIBUTING.md#typed-constants).
+
+When the API adds declarations that conflict, reject the conflict and tell the caller how to fix it. `PanelLayout.Card` rejects two children with the same card name. A layout that exposes Swing's own placement policy preserves that policy, including how `BorderLayout` resolves two children in one region.
 
 ## The `SwingNode` signatures
 
@@ -136,9 +110,7 @@ public inline fun <reified T : Component> SwingNode(
 
 <!--- CLEAR -->
 
-The container overload additionally hosts composable `content` as children - use it when your
-component is a `java.awt.Container` (e.g. a custom `JPanel`) that should contain further
-composables:
+The container overload additionally hosts composable `content` as children - use it when your component is a `java.awt.Container` (e.g. a custom `JPanel`) that should contain further composables:
 
 ```kotlin
 @Composable
@@ -155,32 +127,13 @@ public inline fun <reified T : Component> SwingNode(
 
 <!--- CLEAR -->
 
-`childPlacement` says how the component holds the children `content` emits. The default,
-`ChildPlacement.Indexed`, adds them to the container by index and lets its layout manager place them.
-A component that instead shows one child per region of its own - a `JScrollPane`'s row header,
-column header and corners, reached through `setRowHeaderView` and friends rather than through
-`Container.add` - declares `ChildPlacement.Slots("SwingModifier.rowHeader()", ...)`; one that holds any
-number of them in order, as a `JTabbedPane` holds pages, declares
-`ChildPlacement.OrderedSlots("SwingModifier.tab(title)")`. Each name is the call that fills the region,
-written exactly as a caller of your container writes it, because a refusal prints those names and a
-caller acts on them by typing them. Under either placement every child names the region it fills,
-through `SwingModifier.slot(parentProtocol, name, attachment)` - and a child that names none, or one
-that names a region of a container that has none, is refused as it arrives, naming the component and the
-calls that would place it.
+`childPlacement` says how the component holds the children `content` emits. The default, `ChildPlacement.Indexed`, adds them to the container by index and lets its layout manager place them. A component that instead shows one child per region of its own - a `JScrollPane`'s row header, column header and corners, reached through `setRowHeaderView` and friends rather than through `Container.add` - declares `ChildPlacement.Slots("SwingModifier.rowHeader()", ...)`; one that holds any number of them in order, as a `JTabbedPane` holds pages, declares `ChildPlacement.OrderedSlots("SwingModifier.tab(title)")`. Each name is the call that fills the region, written exactly as a caller of your container writes it, because a refusal prints those names and a caller acts on them by typing them. Under either placement every child names the region it fills, through `SwingModifier.slot(parentProtocol, name, attachment)` - and a child that names none, or one that names a region of a container that has none, is refused as it arrives, naming the component and the calls that would place it.
 
-`ChildPlacement.Slots` can also declare a main child that needs no name, the way `JLayer` holds its
-view: `ChildPlacement.Slots("GlassPane { }", content = viewAttachment)`, where `viewAttachment` is a
-`SlotAttachment` of your own. A `SlotAttachment` passed as `content` installs the one created child that
-names no region, and the host shows at most one such child; a second one, or a component claimed with
-`ExistingSwingNode` that names no region, is refused. Without `content`, a child naming no region is
-refused. A `Slots` declaration names at least one region or declares `content`. Declare the attachment once, as a `val`, since it is compared by identity.
+`ChildPlacement.Slots` can also declare a main child that needs no name, the way `JLayer` holds its view: `ChildPlacement.Slots("GlassPane { }", content = viewAttachment)`, where `viewAttachment` is a `SlotAttachment` of your own. A `SlotAttachment` passed as `content` installs the one created child that names no region, and the host shows at most one such child; a second one, or a component claimed with `ExistingSwingNode` that names no region, is refused. Without `content`, a child naming no region is refused. A `Slots` declaration names at least one region or declares `content`. Declare the attachment once, as a `val`, since it is compared by identity.
 
 ### Writing a `SlotAttachment`
 
-A `SlotAttachment` installs one child into one region and returns the action that removes it again. It
-takes the host container, the child, and the child's position among the host's slot children - `0` for
-a region holding a single child. Give the caller a modifier builder per region rather than the region's
-name, so the name stays yours to change:
+A `SlotAttachment` installs one child into one region and returns the action that removes it again. It takes the host container, the child, and the child's position among the host's slot children - `0` for a region holding a single child. Give the caller a modifier builder per region rather than the region's name, so the name stays yours to change:
 
 <!--- INCLUDE .*custom-01.*
 import androidx.compose.runtime.Composable
@@ -237,47 +190,23 @@ public fun Banner(
 
 <!--- KNIT example-custom-01.kt -->
 
-The uninstall action must remove the child **by identity** - the positions of a host's children shift as
-siblings come and go, so an index captured at install time can name another child by the time uninstall
-runs. The `ParentProtocol` passed to `slot` names the containers the region belongs to: a component
-declaring your region under any other container is refused before your attachment runs, with a message
-naming the region and the protocol's `description`. See
-[Parent data and layout modifiers](CUSTOM-CONTAINERS.md#parent-data-and-layout-modifiers) for protocols.
+The uninstall action must remove the child **by identity** - the positions of a host's children shift as siblings come and go, so an index captured at install time can name another child by the time uninstall runs. The `ParentProtocol` passed to `slot` names the containers the region belongs to: a component declaring your region under any other container is refused before your attachment runs, with a message naming the region and the protocol's `description`. See [Parent data and layout modifiers](CUSTOM-CONTAINERS.md#parent-data-and-layout-modifiers) for protocols.
 
-Uninstall is also where a region gives back the space it took. `setRowHeaderView(null)` on a scroll
-pane leaves an empty header viewport still claiming layout space, so the library's own row-header
-attachment clears the whole header instead - `if (pane.rowHeader?.view === component) pane.setRowHeader(null)`,
-identity-checked so a child already replaced by another does not clear the new one.
+Uninstall is also where a region gives back the space it took. `setRowHeaderView(null)` on a scroll pane leaves an empty header viewport still claiming layout space, so the library's own row-header attachment clears the whole header instead - `if (pane.rowHeader?.view === component) pane.setRowHeader(null)`, identity-checked so a child already replaced by another does not clear the new one.
 
-A `SlotAttachment` also places a nested composition's top-level component: pass it to
-`OnDemandComposition(parent, host, placement) { ... }`. It installs the component into `host` and returns the
-action that takes it out.
-See [Hosting nested compositions](CUSTOM-CONTAINERS.md#hosting-nested-compositions).
+A `SlotAttachment` also places a nested composition's top-level component: pass it to `OnDemandComposition(parent, host, placement) { ... }`. It installs the component into `host` and returns the action that takes it out. See [Hosting nested compositions](CUSTOM-CONTAINERS.md#hosting-nested-compositions).
 
 ### `@SwingComposable`: keeping Swing and `compose.ui` apart
 
-`@SwingComposable` marks Swing-target content so the compiler can tell it apart from `compose.ui`'s
-own `@UiComposable`: calling a foreign-applier composable (e.g. `androidx.compose.material.Text`)
-inside a Swing composition - or a Swing composable inside a `compose.ui` composition - is then a
-compile-time error with a "Swing Composable vs UI Composable" message, instead of compiling silently
-and failing at runtime.
+`@SwingComposable` marks Swing-target content so the compiler can tell it apart from `compose.ui`'s own `@UiComposable`: calling a foreign-applier composable (e.g. `androidx.compose.material.Text`) inside a Swing composition - or a Swing composable inside a `compose.ui` composition - is then a compile-time warning that names both targets, instead of compiling silently and failing at runtime.
 
-The compiler infers a composable's target from what it calls, so an ordinary component or container
-built on `SwingNode` - every wrapper in this guide included - needs no annotation of its own. The one
-place it cannot infer is a `content`/slot lambda **parameter** you forward to `SwingNode` by value
-rather than composing inline (see *A container example* in
-[`CUSTOM-CONTAINERS.md`](CUSTOM-CONTAINERS.md)) - type that parameter
-`@Composable @SwingComposable () -> Unit`, matching `SwingNode`'s own signature above, so the types
-line up at the call.
+The compiler infers an ordinary wrapper's target from the nodes it calls. To forward a content parameter to `SwingNode`, `ExistingSwingNode`, or a Swing composition entry point such as `JComponent.setContent`, declare it as `@Composable @SwingComposable () -> Unit`. For a parameter forwarded to `MenuNode` or `JMenuBar.setContent`, use `@Composable @SwingMenuComposable () -> Unit`. A slot you call inline gets its target from that call.
+
+A composable that installs content into the enclosing Swing tree through a separate composition declares its target on the function. For example, `WindowScope.MenuBar` has a Swing target and takes menu-target content.
 
 ## Configuring a component its parent owns
 
-Some Swing components build parts of themselves and keep them: a `JScrollPane` builds its viewport and
-both scroll bars, a `JLayer` its glass pane, a `JTable` its header. `ExistingSwingNode` configures such a
-part the way `SwingNode` configures a component its `factory` builds, with the same `modifier`, `update`
-and, for a container, `content`. `claim` runs once, on the parent - the component of the node this one is
-composed directly under - and returns the part; a function reference infers the type parameters, a lambda
-needs them written, with `_` for the type the claim returns: `ExistingSwingNode<TitledPanel, _, JLabel>(claim = { title })`. `TitledPanel` builds its `title` label and keeps it:
+Some Swing components build parts of themselves and keep them: a `JScrollPane` builds its viewport and both scroll bars, a `JLayer` its glass pane, a `JTable` its header. `ExistingSwingNode` configures such a part the way `SwingNode` configures a component its `factory` builds, with the same `modifier`, `update` and, for a container, `content`. `claim` runs once, on the parent - the component of the node this one is composed directly under - and returns the part; a function reference infers the type parameters, a lambda needs them written, with `_` for the type the claim returns: `ExistingSwingNode<TitledPanel, _, JLabel>(claim = { title })`. `TitledPanel` builds its `title` label and keeps it:
 
 <!--- INCLUDE .*custom-02.*
 import androidx.compose.runtime.Composable
@@ -300,18 +229,11 @@ fun Titled(text: String) {
 
 <!--- KNIT example-custom-02.kt -->
 
-A wrapper offers this call to its callers through its content scope. The `ExistingSwingNode` KDoc
-holds the lifecycle contract. `update` writes stay on the part, so declare a property that must be given
-back through the part's style or modifier. To expose the part's properties to callers, accept a `style`
-parameter and apply it with `styleable` on the part's modifier. Within one composition, a component is claimed by at most one node at a time;
-a second claim is refused. When Swing types a getter wider than the part it returns, write the part's type as
-the third type argument: `ExistingSwingNode<JInternalFrame, Component, Container>(claim = JInternalFrame::getGlassPane)`.
-Under a host that uses indexed children, `declaringCall` names the declaration in that refusal.
+A wrapper offers this call to its callers through its content scope. The `ExistingSwingNode` KDoc holds the lifecycle contract. `update` writes stay on the part, so declare a property that must be given back through the part's style or modifier. To expose the part's properties to callers, accept a `style` parameter and apply it with `styleable` on the part's modifier. Within one composition, a component is claimed by at most one node at a time; a second claim is refused. When Swing types a getter wider than the part it returns, write the part's type as the third type argument: `ExistingSwingNode<JInternalFrame, Component, Container>(claim = JInternalFrame::getGlassPane)`. Under a host that uses indexed children, `declaringCall` names the declaration in that refusal.
 
 ## Inside `update`: `set` for properties, `SwingModifier` for styling and listeners
 
-The `update` block runs with a `SwingNodeUpdater<T>` receiver. Its core tool is `set`; for
-lifecycle-safe listeners you apply a `SwingModifier`, and the properties a caller sets are its style.
+The `update` block runs with a `SwingNodeUpdater<T>` receiver. Its core tool is `set`; for lifecycle-safe listeners you apply a `SwingModifier`, and the properties a caller sets are its style.
 
 ### `set(value) { ... }` - reactive property updates
 
@@ -321,19 +243,11 @@ set(value) { /* this: T */ this.someProperty = it }
 
 <!--- CLEAR -->
 
-`set` records `value` and runs the block (with the component as `this` and `value` as `it`) on the
-first composition, then again **only when `value` changes** between recompositions. This is the
-idiomatic way to push one piece of state onto one Swing property. Call `set` once per property you
-want kept in sync.
+`set` records `value` and runs the block (with the component as `this` and `value` as `it`) on the first composition, then again **only when `value` changes** between recompositions. This is the idiomatic way to push one piece of state onto one Swing property. Call `set` once per property you want kept in sync.
 
-A call is matched with the value it declared last pass by where it sits among the others, so an
-`update` block makes the same calls in the same order on every pass. A `set` inside a conditional is a
-bug - state the condition in the value, not in whether the call happens. The same holds for `declare`
-(see [`COMPONENT-STATE.md`](COMPONENT-STATE.md)), which makes one such call of its own.
+A call is matched with the value it declared last pass by where it sits among the others, so an `update` block makes the same calls in the same order on every pass. A `set` inside a conditional is a bug - state the condition in the value, not in whether the call happens. The same holds for `declare` (see [Component state](COMPONENT-STATE.md)), which makes one such call of its own.
 
-`set` compares this pass's declaration only against the last one, so it is the right tool for a property
-only the composition writes. See [`COMPONENT-STATE.md`](COMPONENT-STATE.md) for a property the widget
-itself can also change.
+`set` compares this pass's declaration only against the last one, so it is the right tool for a property only the composition writes. See [Component state](COMPONENT-STATE.md) for a property the widget itself can also change.
 
 ### `update(value) { ... }` - for what the constructor already applied
 
@@ -351,23 +265,15 @@ SwingNode(
 
 <!--- CLEAR -->
 
-`update` behaves like `set` but skips the first composition, so use it - and only it - for a value the
-`factory` passed to the constructor. `set` would write that value a second time on the composition
-that just created the component.
+`update` behaves like `set` but skips the first composition, so use it - and only it - for a value the `factory` passed to the constructor. `set` would write that value a second time on the composition that just created the component.
 
-Reaching for the constructor does not excuse you from writing the value: a parameter consumed only
-there is honored once and then silently ignored, which reads at the call site as reactive state and
-is not. `update` reaches it on every pass that declares a different value; the constructor runs
-exactly once, when the node is built, and not again for as long as that same node lives.
+Reaching for the constructor does not excuse you from writing the value: a parameter consumed only there is honored once and then silently ignored, though it reads at the call site as reactive state. `update` reaches it on every pass that declares a different value; the constructor runs exactly once, when the node is built, and not again for as long as that same node lives.
 
-A property that changes the size a component asks for needs a layout pass to go with it. Several
-Swing setters only invalidate - `JTextField.setColumns` and `JTextArea.setRows` among them - and
-nothing in the update pass asks for a layout on their behalf, so call `revalidate()` after the write.
+A property that changes the size a component asks for needs a layout pass to go with it. Several Swing setters only invalidate - `JTextField.setColumns` and `JTextArea.setRows` among them - and nothing in the update pass asks for a layout on their behalf, so call `revalidate()` after the write.
 
 ### A property the look and feel decides
 
-Some Swing properties have no fixed default - the installed look and feel decides them. Declare those
-as nullable, so `null` says "whatever the look and feel decides", and resolve them one of two ways.
+Some Swing properties have no fixed default - the installed look and feel decides them. Declare those as nullable, so `null` says "whatever the look and feel decides", and resolve them one of two ways.
 
 Where the look and feel only publishes the value and nothing writes it onto the widget, read the key:
 
@@ -384,10 +290,7 @@ SwingNode(
 
 <!--- CLEAR -->
 
-Where a look and feel writes the property onto the widget itself, the key is not enough: a look and
-feel may install the property from a style table no key reaches, and reading the key would hand the
-widget a value it never carried. Declare those with `property`, over a `ComponentPropertyDescriptor` handle built once,
-folded into the modifier only while a value is declared:
+Where a look and feel writes the property onto the widget itself, the key is not enough: a look and feel may install the property from a style table no key reaches, and reading the key would hand the widget a value it never carried. Declare those with `property`, over a `ComponentPropertyDescriptor` handle built once, folded into the modifier only while a value is declared:
 
 ```kotlin
 private val DividerSizeProperty =
@@ -403,10 +306,7 @@ private fun SwingModifier.declaredDividerSize(dividerSize: Int?): SwingModifier 
 
 <!--- CLEAR -->
 
-The element reads the property as the declaration arrives and writes it back when it leaves, so
-withdrawing the declaration hands the widget back what its look and feel gave it. Declare the handle as
-a top-level `val`, as above, rather than inline at a call site. `ComponentPropertyDescriptor` and `property`'s own
-documentation say why, and what to pass for a property the component offers no way to give back.
+The element reads the property as the declaration arrives and writes it back when it leaves, so withdrawing the declaration hands the widget back what its look and feel gave it. Declare the handle as a top-level `val`, as above, rather than inline at a call site. `ComponentPropertyDescriptor` and `property`'s own documentation say why, and what to pass for a property the component offers no way to give back.
 
 ### `init { ... }` - one-time setup after creation
 
@@ -422,15 +322,11 @@ SwingNode(
 
 <!--- CLEAR -->
 
-`init` runs once, on the pass that builds the component - reach for it when a one-time setup step
-needs a value `set`/`update` just computed, one the `factory` cannot see. The blocks run in the order
-the `update` lambda declares them, so declare `init` after the blocks whose values it reads.
+`init` runs once, on the pass that builds the component - reach for it when a one-time setup step needs a value `set`/`update` just computed, one the `factory` cannot see. The blocks run in the order the `update` lambda declares them, so declare `init` after the blocks whose values it reads.
 
 ## `onRelease` for cleanup
 
-If your component holds a resource that must be released - a timer, a native handle, a registration
-on a shared bus - release it in `onRelease`. It runs once, when the node leaves the composition for
-good (the typed component is `this`):
+If your component holds a resource that must be released - a timer, a native handle, a registration on a shared bus - release it in `onRelease`. It runs once, when the node leaves the composition for good (the typed component is `this`):
 
 ```kotlin
 SwingNode(
@@ -440,8 +336,7 @@ SwingNode(
 )
 ```
 
-`onRelease` is for your own resources. Listeners installed via `SwingModifier.listener` are detached
-automatically - you do not need to remove them in `onRelease`.
+`onRelease` is for your own resources. Listeners installed via `SwingModifier.listener` are detached automatically - you do not need to remove them in `onRelease`.
 
 <!--- CLEAR -->
 
@@ -509,5 +404,4 @@ private val JSpinner.numberModel: SpinnerNumberModel get() = model as SpinnerNum
 
 <!--- KNIT example-custom-03.kt -->
 
-The `if (this.value != it)` guard in the `value` setter prevents a feedback loop where applying the
-incoming state would itself fire the change listener.
+The `if (this.value != it)` guard in the `value` setter prevents a feedback loop where applying the incoming state would itself fire the change listener.

@@ -11,8 +11,8 @@ import java.awt.Component
  * component kind, as a top-level `val`. A style of this kind runs against the scope `S`, which the kind builds over
  * the state `T` the component feeds it, [Unit] for a kind without state.
  *
- * @property scope builds the scope a style of this kind runs against, over [base], which implements
- *   [NestedStyleProviderScope]. The scope delegates to [base] the interfaces it extends.
+ * @property scope builds the scope a style of this kind runs against, over `base`, which implements
+ *   [NestedStyleProviderScope]. The scope delegates to `base` the interfaces it extends.
  * @property default the style applied before the caller's own. A component that applies nested styles applies
  *   their keys here.
  * @property requiredType the component type required by this kind.
@@ -26,8 +26,8 @@ public class SwingStyleKind<S : ComponentStyleScope, in T> internal constructor(
     /**
      * A kind for components of any [Component] type.
      *
-     * @param scope builds the scope a style of this kind runs against, over [base], which implements
-     *   [NestedStyleProviderScope]. The scope delegates to [base] the interfaces it extends.
+     * @param scope builds the scope a style of this kind runs against, over `base`, which implements
+     *   [NestedStyleProviderScope]. The scope delegates to `base` the interfaces it extends.
      * @param default the style applied before the caller's own. A component that applies nested styles applies
      *   their keys here.
      */

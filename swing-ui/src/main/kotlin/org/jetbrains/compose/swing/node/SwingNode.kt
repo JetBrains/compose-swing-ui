@@ -22,8 +22,6 @@ import java.awt.Component
  *
  * This is the primary entry point for defining a **custom component**: wrap any Swing [Component] by
  * passing a [factory] that creates it and an [update] block that maps composition state onto it.
- * Every built-in wrapper (`Button`, `TextField`, `Slider`, ...) is built on top of this function - see
- * `docs/CUSTOM-COMPONENTS.md`.
  *
  * Where this node sits in its parent is declared on the node's own modifier chain: a layout constraint
  * the parent's layout manager understands (e.g. a `BorderLayout` region), or a slot of a host that

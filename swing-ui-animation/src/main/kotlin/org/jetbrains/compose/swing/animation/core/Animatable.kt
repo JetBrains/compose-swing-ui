@@ -207,7 +207,6 @@ constructor(
      * reached the bound, it's recommended to use the velocity in the returned
      * [AnimationResult.endState] to start another animation.
      *
-     * @sample org.jetbrains.compose.swing.animation.core.samples.AnimatableFadeIn
      */
     public suspend fun animateTo(
         targetValue: T,
@@ -255,7 +254,6 @@ constructor(
      * recommended to use the velocity in the returned [AnimationResult.endState] to start another
      * animation.
      *
-     * @sample org.jetbrains.compose.swing.animation.core.samples.AnimatableDecayAndAnimateToSample
      */
     public suspend fun animateDecay(
         initialVelocity: T,

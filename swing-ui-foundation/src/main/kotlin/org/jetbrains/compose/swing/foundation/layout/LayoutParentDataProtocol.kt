@@ -34,7 +34,7 @@ public open class LayoutParentDataProtocol internal constructor(
 /**
  * Creates a stable token for parent data a [Layout] policy reads through [Measurable.parentData].
  *
- * Pass the token to [Layout] as [Layout.parentDataProtocol], and use that same instance from every
+ * Pass the token to [Layout] as `parentDataProtocol`, and use that same instance from every
  * [org.jetbrains.compose.swing.layout.ParentDataModifier] the policy understands. A token accepts only
  * the policy layout that was built with that exact instance, so a declaration hoisted under another
  * custom layout is refused before Swing attaches the child.

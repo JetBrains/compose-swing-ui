@@ -1,9 +1,6 @@
 # Testing components with the swing-ui-test harness
 
-The `:swing-ui-test` harness runs a composition off-screen and deterministically, then lets you find
-components — and the top-level windows the composition realizes — assert their state, and drive
-interactions through them. This guide shows how to write behavioral tests — tests that exercise
-state → recomposition → visible change through the public API.
+The `:swing-ui-test` harness runs a composition off-screen and deterministically, then lets you find components — and the top-level windows the composition realizes — assert their state, and drive interactions through them. This guide shows how to write behavioral tests — tests that exercise state → recomposition → visible change through the public API.
 
 <!--- INCLUDE .*fragment.*
 import androidx.compose.runtime.*
@@ -35,9 +32,7 @@ dependencies {
 
 <!--- CLEAR -->
 
-Then write a plain `@Test` method whose body is a `runComposeSwingTest { … }` block. Inside the block you
-call `setContent { … }` to mount your composable, and the harness, finders, assertions, and actions
-are all in scope.
+Then write a plain `@Test` method whose body is a `runComposeSwingTest { … }` block. Inside the block you call `setContent { … }` to mount your composable, and the harness, finders, assertions, and actions are all in scope.
 
 <!--- INCLUDE .*testing-01.*
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -65,9 +60,7 @@ class CounterTest {
 
 <!--- KNIT example-testing-01.kt -->
 
-`setContent` waits until the composition is idle before returning, so by the next line the tree
-reflects the initial state. After an action that writes snapshot state, the harness waits for idle again
-before the following assertion runs — no sleeps, no manual pumping.
+`setContent` waits until the composition is idle before returning, so by the next line the tree reflects the initial state. After an action that writes snapshot state, the harness waits for idle again before the following assertion runs — no sleeps, no manual pumping.
 
 ## Finding components
 
@@ -78,8 +71,7 @@ Single-node finders return a `SwingNodeInteraction`:
 - `onNodeWithName(name)` — match by component name.
 - `onNodeOfType<T>()` — match the single component of a given Swing type.
 - `onRoot()` — the composition root; fails naming `onAllRoots()` when the test has several roots.
-- `onNode(matcher)` — match with a `SwingMatcher` (e.g. `hasText`, `hasTestTag`, `hasName`,
-  `hasAccessibleName`, `isEnabled`, `isSelected`, `isEditable`, composed with `and`, `or` and `!`).
+- `onNode(matcher)` — match with a `SwingMatcher` (e.g. `hasText`, `hasTestTag`, `hasName`, `hasAccessibleName`, `isEnabled`, `isSelected`, `isEditable`, composed with `and`, `or` and `!`).
 
 Multi-node finders return a `SwingNodeInteractionCollection`:
 
@@ -87,14 +79,9 @@ Multi-node finders return a `SwingNodeInteractionCollection`:
 
 Menu items can appear among these matches too (see *Menus* below).
 
-The finders search the test's root and every other root composed under its context: content set on a free
-host, a composed popup menu (shown or not), a panel that is not in a window. `onAllRoots()` lists those roots; content in a
-window stays under `onWindow(...)`.
+The finders search the test's root and every other root composed under its context: content set on a free host, a composed popup menu (shown or not), a panel that is not in a window. `onAllRoots()` lists those roots; content in a window stays under `onWindow(...)`.
 
-Narrow a collection with `filter(matcher)` or `filterToOne(matcher)`, assert its size with
-`assertCountEquals(n)`, assert over its members with `assertAll(matcher)` / `assertAny(matcher)`, and
-target one match with `[index]`, `onFirst()`, or `onLast()` — each returns a handle that re-resolves
-against the live tree on every use:
+Narrow a collection with `filter(matcher)` or `filterToOne(matcher)`, assert its size with `assertCountEquals(n)`, assert over its members with `assertAll(matcher)` / `assertAny(matcher)`, and target one match with `[index]`, `onFirst()`, or `onLast()` — each returns a handle that re-resolves against the live tree on every use:
 
 ```kotlin
 onAllNodesWithText("row")[1].assertIsEnabled()
@@ -104,18 +91,11 @@ onAllNodesOfType<JCheckBox>().assertAll(SwingMatcher.isEnabled())
 
 <!--- KNIT example-testing-fragment-01.kt -->
 
-`hasAccessibleName(name)` matches the name a component reports through its accessible context — the
-name assistive technology reads. A widget derives it from its own text unless the
-`accessibleName` style setter declares one, so it is the handle for a component that carries no displayed
-text of its own, and the matcher for a test whose subject is the accessible contract itself.
-`hasName` is the unrelated `Component.getName`, which stays unset unless the `name` modifier or the
-test sets it.
+`hasAccessibleName(name)` matches the name a component reports through its accessible context — the name assistive technology reads. A widget derives it from its own text unless the `accessibleName` style setter declares one, so it is the handle for a component that carries no displayed text of its own, and the matcher for a test whose subject is the accessible contract itself. `hasName` is the unrelated `Component.getName`, which stays unset unless the `name` modifier or the test sets it.
 
 ### Structure
 
-Where a component sits in the tree is expressed by matchers — `hasParent`, `hasAnyChild`,
-`hasAnySibling`, `hasAnyAncestor`, `hasAnyDescendant`, each taking a `SwingMatcher` — so a query is
-scoped to a subtree by describing it rather than by holding a component:
+Where a component sits in the tree is expressed by matchers — `hasParent`, `hasAnyChild`, `hasAnySibling`, `hasAnyAncestor`, `hasAnyDescendant`, each taking a `SwingMatcher` — so a query is scoped to a subtree by describing it rather than by holding a component:
 
 ```kotlin
 onAllNodesOfType<JLabel>().filter(SwingMatcher.hasAnyAncestor(SwingMatcher.hasTestTag("editor")))
@@ -123,10 +103,7 @@ onAllNodesOfType<JLabel>().filter(SwingMatcher.hasAnyAncestor(SwingMatcher.hasTe
 
 <!--- KNIT example-testing-fragment-02.kt -->
 
-From an interaction you can also step to the nodes around it with `onParent()`, `onChild()`,
-`onChildren()`, `onChildAt(index)`, `onSibling()`, `onSiblings()`, `onAncestors()` and
-`onDescendants()`. A step is as lazy as the query it extends, and `onAncestors()` stops at the root
-the query searches:
+From an interaction you can also step to the nodes around it with `onParent()`, `onChild()`, `onChildren()`, `onChildAt(index)`, `onSibling()`, `onSiblings()`, `onAncestors()` and `onDescendants()`. A step is as lazy as the query it extends, and `onAncestors()` stops at the root the query searches:
 
 ```kotlin
 onNodeWithTag("editor").onDescendants().filter(SwingMatcher.isOfType<JLabel>()).assertCountEquals(2)
@@ -137,8 +114,7 @@ onNodeWithText("Save").onParent().assert(SwingMatcher.isEnabled())
 
 ### Test tags
 
-A test tag is a stable handle that survives label and layout changes — prefer it over matching on
-displayed text when the text is dynamic. Attach one with the `testTag` modifier:
+A test tag is a stable handle that survives label and layout changes — prefer it over matching on displayed text when the text is dynamic. Attach one with the `testTag` modifier:
 
 ```kotlin
 import org.jetbrains.compose.swing.modifier.SwingModifier
@@ -157,20 +133,14 @@ onNodeWithTag("name-field").performTextInput("Ada")
 
 ## Asserting state
 
-Assertions are available on a `SwingNodeInteraction`; each returns the interaction so they chain,
-except `assertDoesNotExist()`, which ends the chain:
+Assertions are available on a `SwingNodeInteraction`; each returns the interaction so they chain, except `assertDoesNotExist()`, which ends the chain:
 
 - `assertExists()` / `assertDoesNotExist()`
 - `assertIsDisplayed()` — assert the layout gave the component real bounds.
-- `assertIsVisible()` / `assertIsNotVisible()` — assert the component is shown, i.e. neither it nor an
-  ancestor up to the query's root is hidden.
+- `assertIsVisible()` / `assertIsNotVisible()` — assert the component is shown, i.e. neither it nor an ancestor up to the query's root is hidden.
 - `assertTextEquals(text)`
 - `assertIsEnabled()` / `assertIsNotEnabled()`
-- `assertLayoutConstraint(expected)` — assert the placement the parent's layout manager holds the
-  child under: a `BorderLayout` region, or a `GridBagConstraints` (compared field by field). Any other
-  manager is named in the failure, including a `CardLayout` — a deck reports nothing per card, and
-  what matters about it (the declared card is the one on show) is asserted with `assertIsVisible()` /
-  `assertIsNotVisible()`.
+- `assertLayoutConstraint(expected)` — assert the placement the parent's layout manager holds the child under: a `BorderLayout` region, or a `GridBagConstraints` (compared field by field). Any other manager is named in the failure, including a `CardLayout` — a deck reports nothing per card, and what matters about it (the declared card is the one on show) is asserted with `assertIsVisible()` / `assertIsNotVisible()`.
 - `assertIsFocusOwner()` / `assertIsNotFocusOwner()` — assert which component holds focus.
 - `assert(matcher)` — assert any `SwingMatcher`, including a composed or structural one.
 
@@ -183,8 +153,7 @@ onNodeWithTag("submit")
 
 <!--- KNIT example-testing-fragment-05.kt -->
 
-A check that is not one of the named assertions is still asserted through the node: `assert(matcher)`
-takes any `SwingMatcher`, so the failure message keeps the finder's context:
+A check that is not one of the named assertions is still asserted through the node: `assert(matcher)` takes any `SwingMatcher`, so the failure message keeps the finder's context:
 
 ```kotlin
 onNodeOfType<JCheckBox>().assert(SwingMatcher.isSelected())
@@ -251,16 +220,9 @@ A window interaction has the same `assertProperty`, reading a property of the wi
 
 ### Menus
 
-A menu's items are walked like any other content: a `JMenu` keeps them in a `JPopupMenu` that no
-container holds, and the walk reaches them through Swing's own accessor for it. So a menu sitting
-inside the container being queried matches alongside the widgets beside it — a query for
-`AbstractButton` over such a tree matches every `JMenuItem` too — and is narrowed with a matcher that
-describes where the widget sits.
+A menu's items are walked like any other content: a `JMenu` keeps them in a `JPopupMenu` that no container holds, and the walk reaches them through Swing's own accessor for it. So a menu sitting inside the container being queried matches alongside the widgets beside it — a query for `AbstractButton` over such a tree matches every `JMenuItem` too — and is narrowed with a matcher that describes where the widget sits.
 
-A window's menu bar does not sit there: a declared `MenuBar { }` installs onto the window's root
-pane, beside the content pane. A window query searches both, so a menu bar, a menu and its items are
-each reachable by node query, and `JMenu`'s own `itemCount` and `getItem(index)` read a menu's
-content, reporting a separator as `null`:
+A window's menu bar does not sit there: a declared `MenuBar { }` installs onto the window's root pane, beside the content pane. A window query searches both, so a menu bar, a menu and its items are each reachable by node query, and `JMenu`'s own `itemCount` and `getItem(index)` read a menu's content, reporting a separator as `null`:
 
 ```kotlin
 import javax.swing.JMenu
@@ -272,12 +234,9 @@ assertEquals(listOf("New", null, "Open"), items)
 
 <!--- CLEAR -->
 
-Only the menu's own level is read this way: a submenu appears as its own item, named by its `text`,
-and what it drops down is read the same way, off the `JMenu` that item is.
+Only the menu's own level is read this way: a submenu appears as its own item, named by its `text`, and what it drops down is read the same way, off the `JMenu` that item is.
 
-A component's `componentPopupMenu` is not reachable by node query — it hangs off its component
-rather than being held in the tree — so fetch the component through the typed `fetch<T>()` and read
-the popup's own components: a separator is not a `JMenuItem`, so casting one reads as `null`:
+A component's `componentPopupMenu` is read through the typed `fetch<T>()` of its component, not by node query, and then through the popup's own components: a separator is not a `JMenuItem`, so casting one reads as `null`:
 
 ```kotlin
 import javax.swing.JButton
@@ -292,31 +251,19 @@ assertEquals(listOf("Copy", null, "Delete"), items)
 
 ## Driving interactions
 
-Gesture actions are available on a `SwingNodeInteraction`. Each delivers the events the toolkit delivers for
-that gesture — a click is a press, a release and a `MOUSE_CLICKED`; a character is a `KEY_PRESSED`, a
-`KEY_TYPED` and a `KEY_RELEASED` — **each from an event-queue cycle of its own**, and waits until the
-composition is idle afterwards. So the component's own UI decides what a gesture means, exactly as it does for a
-user, and a widget that refuses an edit refuses it here too.
+Gesture actions are available on a `SwingNodeInteraction`. Each delivers the events the toolkit delivers for that gesture — a click is a press, a release and a `MOUSE_CLICKED`; a character is a `KEY_PRESSED`, a `KEY_TYPED` and a `KEY_RELEASED` — **each from an event-queue cycle of its own**, and waits until the composition is idle afterwards. So the component's own UI decides what a gesture means, exactly as it does for a user, and a widget that refuses an edit refuses it here too.
 
-- `performClick(position, button, clicks, modifiers)` — click the component, at its middle unless a
-  position is given. `clicks = 2` is a double click, delivered as the toolkit delivers one: two clicks
-  carrying their running count. `button` and `modifiers` are what make a middle-button click or a
-  shift-click that extends a selection.
-- `performContextClick(position)` — the platform's context-menu gesture: a secondary click carrying the
-  popup trigger on the one event the host platform carries it on, the release on Windows and the press
-  elsewhere.
-- `performMousePress(position)` / `performMouseRelease(position)` — half a click each, for a gesture a
-  test holds open.
+- `performClick(position, button, clicks, modifiers)` — click the component, at its middle unless a position is given. `clicks = 2` is a double click, delivered as the toolkit delivers one: two clicks carrying their running count. `button` and `modifiers` are what make a middle-button click or a shift-click that extends a selection.
+- `performContextClick(position)` — the platform's context-menu gesture: a secondary click carrying the popup trigger on the one event the host platform carries it on, the release on Windows and the press elsewhere.
+- `performMousePress(position)` / `performMouseRelease(position)` — half a click each, for a gesture a test holds open.
 - `performMouseDrag(from, to)` — press, one drag step, release.
-- `performMouseEnter(position)` / `performMouseMove(position)` / `performMouseExit(position)` — the
-  pointer arriving, travelling and leaving, which is what a rollover state and a tooltip follow.
+- `performMouseEnter(position)` / `performMouseMove(position)` / `performMouseExit(position)` — the pointer arriving, travelling and leaving, which is what a rollover state and a tooltip follow.
 - `performMouseWheel(rotation, position)` — turn the wheel by whole notches.
 - `performKeyPress(keyCode, modifiers)` — a key that means something other than a character.
 - `performTyping(text)` — type at the caret.
 - `performTextInput(text)` — type onto the end of a text component's contents.
 - `performTextReplacement(text)` — select all, and type over it.
-- `performTextPaste(text)` — paste over the selection, through the component's own transfer handler,
-  running no key binding.
+- `performTextPaste(text)` — paste over the selection, through the component's own transfer handler, running no key binding.
 - `performFocusGained()` / `performFocusLost()` — deliver a focus notification to the component.
 - `performTabClick(index)` — click a tab of a tabbed pane.
 - `performEvent { node -> … }` — deliver one event you build yourself.
@@ -349,11 +296,7 @@ node.performMouseInput { release() }
 
 ### Tabs
 
-A tabbed pane's strip is drawn by the look and feel rather than built from child components, so there
-is no node to find for a tab. `performTabClick(index)` aims a click at the tab's own position instead:
-writing the pane's selected index directly would be the composition's own write, not a user's, and a
-wrapper that tells the two apart could not be tested that way. A tab the strip does not currently show
-has no position to click; the action says so rather than landing on nothing.
+A tabbed pane's strip is drawn by the look and feel rather than built from child components, so there is no node to find for a tab. `performTabClick(index)` aims a click at the tab's own position instead: writing the pane's selected index directly would be the composition's own write, not a user's, and a wrapper that tells the two apart could not be tested that way. A tab the strip does not currently show has no position to click; the action says so rather than landing on nothing.
 
 ```kotlin
 onNodeOfType<JTabbedPane>().performTabClick(2)
@@ -363,17 +306,9 @@ onNodeOfType<JTabbedPane>().performTabClick(2)
 
 ### Focus
 
-A focus notification and focus ownership are two different things off-screen. `performFocusGained()`
-and `performFocusLost()` deliver a notification to the component without a display. `assertIsFocusOwner()`
-needs real ownership, which only a realized, focused window can grant — never the harness root.
+A focus notification and focus ownership are two different things off-screen. `performFocusGained()` and `performFocusLost()` deliver a notification to the component without a display. `assertIsFocusOwner()` needs real ownership, which only a realized, focused window can grant — never the harness root.
 
-Whether a window becomes focused is the window system's decision, not the test's. A process the window
-system declines to activate still shows and lays out its windows; none of them ever becomes focused.
-Wait for the window to report itself focused, and skip the test with a JUnit assumption when it never
-does, so such an environment reports SKIPPED instead of failing. Hold the same assumption over every
-later wait, too: focus can be taken away again once granted, and a window that is no longer the focused
-one is the environment withdrawing what ownership needs. A focused window whose keyboard went to a
-component the test did not expect is a different case — a real failure, asserted plainly.
+Whether a window becomes focused is the window system's decision, not the test's. A process the window system declines to activate still shows and lays out its windows; none of them ever becomes focused. Wait for the window to report itself focused, and skip the test with a JUnit assumption when it never does, so such an environment reports SKIPPED instead of failing. Hold the same assumption over every later wait, too: focus can be taken away again once granted, and a window that is no longer the focused one is the environment withdrawing what ownership needs. A focused window whose keyboard went to a component the test did not expect is a different case — a real failure, asserted plainly.
 
 ```kotlin
 onNodeWithTag("amount").performFocusLost()
@@ -384,15 +319,9 @@ onNodeWithTag("amount").assertTextEquals("42.00")
 
 ## Callback failures
 
-A callback that throws while a wrapper is writing to its widget - settling a value the widget clamped to
-its own grid or range, for instance - does not end the composition. The library hands the throwable, as it
-was thrown, to the event dispatch thread's uncaught-exception handler, and the write finishes. The
-composition keeps working, so a test may go on writing state, recomposing and asserting after the throw.
+A callback that throws while a wrapper is writing to its widget - settling a value the widget clamped to its own grid or range, for instance - does not end the composition. The library hands the throwable, as it was thrown, to the event dispatch thread's uncaught-exception handler, and the write finishes. The composition keeps working, so a test may go on writing state, recomposing and asserting after the throw.
 
-The harness records that throwable and throws it from the next wait call: `awaitIdle()`,
-`awaitEventsDelivered()`, the `mainClock.advanceTimeBy` calls and every `perform` that ends
-in one. A later throwable is suppressed onto the first. One that no wait call throws fails the test as it
-ends.
+The harness records that throwable and throws it from the next wait call: `awaitIdle()`, `awaitEventsDelivered()`, the `mainClock.advanceTimeBy` calls and every `perform` that ends in one. A later throwable is suppressed onto the first. One that no wait call throws fails the test as it ends.
 
 `waitUntil()` dispatches the events queued before each check of its condition, and throws it the same way.
 
@@ -418,13 +347,9 @@ fun aThrowingCallbackIsReportedAndTheCompositionGoesOn() = runComposeSwingTest {
 
 ## Failures that end recomposition
 
-A throw the composition does not contain - out of a composable function as it recomposes, or out of a
-node's `update` block - ends recomposition: nothing recomposes after it. The call that ran the failing
-pass throws it, whether that is `awaitIdle()`, `waitUntil { … }`, a `mainClock` advance or an action, so a
-test that does not expect the throw fails with it there.
+A throw the composition does not contain - out of a composable function as it recomposes, or out of a node's `update` block - ends recomposition: nothing recomposes after it. The call that ran the failing pass throws it, whether that is `awaitIdle()`, `waitUntil { … }`, a `mainClock` advance or an action, so a test that does not expect the throw fails with it there.
 
-A test that expects it wraps that call in `assertFailsWith`. The throw is raised once: later calls
-return, and the widgets keep what the failed pass left them, so the test can go on asserting on them:
+A test that expects it wraps that call in `assertFailsWith`. The throw is raised once: later calls return, and the widgets keep what the failed pass left them, so the test can go on asserting on them:
 
 ```kotlin
 @Test
@@ -443,24 +368,15 @@ fun aThrowingRecompositionFailsTheCallThatRanIt() = runComposeSwingTest {
 
 <!--- KNIT example-testing-case-02.kt -->
 
-What an effect throws - the body of a `LaunchedEffect`, or a coroutine launched in the scope
-`rememberCoroutineScope()` returns - ends recomposition the same way and fails the first such call made
-after it, `setContent` included. A test that makes no call after the throw fails with it as it ends. A
-cancelled effect is not a failure.
+What an effect throws - the body of a `LaunchedEffect`, or a coroutine launched in the scope `rememberCoroutineScope()` returns - ends recomposition the same way and fails the first such call made after it, `setContent` included. A test that makes no call after the throw fails with it as it ends. A cancelled effect is not a failure.
 
-A `CoroutineExceptionHandler` passed in `runComposeSwingTest(effectContext = …)` is handed what an effect
-throws. The throw then fails no call, and what the handler itself throws fails the next one. Recomposition has
-ended in both cases, and a call that gives up afterwards names the throw.
+A `CoroutineExceptionHandler` passed in `runComposeSwingTest(effectContext = …)` is handed what an effect throws. The throw then fails no call, and what the handler itself throws fails the next one. Recomposition has ended in both cases, and a call that gives up afterwards names the throw.
 
 ## Testing windows and dialogs
 
-Content that composes `Window { }` or `Dialog { }` realizes a real top-level peer, which needs a
-display: start such a test with a JUnit assumption,
-`Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), …)`, so it reports SKIPPED where there is
-no display and runs everywhere else.
+Content that composes `Window { }` or `Dialog { }` realizes a real top-level peer, which needs a display: start such a test with a JUnit assumption, `Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), …)`, so it reports SKIPPED where there is no display and runs everywhere else.
 
-Window finders resolve against every window currently realized in the test JVM, whether or not it
-is shown:
+Window finders resolve against every window currently realized in the test JVM, whether or not it is shown:
 
 - `onWindow()`: the single realized window.
 - `onWindowWithTitle(title)`: match by window title.
@@ -493,36 +409,21 @@ fun settingsWindowShowsItsContent() = runComposeSwingTest {
 
 <!--- KNIT example-testing-case-03.kt -->
 
-A dialog show is applied on its own event-dispatch turn; the idle gate drains it, so after a state
-change plus `awaitIdle()` the realized dialog already reflects the declared visibility.
+A dialog show is applied on its own event-dispatch turn; the idle gate drains it, so after a state change plus `awaitIdle()` the realized dialog already reflects the declared visibility.
 
 Use `window.awaitWindowSystemIdle()` before recording what a real window paints. It waits until the window has had no move, resize or paint event for its quiet period, 250 milliseconds by default, and fails if events keep arriving past its timeout, 10 seconds by default. Both are wall-clock durations. The composition idle gate does not wait for window-system events. For an expected size or position, use `waitUntil` on that value.
 
-A heavyweight AWT component that needs a native peer to work (for example `java.awt.Canvas` or
-`java.awt.Button`) is tested the same way: compose it under a `Window { }` the test owns, so it gets a
-real peer, instead of under the harness root, which never shows.
+A heavyweight AWT component that needs a native peer to work (for example `java.awt.Canvas` or `java.awt.Button`) is tested the same way: compose it under a `Window { }` the test owns, so it gets a real peer, instead of under the harness root, which never shows.
 
 ## Waiting on external timing
 
-The harness waits for composition state changes itself, so most tests need no waiting. When a condition
-genuinely depends on timing outside the composition (a coroutine driven by wall-clock, an external
-callback), use `waitUntil { … }`; use `awaitIdle()` to wait for the composition explicitly when you
-have written state outside of an action.
+The harness waits for composition state changes itself, so most tests need no waiting. When a condition genuinely depends on timing outside the composition (a coroutine driven by wall-clock, an external callback), use `waitUntil { … }`; use `awaitIdle()` to wait for the composition explicitly when you have written state outside of an action.
 
-A wait whose condition is still unmet at its `timeout` — `waitUntil { … }`, or `mainClock.advanceTimeUntil { … }`
-once it has advanced past its `timeout` of composition time — throws `ComposeTimeoutException`, with a dump of
-the current tree in its message. It is a `Throwable` and not an `AssertionError`, so a test that expects the
-deadline to pass catches it by type. Any other failure is thrown as itself, never as a
-`ComposeTimeoutException`.
+A wait whose condition is still unmet at its `timeout` — `waitUntil { … }`, or `mainClock.advanceTimeUntil { … }` once it has advanced past its `timeout` of composition time — throws `ComposeTimeoutException`, with a dump of the current tree in its message. It is a `Throwable` and not an `AssertionError`, so a test that expects the deadline to pass catches it by type. Any other failure is thrown as itself, never as a `ComposeTimeoutException`.
 
 ### Telling a widget's own report apart from a recomposition
 
-`awaitIdle()` waits until the composition is idle, so by the time it returns a widget's callback has fired *and* a
-recomposition has applied whatever the callback wrote. When a test has to tell those two apart, use
-`awaitEventsDelivered()`: it dispatches the notifications already queued on the event dispatch thread
-and produces no frame, so anything the tree shows afterwards was put there by a widget rather than by
-the composition. Compose state the delivered callbacks wrote stays pending until the next
-`awaitIdle()`.
+`awaitIdle()` waits until the composition is idle, so by the time it returns a widget's callback has fired *and* a recomposition has applied whatever the callback wrote. When a test has to tell those two apart, use `awaitEventsDelivered()`: it dispatches the notifications already queued on the event dispatch thread and produces no frame, so anything the tree shows afterwards was put there by a widget rather than by the composition. Compose state the delivered callbacks wrote stays pending until the next `awaitIdle()`.
 
 ```kotlin
 awaitEventsDelivered()
@@ -534,9 +435,7 @@ onNodeOfType<JLabel>().assertTextEquals("recomposed")
 
 ### Driving frames by hand
 
-`awaitIdle()` reaches an idle composition by sending it frames, so anything driven by
-`withFrameNanos` — an animation, most of all — has already run to completion by the time a test looks
-at it. `mainClock` hands that decision to the test:
+`awaitIdle()` reaches an idle composition by sending it frames, so anything driven by `withFrameNanos` — an animation, most of all — has already run to completion by the time a test looks at it. `mainClock` hands that decision to the test:
 
 ```kotlin
 mainClock.autoAdvance = false
@@ -549,19 +448,13 @@ onNodeOfType<JLabel>().assertTextEquals("halfway")
 
 With `autoAdvance` off, `awaitIdle()` — and `waitUntil { … }` with it — drains pending recomposition, snapshot and event-dispatch work but produces no frame of its own, so it returns on exactly the state a frame would have moved past. `advanceTimeByFrame()` sends one frame at the normal cadence. `advanceTimeByFrame(duration)` sends one frame after the given duration. Earlier state writes are applied by that frame. `advanceTimeBy(duration)` rounds up to whole frame durations by default. With `ignoreFrameDuration = true`, it advances by exactly the given duration while sending frames at the normal cadence. Earlier writes are applied by the first frame sent. `advanceTimeUntil { ... }` sends frames until a condition holds, failing once it reaches its timeout. `frameDuration` is one frame of a 60Hz display. Coroutine delays use real time.
 
-An animation that never ends, such as one built on `rememberInfiniteTransition` or an `infiniteRepeatable`
-spec, is cancelled at its first frame while `autoAdvance` is on, because a gate waiting for it to become
-idle would never return. Turn `autoAdvance` off to drive one: under manual frames it runs untouched, a
-step per frame.
+An animation that never ends, such as one built on `rememberInfiniteTransition` or an `infiniteRepeatable` spec, is cancelled at its first frame while `autoAdvance` is on, because a gate waiting for it to become idle would never return. Turn `autoAdvance` off to drive one: under manual frames it runs untouched, a step per frame.
 
-The clock governs the test's own off-screen composition. Content composed under a real `Window` or
-`Dialog` runs on that window's own recomposer, whose frame-driven work is paced by the display the
-window is on, and is unaffected.
+The clock governs the test's own off-screen composition. Content composed under a real `Window` or `Dialog` runs on that window's own recomposer, whose frame-driven work is paced by the display the window is on, and is unaffected.
 
 ## Screenshot comparison
 
-The harness can capture a component (or the whole root) to an image and compare it against a stored
-golden by structural similarity.
+The harness can capture a component (or the whole root) to an image and compare it against a stored golden by structural similarity.
 
 ```kotlin
 import org.jetbrains.compose.swing.test.screenshot.assertImageAgainstGolden
@@ -569,19 +462,11 @@ import org.jetbrains.compose.swing.test.screenshot.assertImageAgainstGolden
 onNodeWithTag("chart").assertImageAgainstGolden("chart-default")
 ```
 
-`assertImageAgainstGolden(goldenIdentifier)` is available on both a `SwingNodeInteraction` (captures
-the matched component) and on the test itself (captures the root). A `threshold` parameter controls
-how strict the structural-similarity match is. To compare two captured images without a golden file,
-capture with `captureToImage()` and use `assertImageMatches(expected)`.
+`assertImageAgainstGolden(goldenIdentifier)` is available on both a `SwingNodeInteraction` (captures the matched component) and on the test itself (captures the root). A `threshold` parameter controls how strict the structural-similarity match is. To compare two captured images without a golden file, capture with `captureToImage()` and use `assertImageMatches(expected)`.
 
-`captureToImage()` is also available on a raw AWT component, for a hand-built reference outside any
-composition. It lays the component and its subtree out at the size the component carries, or at its
-preferred size when it carries none; give the reference the size of the composed component it is
-compared against and both images share the same dimensions.
+`captureToImage()` is also available on a raw AWT component, for a hand-built reference outside any composition. It lays the component and its subtree out at the size the component carries, or at its preferred size when it carries none; give the reference the size of the composed component it is compared against and both images share the same dimensions.
 
-`captureToImages()` on a `SwingNodeInteractionCollection` captures every match at once, returning one
-image per matched component sized to its own bounds, in depth-first pre-order — the same order as the
-collection's other accessors:
+`captureToImages()` on a `SwingNodeInteractionCollection` captures every match at once, returning one image per matched component sized to its own bounds, in depth-first pre-order — the same order as the collection's other accessors:
 
 ```kotlin
 val images = onAllNodesOfType<JButton>().captureToImages()
@@ -589,43 +474,19 @@ val images = onAllNodesOfType<JButton>().captureToImages()
 
 ### Recording goldens
 
-The golden of a comparison is read from the test resources at `golden/<goldenIdentifier>.png`, and
-recording is governed by the system property `SCREENSHOT_TEST_UPDATE_GOLDENS` on the test JVM, which
-takes effect only where its value is exactly `true`. A Gradle test task passes it through with
-`systemProperty("SCREENSHOT_TEST_UPDATE_GOLDENS", …)`.
+The golden of a comparison is read from the test resources at `golden/<goldenIdentifier>.png`, and recording is governed by the system property `SCREENSHOT_TEST_UPDATE_GOLDENS` on the test JVM, which takes effect only where its value is exactly `true`.
 
-With it set, a golden that does not exist yet is written to
-`src/test/resources/golden/<goldenIdentifier>.png` and the assertion passes, and a golden the capture
-already matches is rewritten from that capture. A golden the capture does *not* match is left alone:
-the captured, expected and difference images are written to `build/screenshot-test-results` and the
-assertion still fails, so a regression is never recorded as the new baseline. Accepting a real visual
-change means reviewing that diff, deleting `src/test/resources/golden/<goldenIdentifier>.png`, and
-running again to record the capture afresh.
+With it set, a golden that does not exist yet is written to `src/test/resources/golden/<goldenIdentifier>.png` and the assertion passes, and a golden the capture already matches is rewritten from that capture. A golden the capture does *not* match is left alone: the captured, expected and difference images are written to `build/screenshot-test-results` and the assertion still fails, so a regression is never recorded as the new baseline. Accepting a real visual change means reviewing that diff, deleting `src/test/resources/golden/<goldenIdentifier>.png`, and running again to record the capture afresh.
 
 ### Comparing two images exactly
 
-`assertImagesPixelPerfect(expected, image)` compares two already-captured images pixel for pixel,
-allowing at most `maxDifferentPixels` differing pixels — none by default — and failing outright when
-their sizes differ. Reach for it instead of `assertImageMatches` where the images should be identical
-rather than merely alike: structural similarity averages over 10x10 windows to tolerate antialiasing
-and font-rasterization drift, which a small localized difference — a stray border, a margin, a
-one-pixel shift — can pass. It is what proves two components rendered by different routes rasterize
-the same. `differingPixelBounds(expected, image)` returns the smallest rectangle holding every pixel at
-which the two differ, or `null` where they are the same.
+`assertImagesPixelPerfect(expected, image)` compares two already-captured images pixel for pixel, allowing at most `maxDifferentPixels` differing pixels — none by default — and failing outright when their sizes differ. Reach for it instead of `assertImageMatches` where the images should be identical rather than merely alike: structural similarity averages over 10x10 windows to tolerate antialiasing and font-rasterization drift, which a small localized difference — a stray border, a margin, a one-pixel shift — can pass. It is what proves two components rendered by different routes rasterize the same. `differingPixelBounds(expected, image)` returns the smallest rectangle holding every pixel at which the two differ, or `null` where they are the same.
 
 ### Comparing against a hand-built tree
 
-`assertTreeMatches(expected)` is the structural counterpart of a capture: it asserts that the
-matched node and a reference tree carry the same widgets, nested the same way, holding the same
-state. Where a pixel comparison says only that two screens differ, this names the widget that
-differs and the property it differs in.
+`assertTreeMatches(expected)` is the structural counterpart of a capture: it asserts that the matched node and a reference tree carry the same widgets, nested the same way, holding the same state. Where a pixel comparison says only that two screens differ, this names the widget that differs and the property it differs in.
 
-Bounds are among what it compares, and the reference is laid out at the node's size before the
-comparison, so a tree built for the assertion needs no layout pass of its own. Both trees are then told
-of their resize, the way the toolkit tells a component, so a child placed from that announcement stands
-where its parent's size puts it. A menu's items are laid out too, in the popup that holds them. The two
-roots stand in trees of their own, so they are compared on their size alone; every node below them on
-its full bounds within its parent.
+Bounds are among what it compares, and the reference is laid out at the node's size before the comparison, so a tree built for the assertion needs no layout pass of its own. Both trees are then told of their resize, the way the toolkit tells a component, so a child placed from that announcement stands where its parent's size puts it. A menu's items are laid out too, in the popup that holds them. The two roots stand in trees of their own, so they are compared on their size alone; every node below them on its full bounds within its parent.
 
 ```kotlin
 import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
@@ -635,16 +496,11 @@ setContent { Button("Save", onClick = {}) }
 onNodeOfType<JButton>().assertTreeMatches(JButton("Save"))
 ```
 
-It compares the shape of the tree and the state its widgets carry — everything this library's API can
-set on a component, from the colors and the border to the range a widget offers, what stands selected
-in it, and the columns, rows and tabs it is read through. Listeners are not compared: one listener is
-never equal to another.
+It compares the shape of the tree and the state its widgets carry — everything this library's API can set on a component, from the colors and the border to the range a widget offers, what stands selected in it, and the columns, rows and tabs it is read through. Listeners are not compared: one listener is never equal to another.
 
-A class in the matched tree matches the reference as long as it extends it, so a component the library
-builds over `JButton` matches a plain `JButton`. Pass `allowSubclasses = false` to require the same
-class on both sides.
+A class in the matched tree matches the reference as long as it extends it, so a component the library builds over `JButton` matches a plain `JButton`. Pass `allowSubclasses = false` to require the same class on both sides.
 
 ## Related
 
-- [`../swing-ui-test/README.md`](../swing-ui-test/README.md) — the harness module.
-- [`CUSTOM-COMPONENTS.md`](CUSTOM-COMPONENTS.md) — building the components you are testing.
+- [`swing-ui-test`](../swing-ui-test/README.md) — the harness module.
+- [Writing components](CUSTOM-COMPONENTS.md) — building the components you are testing.

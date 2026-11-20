@@ -181,7 +181,10 @@ internal sealed class PlacedPlaceable : Placeable() {
     }
 }
 
-/** Records that a line of this child was read, and in which stage of its container's layout; see [lineReadDuring]. */
+/**
+ * Records that a line of this child was read, and in which stage of its container's layout; see
+ * [ChildMeasurable.lineReadDuring].
+ */
 internal fun ChildMeasurable.recordLineRead() {
     val state = owner.layoutState
     if (state == LayoutState.Measuring || lineReadDuring == LayoutState.Idle) lineReadDuring = state

@@ -1,9 +1,6 @@
 # Module swing-ui-test
 
-The test harness for Compose Swing UI. It runs compositions off-screen and deterministically — the
-harness root is never shown, and nothing sleeps — so component behavior can be asserted in plain
-`@Test` methods. Content that composes `Window { }` / `Dialog { }` realizes real top-level peers, and
-the harness finds and asserts on those too.
+The test harness for Compose Swing UI. It runs compositions off-screen and deterministically, so component behavior can be asserted in plain `@Test` methods. Content that composes `Window { }` / `Dialog { }` realizes real top-level peers, and the harness finds and asserts on those with `onWindow`. Realizing them requires a display, so declare that with a JUnit assumption and headless runs skip the test.
 
 ## Usage
 
@@ -17,9 +14,9 @@ fun saveButtonIsEnabled() = runComposeSwingTest {
 }
 ```
 
-See [`docs/TESTING-COMPONENTS.md`](../docs/TESTING-COMPONENTS.md) for the guide to finders, matchers, assertions, actions, and screenshot comparison. The API is documented in KDoc.
+To wait for state or effects, call `awaitIdle` or `waitUntil`. See [Testing components](../docs/TESTING-COMPONENTS.md) for the guide. The API is documented in KDoc.
 
 ## Related
 
-- [`docs/TESTING-COMPONENTS.md`](../docs/TESTING-COMPONENTS.md) - how to write component tests.
-- [`swing-ui/README.md`](../swing-ui/README.md) - the core library.
+- [Testing components](../docs/TESTING-COMPONENTS.md) - how to write component tests.
+- [`swing-ui`](../swing-ui/README.md) - the core library.

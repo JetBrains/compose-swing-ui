@@ -567,7 +567,7 @@ private data class EditorDeclaration(
  *
  * A declaration naming no pattern over a spinner already showing its own editor writes nothing: handing
  * the spinner an equivalent editor is a visible change, since only the editor `BasicSpinnerUI` installs
- * for itself is given the look and feel's editor alignment. An editor that no longer [edits] the class
+ * for itself is given the look and feel's editor alignment. An editor that no longer `edits` the class
  * the declaration names is rebuilt even so.
  */
 private fun SpinnerComponent.showDeclaredEditor(declaration: EditorDeclaration) {

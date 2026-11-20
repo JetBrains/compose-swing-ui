@@ -1,6 +1,6 @@
 # Styles: concepts and authoring
 
-A `SwingStyle` sets the properties of one component: its colors, its text, its sizes. This page explains what a style is, when it runs, and how to accept one in your own component and define the properties and nested-style keys it uses. Listeners, a component's place in its parent, and decoration stay in a `SwingModifier`; see [`MODIFIERS.md`](MODIFIERS.md). Building the component itself is covered in [`CUSTOM-COMPONENTS.md`](CUSTOM-COMPONENTS.md).
+A `SwingStyle` sets the properties of one component: its colors, its text, its sizes. This page explains what a style is, when it runs, and how to accept one in your own component and define the properties and nested-style keys it uses. Listeners, a component's place in its parent, and decoration stay in a `SwingModifier`; see [Modifiers](MODIFIERS.md). Building the component itself is covered in [Writing components](CUSTOM-COMPONENTS.md).
 
 <!--- INCLUDE .*styles-01.*
 import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
@@ -46,7 +46,7 @@ Each property has one public writer. Where a style and a modifier write the same
 
 Some names exist in both and mean different things:
 
-- `background(color)` is the style setter that writes the component's Swing `background`, the one a look and feel honors. `SwingModifier.background(color, shape)` and `background(brush, shape)` in `swing-ui-foundation` are decoration: they paint under the content and need a shape.
+- `background(color)` is the style setter that writes the component's Swing `background`, the one a look and feel honors. `SwingModifier.background(color, shape)` and `background(brush, shape)` in `swing-ui-foundation` are decoration: they paint under the content. The color overload needs a shape; the brush overload defaults to `RectangleShape`.
 - `width`, `height` and `size` are style setters that set the component's actual size. Inside the content of a layout composable, for example `Box`, `SwingModifier.width(w)` is the layout constraint instead: it constrains the measured size and sets nothing on the component. Outside a layout scope it does not compile.
 
 ## Declaring a property
@@ -161,7 +161,7 @@ A property that is more than a read and a write - a border, a caret, a listener-
 
 Write a `NodeElement` and `ComponentNode` pair when you need a wider target type, several components written from one element, or a registration that is not a property:
 
-- `NodeElement<T : Component, N : ComponentNode<T>>` is the immutable description: the value to write and the component type it targets. It implements `equals` and `hashCode` over what it declares; see [Equality and skipping](MODIFIERS.md#equality-and-skipping).
+- `NodeElement<T : Component, N : ComponentNode<T>>` is the immutable description: the value to write and the component type it targets. Each element states its own `equals` and `hashCode` over what it declares; see [Equality and skipping](MODIFIERS.md#equality-and-skipping).
 - `ComponentNode<T : Component>` holds the per-component state, such as the captured original value. It exposes the already-typed `component`.
 
 An element must be a `NodeElement` or a parent declaration, and not both; an element of your own that is neither is refused when it is applied.
@@ -221,7 +221,7 @@ fun ComponentStyleScope.accessibleName(text: String?): Unit = AccessibleNameProp
 
 <!--- KNIT example-styles-03.kt -->
 
-`name` and `declaredValues` are shown in error messages and in inspection tools (see [`INSPECTING-COMPOSITIONS.md`](INSPECTING-COMPOSITIONS.md#reading-the-chain-a-component-carries)). By default `name` is the class name and `declaredValues` is empty; override both when the element carries a value worth showing. `key`, not `name`, decides which slot an element takes. Leave a callback out of `declaredValues` unless showing it says something - a lambda renders as its class.
+`name` and `declaredValues` are shown in error messages and in inspection tools (see [Reading the chain a component carries](INSPECTING-COMPOSITIONS.md#reading-the-chain-a-component-carries)). By default `name` is the class name and `declaredValues` is empty; override both when the element carries a value worth showing. `key`, not `name`, decides which slot an element takes. Leave a callback out of `declaredValues` unless showing it says something - a lambda renders as its class.
 
 ## Components that take a style
 
@@ -306,7 +306,7 @@ fun Section(
 
 A composable with a style parameter declares it directly after `modifier`.
 
-Type the `style` parameter as `SwingStyle<S>` with the component's own scope `S`, not a sub-interface of it. A style written for a scope passes to every component whose scope extends it: one written for `ButtonStyleScope` passes to a `Button`, a `CheckBox` and a `RadioButton` alike.
+Type the `style` parameter as `SwingStyle<S>` with the component's own scope `S`, not a sub-interface of it. A style written for a scope passes to every component whose scope extends it: one written for `ButtonStyleScope` passes to a `Button`, for example.
 
 ### Following state the component feeds
 
@@ -366,7 +366,7 @@ A component's scope offers the setters of its own Swing type and of every Swing 
 
 See the KDoc for each scope and its setters.
 
-Each component's style parameter names the scope it takes. `ComponentStyleScope` and `SwingComponentStyleScope` are separate because a style applied through `AllComponents` also reaches a component that is not a `JComponent`, where setting `border` would fail.
+Each component's style parameter names the scope it takes. A style applied through `AllComponents` also reaches a component that is not a `JComponent`, so it is written for `ComponentStyleScope`; `SwingComponentStyleScope` adds the setters that need a `JComponent`, such as `border`.
 
 Every scope interface can be extended: a third-party button's scope extends `ButtonStyleScope` and applies `Buttons`, the same way a library button does. A scope that a component feeds a state to declares one read-only value for it, such as `isChecked`; see [State blocks](#state-blocks).
 
@@ -435,7 +435,7 @@ Panel(style = { provideNestedStyle(CheckBoxes) { checked { font(bold) } } }) {
 - `checked { }` in the style of a `Label` or a `Button`, and `selected { }` in the style of a `CheckBox`, do not compile.
 - A style written for `ButtonStyleScope` still passes where a `CheckableStyleScope` is expected, and only a block that reads the state needs the narrower scope.
 - A style has a state block only when its scope implements `CheckableStyleScope` or `SelectableStyleScope`. A scope that also extends `NestedStyleProviderScope` can have one too; the blocks of the nested styles it provides run with the state of the descendants.
-- There are no blocks for pressed, rollover or focus, and none for disabled. Every look and feel paints those states itself and would paint over a write, so Swing's per-state slots, such as `pressedIcon` and `disabledTextColor`, are ordinary setters. `enabled` is itself a style property, so a `disabled { }` block would read the value the same style is still writing.
+- There are no blocks for pressed, rollover or focus, and none for disabled. What a look and feel paints for those states depends on the property and the look and feel, so Swing's per-state slots, such as `pressedIcon` and `disabledTextColor`, are ordinary setters. `enabled` is itself a style property, so a `disabled { }` block would read the value the same style is still writing.
 
 ## Nested styles
 
@@ -470,7 +470,7 @@ fun RatedSection() {
 
 <!--- KNIT example-styles-06.kt -->
 
-The first `Rating` shows five stars and the second two: a descendant's own style is applied after what its ancestors provided. Both have the accessible name `rated`. The `Section` itself gets neither: a provided style does not apply to the container that provides it.
+The first `Rating` shows five stars and the second two: a descendant's own style is applied after what its ancestors provided. Both have the accessible name `rated`. A provided style applies to the descendants, and the `Section` itself keeps its own style.
 
 - For a key other than `AllComponents`, a provided style reaches a descendant when the descendant's kind applies that key. The kind's scope must extend the key's scope.
 - Several ancestors that provide one key all apply, farthest first, so the nearest wins for each property.
@@ -505,9 +505,9 @@ Panel(
 
 <!--- CLEAR -->
 
-- A provided style reaches every component of that kind below the provider, at any depth. It does not apply to the provider itself: the `Panel` above stays enabled.
+- A provided style reaches every component of that kind below the provider, at any depth. The provider keeps its own state: the `Panel` above stays enabled.
 - A descendant's own style wins over every nested style and over its component's default, so the last `Label` stays enabled. So does any component under a provider of its kind key that writes `enabled(true)`, however far that provider is: `provideNestedStyle(Buttons) { enabled(true) }` on any ancestor keeps the buttons of a section that `AllComponents` disabled.
-- A nearer provider of the same key writes over a farther one per property, and nothing masks a provider. To undo a farther value, a nearer provider writes the opposite one.
+- A nearer provider of the same key writes over a farther one per property. To undo a farther value, a nearer provider writes the opposite one.
 - `Label(style = { provideNestedStyle(Labels) { } })` does not compile: a `Label` has no content to style.
 - A nested block that reads state, such as `provideNestedStyle(Labels) { background(if (dark) a else b) }`, recomposes nothing when the state changes. Only the components the block styles are updated.
 
@@ -545,7 +545,7 @@ A recomposition that declares an equal style does not run it, and neither does a
 
 ## Restore
 
-The first time a style sets a property, the component's value for it is captured. A property that leaves the style is set back to that captured value, and so is every property of the style when the component is released, reused or deactivated. The captured value is the one the component showed before the style wrote it, not a default that the style knows.
+The first time a style sets a property, the component's value for it is captured. A property that leaves the style is set back to that captured value, and so is every property of the style when the component is released, reused or deactivated. The captured value is the one the component showed before the style wrote it.
 
 <!--- INCLUDE .*styles-07.*
 import androidx.compose.runtime.Composable

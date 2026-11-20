@@ -1,11 +1,6 @@
 # Components
 
-This is the catalog of what Compose Swing UI ships: every component family, grouped the way you
-reach for one, with the parameters that decide how it behaves. The KDoc on each function is the
-per-parameter reference. The concepts behind the binding are in
-[`ARCHITECTURE.md`](ARCHITECTURE.md), Foundation layout and graphics are in
-[`FOUNDATION.md`](FOUNDATION.md), and building a component of your own is
-[`CUSTOM-COMPONENTS.md`](CUSTOM-COMPONENTS.md).
+This is the catalog of what Compose Swing UI ships: every component family, grouped the way you reach for one, with the parameters that decide how it behaves. The KDoc on each function is the per-parameter reference. The concepts behind the binding are in [Architecture](ARCHITECTURE.md), and Foundation layout and graphics are in [Foundation](FOUNDATION.md). See [Writing components](CUSTOM-COMPONENTS.md) to build a component of your own.
 
 <!--- INCLUDE .*content.*
 import androidx.compose.runtime.*
@@ -47,75 +42,37 @@ fun main() =
 
 Two things hold for everything below.
 
-**Every parameter is reapplied on recomposition.** Pass state to a component and the widget follows
-that state for the component's whole life.
+**Every parameter is reapplied on recomposition.** Pass state to a component and the widget follows that state for the component's whole life.
 
-**Every default matches the widget's own.** A component that leaves a parameter unset behaves
-exactly as the freshly constructed Swing widget does, so the defaults quoted here are Swing's, not
-this library's. A parameter with no single correct default - `CheckBox`'s `checked`, or a
-`ComboBox` built over `items` rather than a `ComboBoxModel` - is required instead.
+**Every default matches the widget's own.** A component that leaves a parameter unset behaves exactly as the freshly constructed Swing widget does, so the defaults quoted here are Swing's. A parameter with no single correct default - `CheckBox`'s `checked`, or a `ComboBox` built over `items` rather than a `ComboBoxModel` - is required instead.
 
-The properties of the component - colors, fonts, borders, sizes, tooltips, accessibility - arrive as a `SwingStyle`
-passed as `style`, described in [`STYLES.md`](STYLES.md). To style a composable that does not take a `style`
-parameter, put `SwingModifier.styleable { ... }` in its modifier; see [What a style is](STYLES.md#what-a-style-is).
-Everything else cross-cutting - keyboard bindings, data transfer, decoration, raw listeners - arrives as a
-`SwingModifier` passed as `modifier`, described in [`MODIFIERS.md`](MODIFIERS.md#styling-with-a-style-parameter).
+The properties of the component - colors, fonts, borders, sizes, tooltips, accessibility - arrive as a `SwingStyle` passed as `style`, described in [Styles](STYLES.md). To style a composable that does not take a `style` parameter, put `SwingModifier.styleable { ... }` in its modifier; see [What a style is](STYLES.md#what-a-style-is). Everything else cross-cutting - keyboard bindings, data transfer, decoration, raw listeners - arrives as a `SwingModifier` passed as `modifier`, described in [Styling with a `style` parameter](MODIFIERS.md#styling-with-a-style-parameter).
 
 ---
 
 ## How a component takes state
 
-Which shape a component uses tells you where its state lives. The declared value and the hoistable
-holder are described in [`ARCHITECTURE.md`](ARCHITECTURE.md#shapes-for-state-the-user-can-change).
+Which shape a component uses tells you where its state lives. The declared value and the hoistable holder are described in [Shapes for state the user can change](ARCHITECTURE.md#shapes-for-state-the-user-can-change).
 
-**A value and a callback.** `TextField(value, onValueChange = ...)`, `CheckBox(text, checked,
-onCheckedChange = ...)`, `TabbedPane(selectedIndex, onSelectedIndexChange = ...)`.
+**A value and a callback.** `TextField(value, onValueChange = ...)`, `CheckBox(text, checked, onCheckedChange = ...)`, `TabbedPane(selectedIndex, onSelectedIndexChange = ...)`.
 
-**A hoisted state holder.** `DocumentState`, `FormattedValueState`, `WindowState`, `DialogState`,
-`InternalFrameState`, `ScrollState`, `ListState`, `TableState`, `TreeState`. See
-[Hoisted state](#hoisted-state).
+**A hoisted state holder.** `DocumentState`, `FormattedValueState`, `WindowState`, `DialogState`, `InternalFrameState`, `ScrollState`, `ListState`, `TableState`, `TreeState`. See [Hoisted state](#hoisted-state).
 
-**A raw Swing model.** `ComboBox(model)`, `ListBox(model)`, `Table(model)`, `Tree(model)`,
-`Spinner(model)`, `Slider(model)`, `ProgressBar(model)`. When you already have a
-`ComboBoxModel`, `TableModel`, `TreeModel` or `BoundedRangeModel`, hand it over and the component
-renders it. The model stays yours - a `BoundedRangeModel` you hand to both `Slider` and `ProgressBar`
-is what lets a bar track a slider without either owning the value.
+**A raw Swing model.** `ComboBox(model)`, `ListBox(model)`, `Table(model)`, `Tree(model)`, `Spinner(model)`, `Slider(model)`, `ProgressBar(model)`. When you already have a `ComboBoxModel`, `TableModel`, `TreeModel` or `BoundedRangeModel`, hand it over and the component renders it. The model stays yours - a `BoundedRangeModel` you hand to both `Slider` and `ProgressBar` is what lets a bar track a slider without either owning the value.
 
-`javax.swing.Action` extends `ActionListener`, so an `Action` you already own is an `ActionListener`
-and the listener modifier takes it as it is: `modifier = SwingModifier.actionListener(save)`, on a
-`Button` or a `MenuItem`.
+`javax.swing.Action` extends `ActionListener`, so an `Action` you already own is an `ActionListener` and the listener modifier takes it as it is: `modifier = SwingModifier.actionListener(save)`, on a `Button` or a `MenuItem`.
 
-The same listeners are also modifier elements, which is how you hear events from a component the
-catalog does not wrap. `actionListener` reaches everything that publishes an action event - an
-`AbstractButton`, a `JTextField`, a `JComboBox`, a `JFileChooser`, and the AWT `Button`, `TextField`
-and `List` - and `changeListener` everything that publishes a change event - a `JSlider`, a `JSpinner`,
-a `JTabbedPane`, a `JProgressBar`, an `AbstractButton`, a `JViewport` and a `JColorChooser`, which
-publishes through the `selectionModel` it holds when the listener is installed.
+The same listeners are also modifier elements, which is how you hear events from a component the catalog does not wrap. `actionListener` reaches everything that publishes an action event - an `AbstractButton`, a `JTextField`, a `JComboBox`, a `JFileChooser`, and the AWT `Button`, `TextField` and `List` - and `changeListener` everything that publishes a change event - a `JSlider`, a `JSpinner`, a `JTabbedPane`, a `JProgressBar`, an `AbstractButton`, a `JViewport` and a `JColorChooser`, which publishes through the `selectionModel` it holds when the listener is installed.
 
 ### Declaring a selection
 
-`ListBox`, `Table` and `Tree` take their selection as an optional state: a `ListState?`, a `TableState?`
-or a `TreeState?`, which defaults to `null`. A state given holds the selection as two-way state (a
-`TableState` also holds the sort order and the column layout, and a `TreeState` the expansion), reveals a
-row and reads back what the widget shows besides; see [Lists and tables](#lists-and-tables).
+`ListBox`, `Table` and `Tree` take their selection as an optional state: a `ListState?`, a `TableState?` or a `TreeState?`, which defaults to `null`. A state given holds the selection as two-way state (a `TableState` also holds the sort order and the column layout, and a `TreeState` the expansion), reveals a row and reads back what the widget shows besides; see [Lists and tables](#lists-and-tables).
 
-The selection a given state holds is the composition's own and is reapplied on every pass: it survives new
-items, and a user change the state does not hold is undone. Where the new items are too few to hold what
-the user selected, what falls outside them leaves and the state is written with what is left. Leave the
-state out and the selection is the user's and Swing keeps it, as with any undeclared state: never imposed,
-and carried across new items. Hoist a state when the application sets the selection or reads it.
+The selection a given state holds is the composition's own and is reapplied on every pass: it survives new items, and a user change the state does not hold is undone. Where the new items are too few to hold what the user selected, what falls outside them leaves and the state is written with what is left. Leave the state out and the selection is the user's and Swing keeps it, as with any undeclared state: never imposed, and carried across new items. Hoist a state when the application sets the selection or reads it.
 
-A `Tree`'s expansion lives in its `TreeState` as well, and with no state it is Swing's. The user opens and
-closes nodes and a given state is written with the result, along with a node the tree opens to show a
-selection; assigning the state's expansion is how an application sets it or keeps it when the tree is
-recreated.
+A `Tree`'s expansion lives in its `TreeState` as well, and with no state it is Swing's. The user opens and closes nodes and a given state is written with the result, along with a node the tree opens to show a selection; assigning the state's expansion is how an application sets it or keeps it when the tree is recreated.
 
-A given state is written with the user's changes once per settled change: dragging across rows produces
-one write at the end. Rendering fresh items writes it only where they take away part of a selection the
-user made, or where a `Tree` opens nodes to show its selection. A `ComboBox` is always controlled
-instead: its `selectedItem` names the chosen item, `null` names none, and so does an item the current
-`items` do not contain. The selection names an item and not a position, so items that compare equal are
-one and the same selection.
+A given state is written with the user's changes once per settled change: dragging across rows produces one write at the end. Rendering fresh items writes it only where they take away part of a selection the user made, or where a `Tree` opens nodes to show its selection. A `ComboBox` is always controlled instead: its `selectedItem` names the chosen item, `null` names none, and so does an item the current `items` do not contain. The selection names an item and not a position, so items that compare equal are one and the same selection.
 
 ---
 
@@ -131,38 +88,17 @@ one and the same selection.
 | `TextPane`           | Styled multi-line text over `JTextPane`.                                                                        |
 | `EditorPane`         | Markup over `JEditorPane`, rendered through the editor kit its `contentType` names.                             |
 
-`TextField` and `TextArea` each come in two forms: a `value` plus `onValueChange`, and a
-[`DocumentState`](#documentstate) that owns the document outright. `PasswordField` takes a `CharArray`
-`value` plus `onValueChange` only, and `TextPane` takes a `DocumentState` only.
+`TextField` and `TextArea` each come in two forms: a `value` plus `onValueChange`, and a [`DocumentState`](#documentstate) that owns the document outright. `PasswordField` takes a `CharArray` `value` plus `onValueChange` only, and `TextPane` takes a `DocumentState` only.
 
-The `value` forms are strictly controlled, settled like every other
-[declared value](ARCHITECTURE.md#shapes-for-state-the-user-can-change). `FormattedTextField` holds its
-committed value the same way. For `TextField` and `TextArea`, a callback that filters a
-keystroke rather than adopting it leaves the caret where that keystroke would have gone.
+The `value` forms are strictly controlled, settled like every other [declared value](ARCHITECTURE.md#shapes-for-state-the-user-can-change). `FormattedTextField` holds its committed value the same way. For `TextField` and `TextArea`, a callback that filters a keystroke rather than adopting it leaves the caret where that keystroke would have gone.
 
-Reach for the hoisted `DocumentState` form where you do not need the text on every keystroke: the
-state owns the document, so there is no un-adopted edit to settle at all, and it is also what gives
-you incremental edits over a large document, undo/redo, and the text as observable state.
-`TextField(value, onValueChange)` is for the caller who genuinely drives the value.
+Reach for the hoisted `DocumentState` form where you do not need the text on every keystroke: the state owns the document, so there is no un-adopted edit to settle at all, and it is also what gives you incremental edits over a large document, undo/redo, and the text as observable state. `TextField(value, onValueChange)` is for the caller who genuinely drives the value.
 
-`EditorPane` comes in two: a `markup` string it renders and reports nothing back from, and a
-[`DocumentState`](#documentstate) for text the user authors. Its `contentType` names the editor kit
-that parses the markup and defaults to `"text/plain"`. A rendered pane is not editable - it holds only
-what you declare - and reports an activated link to `onLinkActivate` as the raw `href` without opening
-anything; pass a `baseUrl` for relative `href`s and `<img src>`s to resolve against. To hear
-hover events or reach the resolved `URL`, attach `SwingModifier.hyperlinkListener` with a
-`HyperlinkListener`.
+`EditorPane` comes in two: a `markup` string it renders and reports nothing back from, and a [`DocumentState`](#documentstate) for text the user authors. Its `contentType` names the editor kit that parses the markup and defaults to `"text/plain"`. A rendered pane is read-only, holds only what you declare, and reports an activated link to `onLinkActivate` as the raw `href` without opening anything; pass a `baseUrl` for relative `href`s and `<img src>`s to resolve against. To hear hover events or reach the resolved `URL`, attach `SwingModifier.hyperlinkListener` with a `HyperlinkListener`.
 
-`columns` and `rows` default to `0`, which sizes the field from its content rather than a column
-count. `editable` defaults to `true`, `TextArea`'s `tabSize` defaults to `8`, and
-`FormattedTextField`'s `focusLostBehavior` to `JFormattedTextField.COMMIT_OR_REVERT`.
+`columns` and `rows` default to `0`, which sizes the field from its content rather than a column count. `editable` defaults to `true`, `TextArea`'s `tabSize` defaults to `8`, and `FormattedTextField`'s `focusLostBehavior` to `JFormattedTextField.COMMIT_OR_REVERT`.
 
-`FormattedTextField` also takes an `onEditValidChange` callback, reporting whether the in-progress
-edit currently parses. Its hoisted form, a [`FormattedValueState`](#formattedvaluestate) from
-`rememberFormattedValueState`, carries that as observable `isEditValid` beside the committed `value`
-the field drives, and its `commit()` lets a caller outside the field - a dialog's OK button - take the
-pending edit where it stands. A state-driven field has no `onValueChange` and no `onEditValidChange`:
-the state is the single source of truth.
+`FormattedTextField` also takes an `onEditValidChange` callback, reporting whether the in-progress edit currently parses. Its hoisted form, a [`FormattedValueState`](#formattedvaluestate) from `rememberFormattedValueState`, carries that as observable `isEditValid` beside the committed `value` the field drives, and its `commit()` lets a caller outside the field - a dialog's OK button - take the pending edit where it stands. A state-driven field reports through the state alone, which is the single source of truth.
 
 ```kotlin
 var query by remember { mutableStateOf("") }
@@ -205,9 +141,7 @@ EditorPane(
 | `ProgressBar`  | A determinate or indeterminate bar over `JProgressBar`.                                                 |
 | `Separator`    | A divider over `JSeparator` between the items of any container.                                         |
 
-`Button` reports a click; the two-state controls - `CheckBox`, `ToggleButton` and a standalone
-`RadioButton` - take the state in and report the state the user asked for, in both directions, so a
-toggle the caller does not adopt goes back where it was.
+`Button` reports a click; the two-state controls - `CheckBox`, `ToggleButton` and a standalone `RadioButton` - take the state in and report the state the user asked for, in both directions, so a toggle the caller does not adopt goes back where it was.
 
 ```kotlin
 var wrap by remember { mutableStateOf(false) }
@@ -220,11 +154,7 @@ ToggleButton("Pin", selected = pinned, onSelectedChange = { pinned = it })
 
 <!--- CLEAR -->
 
-A `RadioGroup` owns the button group, so you declare the options and the selected index rather than
-wiring exclusivity yourself. The index is the composition's state on every pass, so a pick the caller
-does not adopt goes back to the declared option - including the option the group cleared without it
-being clicked. `RadioButtonMenuGroup` behaves the same way in a menu. Individual `RadioButton`s remain
-available for a layout the group's own axis does not cover.
+A `RadioGroup` owns the button group, so you declare the options and the selected index rather than wiring exclusivity yourself. The index is the composition's state on every pass, so a pick the caller does not adopt goes back to the declared option - including the option the group cleared without it being clicked. `RadioButtonMenuGroup` behaves the same way in a menu. Individual `RadioButton`s remain available for a layout the group's own axis does not cover.
 
 ```kotlin
 var theme by remember { mutableStateOf(0) }
@@ -237,11 +167,7 @@ RadioGroup(selectedIndex = theme, onSelectionChange = { theme = it }) {
 
 <!--- KNIT example-components-content-01.kt -->
 
-An editable `ComboBox` has two outputs: `onSelectionChange` for a choice from the list, and
-`onValueCommit` for text typed into the editor. `itemContent` replaces the rendered cell with a
-composable, which receives the item and, through its scope, the row's `index`, `isSelected` and
-`cellHasFocus`. `editable` defaults to `false`, and `maximumRowCount` - the rows the popup shows
-before scrolling - leaves the count the box already carries unless declared.
+An editable `ComboBox` has two outputs: `onSelectionChange` for a choice from the list, and `onValueCommit` for text typed into the editor. `itemContent` replaces the rendered cell with a composable, which receives the item and, through its scope, the row's `index`, `isSelected` and `cellHasFocus`. `editable` defaults to `false`, and `maximumRowCount` - the rows the popup shows before scrolling - leaves the count the box already carries unless declared.
 
 ```kotlin
 val presets = listOf("Small", "Medium", "Large")
@@ -261,12 +187,7 @@ ComboBox(
 
 <!--- KNIT example-components-content-02.kt -->
 
-`Slider` and `ProgressBar` both range over `0`..`100` by default and are horizontal, as is
-`Separator`. A slider's `labels` map declares the label table that `paintLabels` then paints; a
-progress bar's `stringPainted` alone gives a percentage readout, and `string` overrides the text it
-paints. A drag reaches `onValueChange` a value at a time, for every value it passes through;
-`onValueSettled` hears only the value the drag is released on, which is the one to act on where that
-work is too expensive to repeat per step.
+`Slider` and `ProgressBar` both range over `0`..`100` by default and are horizontal, as is `Separator`. A slider's `labels` map declares the label table that `paintLabels` then paints; a progress bar's `stringPainted` alone gives a percentage readout, and `string` overrides the text it paints. A drag reaches `onValueChange` a value at a time, for every value it passes through; `onValueSettled` hears only the value the drag is released on, which is the one to act on where that work is too expensive to repeat per step.
 
 ```kotlin
 var zoom by remember { mutableStateOf(100) }
@@ -287,10 +208,7 @@ Separator(orientation = SwingConstants.HORIZONTAL)
 
 <!--- KNIT example-components-content-03.kt -->
 
-`Slider` and `ProgressBar` also take a caller-owned `BoundedRangeModel` in place of `value`. The model
-owns the range; the library renders it and never writes to it, so mutating the model repaints the
-widgets without a recomposition. Handing the same instance to both is what lets a bar track a slider
-without either of them owning the value:
+`Slider` and `ProgressBar` also take a caller-owned `BoundedRangeModel` in place of `value`. The model owns the range; the library renders it and never writes to it, so mutating the model repaints the widgets without a recomposition. Handing the same instance to both is what lets a bar track a slider without either of them owning the value:
 
 ```kotlin
 val range = remember { DefaultBoundedRangeModel(30, 0, 0, 100) }
@@ -301,17 +219,9 @@ ProgressBar(model = range)
 
 <!--- KNIT example-components-content-04.kt -->
 
-A `Spinner` shows its value through an editor, and two parameters decide which one. `format` is the
-pattern the spinner's own editor renders and parses with - a `DecimalFormat` pattern over a number
-model, a `SimpleDateFormat` pattern over a date one - and `null` formats the value the way the locale
-does. `editor` replaces that editor with a composable, composed into the spinner as a composition of the
-enclosing composition, so the editing surface reads the same state and composition locals the call
-site does. A fresh lambda each pass recomposes it rather than rebuilding it, so characters
-typed but not committed stand. Declaring both is refused: each names what the spinner shows.
+A `Spinner` shows its value through an editor, and two parameters decide which one. `format` is the pattern the spinner's own editor renders and parses with - a `DecimalFormat` pattern over a number model, a `SimpleDateFormat` pattern over a date one - and `null` formats the value the way the locale does. `editor` replaces that editor with a composable that reads the same state and composition locals the call site does. A new lambda keeps characters typed but not committed. Declaring both is refused: each names what the spinner shows.
 
-Bounds belong to the class of the value they bound. Each is carried into that class on every pass. One
-the class cannot hold exactly - `0.1` under a `Float` value - is refused rather than rounded into a
-bound the spinner would then honor.
+Bounds belong to the class of the value they bound. Each is carried into that class on every pass. One the class cannot hold exactly - `0.1` under a `Float` value - is refused rather than rounded into a bound the spinner would then honor.
 
 ```kotlin
 var hour by remember { mutableStateOf(9) }
@@ -332,14 +242,7 @@ Spinner(hour, onValueChange = { hour = it.toInt() }, min = 0, max = 23) { Label(
 | `Table`   | A grid over `JTable` whose rows are data and whose columns are declarations.                                                        |
 | `Tree`    | A tree over `JTree` built from a root and a children function, addressed by index paths, optionally with a composable node per row. |
 
-All three take a `selectionMode` from `ListSelectionModel`/`TreeSelectionModel` and report selection
-as the general multi-select shape, so one component covers every mode. `ListBox` and `Table` default
-to `ListSelectionModel.MULTIPLE_INTERVAL_SELECTION`, `Tree` to
-`TreeSelectionModel.DISCONTIGUOUS_TREE_SELECTION`. A `ListBox`'s `visibleRowCount` defaults to `8`, a
-`Tree`'s to `20`, and a `Tree`'s `toggleClickCount` - the clicks that open or close a node, `0` for
-neither - to `2`. `Table` and `Tree` both take a `rowHeight`, which defaults to `null` and leaves the
-height to the installed look and feel; a `Tree`'s `0` asks each node's rendering how tall it wants to
-be, which is what lets a composable node size itself.
+All three take a `selectionMode` from `ListSelectionModel`/`TreeSelectionModel` and report selection as the general multi-select shape, so one component covers every mode. `ListBox` and `Table` default to `ListSelectionModel.MULTIPLE_INTERVAL_SELECTION`, `Tree` to `TreeSelectionModel.DISCONTIGUOUS_TREE_SELECTION`. A `ListBox`'s `visibleRowCount` defaults to `8`, a `Tree`'s to `20`, and a `Tree`'s `toggleClickCount` - the clicks that open or close a node, `0` for neither - to `2`. `Table` and `Tree` both take a `rowHeight`, which defaults to `null` and leaves the height to the installed look and feel; a `Tree`'s `0` asks each node's rendering how tall it wants to be, which is what lets a composable node size itself.
 
 ```kotlin
 val languages = listOf("Kotlin", "Java", "Scala")
@@ -357,15 +260,7 @@ ListBox(
 
 <!--- KNIT example-components-content-06.kt -->
 
-A composable cell - a `ListBox` or `ComboBox` `itemContent`, a column's `cellContent`, a `Tree`'s
-`nodeContent` - composes **one** component, and that component is what the widget renders the row
-with: it is bounded at the row and laid out there. Compose several components into a panel and the row
-is that panel, arranged by its layout. Inside the panel's content the cell's scope is hidden, as every
-container hides the scopes around it: read `isSelected` and the other row values before the panel, or
-as `this@ListBox.isSelected`. A cell composing several components on its own is refused,
-since only one of them could be the row. Everything inside is ordinary Swing: gaps, alignment and a
-fixed slot for a leading glyph are the panel's layout to decide, and its background is painted over
-the row's unless `opaque(false)` says otherwise.
+A composable cell - a `ListBox` or `ComboBox` `itemContent`, a column's `cellContent`, a `Tree`'s `nodeContent` - composes **one** component, and that component is what the widget renders the row with: it is bounded at the row and laid out there. Compose several components into a panel and the row is that panel, arranged by its layout. Inside the panel's content the cell's scope is hidden, as every container hides the scopes around it: read `isSelected` and the other row values before the panel, or as `this@ListBox.isSelected`. A cell composing several components on its own is refused, since only one of them could be the row. Everything inside is ordinary Swing: gaps, alignment and a fixed slot for a leading glyph are the panel's layout to decide, and its background is painted over the row's unless `opaque(false)` says otherwise.
 
 ```kotlin
 ComboBox(items = languages, selectedItem = selected, onSelectionChange = { selected = it }) { language ->
@@ -378,59 +273,23 @@ ComboBox(items = languages, selectedItem = selected, onSelectionChange = { selec
 
 <!--- CLEAR -->
 
-A list measures each row by what its cell asks for. A tree does the same where its `rowHeight` is `0`,
-and otherwise gives every row the one height. A table never does: every one of its rows is the same
-height, whatever its cells ask for, so a cell taller than the text a table sizes its rows for is what
-`rowHeight` is there for.
+A list measures each row by what its cell asks for. A tree does the same where its `rowHeight` is `0`, and otherwise gives every row the one height. A table never does: every one of its rows is the same height, whatever its cells ask for, so a cell taller than the text a table sizes its rows for is what `rowHeight` is there for.
 
-A `ComboBox` renders its selected item in a display area whose height its look and feel fixes,
-whatever the cell asks for, so a cell taller than that is cut off there. Check a tall cell against the
-look and feel the application actually runs under, since each one sets that height for itself.
+A `ComboBox` renders its selected item in a display area whose height its look and feel fixes, whatever the cell asks for, so a cell taller than that is cut off there. Check a tall cell against the look and feel the application actually runs under, since each one sets that height for itself.
 
-A `Table`'s columns are declared in `columns`, each with a header and a value extractor over the row
-type. A column is **typed**: the class the extractor returns is what the table renders and edits the
-column's cells as, so a `Boolean` column draws a checkbox and hands `onCellEdit` a `Boolean`, and an
-`Int` column hands it an `Int`. Where the class is not the extractor's own, declare it with the
-overload that takes a `columnClass`. Put a table in a `ScrollPane` to scroll it and to show its
-column header.
+A `Table`'s columns are declared in `columns`, each with a header and a value extractor over the row type. A column is **typed**: the class the extractor returns is what the table renders and edits the column's cells as, so a `Boolean` column draws a checkbox and hands `onCellEdit` a `Boolean`, and an `Int` column hands it an `Int`. Where the class is not the extractor's own, declare it with the overload that takes a `columnClass`. Put a table in a `ScrollPane` to scroll it and to show its column header.
 
-A row is always named by its index into `rows` - the model's own row space, the space
-`TableColumnLayout.modelIndices` names columns in - and never by the position it is drawn at. Sorting
-and filtering move where a row is shown and leave the row each index names alone, so a selection, a
-cell edit and a column layout all keep meaning what they meant.
+A row is always named by its index into `rows` - the model's own row space, the space `TableColumnLayout.modelIndices` names columns in - and never by the position it is drawn at. Sorting and filtering move where a row is shown and leave the row each index names alone, so a selection, a cell edit and a column layout all keep meaning what they meant.
 
-Editing is per column and, where you want it, per row: a column is editable exactly when it sets
-`onCellEdit`, and `isCellEditable` narrows it to the rows it answers `true` for. A committed edit
-arrives at `onCellEdit` with the row, its index and the new value; the displayed value changes when the
-next composition supplies fresh `rows`. An open edit ends and commits nothing when a composition no
-longer puts the same row under it - the row went away, was rewritten in place, or the columns were
-rebuilt. An edit follows its row across rows a later composition inserts or removes elsewhere. A
-composition that both adds and removes rows ends an edit on any row at or past the first row where the
-two lists differ - and on any row at all where the table is sorted or filtered.
+Editing is per column and, where you want it, per row: a column is editable exactly when it sets `onCellEdit`, and `isCellEditable` narrows it to the rows it answers `true` for. A committed edit arrives at `onCellEdit` with the row, its index and the new value; the displayed value changes when the next composition supplies fresh `rows`. An open edit ends and commits nothing when a composition no longer puts the same row under it - the row went away, was rewritten in place, or the columns were rebuilt. An edit follows its row across rows a later composition inserts or removes elsewhere. A composition that both adds and removes rows ends an edit on any row at or past the first row where the two lists differ - and on any row at all where the table is sorted or filtered.
 
-Sorting is off until `sortable` turns it on, as it is on a bare `JTable`. With it on, a click on a
-column header sorts by that column and the order the click leaves the rows in is written into the
-table's state when one is given, and `rowFilter` decides which of them are shown at all. Each column
-brings its own `isSortable` and `comparator` to that sorting.
+Sorting is off until `sortable` turns it on, as it is on a bare `JTable`. With it on, a click on a column header sorts by that column and the order the click leaves the rows in is written into the table's state when one is given, and `rowFilter` decides which of them are shown at all. Each column brings its own `isSortable` and `comparator` to that sorting.
 
-The sizing surface is the same shape. The table's state is written with the order and the preferred widths
-a header drag or a divider drag left the columns in; a column's own `minWidth` and `maxWidth` bound
-every width it can be left at; `autoResizeMode` decides how the columns share out a change to the
-table's width; and `fillsViewportHeight` stretches the table to the viewport showing it rather than to
-the rows it holds.
+The sizing surface is the same shape. The table's state is written with the order and the preferred widths a header drag or a divider drag left the columns in; a column's own `minWidth` and `maxWidth` bound every width it can be left at; `autoResizeMode` decides how the columns share out a change to the table's width; and `fillsViewportHeight` stretches the table to the viewport showing it rather than to the rows it holds.
 
-The sort order and the column layout are the user's: a table never imposes them, and the rows and
-columns it is declared with and a new `model` keep them. A structure change the caller makes to their
-own model in place starts them over, as it does on a `JTable`. To set them, assign them to the
-[`TableState`](#tablestate). To refuse a gesture, turn it off: `sortable` or a column's `isSortable` for
-a sort, and `Header(reorderingAllowed, resizingAllowed)` for a reorder or a resize.
+The sort order and the column layout are the user's: a table never imposes them, and the rows and columns it is declared with and a new `model` keep them. A structure change the caller makes to their own model in place starts them over, as it does on a `JTable`. To set them, assign them to the [`TableState`](#tablestate). To refuse a gesture, turn it off: `sortable` or a column's `isSortable` for a sort, and `Header(reorderingAllowed, resizingAllowed)` for a reorder or a resize.
 
-The trailing content configures the parts a table builds itself. `Header` configures the table's own
-`JTableHeader`, the one its scroll pane shows as the column header: `modifier` reaches the header,
-and `reorderingAllowed` and `resizingAllowed` decide whether dragging a header reorders the columns
-and dragging the divider between two headers resizes them. When `Header` leaves, the header gets
-back the values the `Header` declaration replaced. The content holds nothing else: a child that is
-not a part is refused, and so is a second `Header`.
+The trailing content configures the parts a table builds itself. `Header` configures the table's own `JTableHeader`, the one its scroll pane shows as the column header: `modifier` reaches the header, and `reorderingAllowed` and `resizingAllowed` decide whether dragging a header reorders the columns and dragging the divider between two headers resizes them. When `Header` leaves, the header gets back the values the `Header` declaration replaced. The content holds nothing else: a child that is not a part is refused, and so is a second `Header`.
 
 ```kotlin
 val state = rememberTableState()
@@ -460,29 +319,13 @@ ScrollPane {
 
 <!--- CLEAR -->
 
-A `Tree` is built from your own node type: a `root`, a `children` function, and a `label` for the
-text of a node. Selection and expansion are both a set of index paths - a `List<Int>` of child
-positions per node, walked from the root - so they mean the same thing across two compositions of the
-same shape. `rootVisible` defaults to `true`.
+A `Tree` is built from your own node type: a `root`, a `children` function, and a `label` for the text of a node. Selection and expansion are both a set of index paths - a `List<Int>` of child positions per node, walked from the root - so they mean the same thing across two compositions of the same shape. `rootVisible` defaults to `true`.
 
-`nodeContent` renders a node as a composable of its own, against a `TreeNodeScope` carrying the node's
-`row`, `isSelected`, `isExpanded`, `isLeaf` and `hasFocus`. `label` keeps its meaning either way: it
-is the node's text where the tree renders the text itself, and its accessible text in both cases.
-Give a tree with composable nodes a `rowHeight` of `0` so each node is measured by what it composes.
+`nodeContent` renders a node as a composable of its own, against a `TreeNodeScope` carrying the node's `row`, `isSelected`, `isExpanded`, `isLeaf` and `hasFocus`. `label` keeps its meaning either way: it is the node's text where the tree renders the text itself, and its accessible text in both cases. Give a tree with composable nodes a `rowHeight` of `0` so each node is measured by what it composes.
 
-`isEditable` lets the user edit a node's text in place, and a committed edit hands `onNodeEdit` the
-value edited, its index path and what was entered. Editing is a report and never a mutation: the row
-goes on showing what the data says until a later composition supplies data that says otherwise, and
-the tree `root` and `children` describe is never written to. An open edit ends and commits nothing when
-a composition no longer puts the same value under it - the node took another value over, or left the
-structure.
+`isEditable` lets the user edit a node's text in place, and a committed edit hands `onNodeEdit` the value edited, its index path and what was entered. Editing is a report and never a mutation: the row goes on showing what the data says until a later composition supplies data that says otherwise, and the tree `root` and `children` describe is never written to. An open edit ends and commits nothing when a composition no longer puts the same value under it - the node took another value over, or left the structure.
 
-`onWillExpand` is asked before a node opens - whether the user opened it or the tree did to show a
-selection or a `TreeState`'s expansion - and returning `false` leaves it closed. Together with
-`hasChildren` that is also how children are loaded lazily: a value `children` yields nothing for is a
-leaf with no handle to click, and declaring `hasChildren` lets such a value call itself a branch all
-the same, so the user can ask for children the data does not hold yet and `onWillExpand` is where
-fetching them starts.
+`onWillExpand` is asked before a node opens - whether the user opened it or the tree did to show a selection or a `TreeState`'s expansion - and returning `false` leaves it closed. Together with `hasChildren` that is also how children are loaded lazily: a value `children` yields nothing for is a leaf with no handle to click, and declaring `hasChildren` lets such a value call itself a branch all the same, so the user can ask for children the data does not hold yet and `onWillExpand` is where fetching them starts.
 
 ```kotlin
 val state = rememberTreeState(initialExpandedPaths = setOf(emptyList()))
@@ -505,21 +348,11 @@ Tree(
 
 <!--- CLEAR -->
 
-A `ListState` holds what one `ListBox` has selected, a `TableState` what one `Table` has selected, how it
-sorts its rows and how its columns are laid out, and a `TreeState` what one `Tree` has selected and open.
-Each also carries the gesture that brings one row into view when the application decides to - a row just
-added, a search hit, a node a load has just filled in. Hoist one with `rememberListState()`,
-`rememberTableState()` or `rememberTreeState()` and pass it as `state`; the state is where those facets
-live, and a widget takes no other parameter for a facet the state holds.
+A `ListState` holds what one `ListBox` has selected, a `TableState` what one `Table` has selected, how it sorts its rows and how its columns are laid out, and a `TreeState` what one `Tree` has selected and open. Each also carries the gesture that brings one row into view when the application decides to - a row just added, a search hit, a node a load has just filled in. Hoist one with `rememberListState()`, `rememberTableState()` or `rememberTreeState()` and pass it as `state`; the state is where those facets live, and a widget takes no other parameter for a facet the state holds.
 
-`revealIndex(index)` reveals a `ListBox` row, `revealRow(rowIndex)` a `Table` row, and
-`revealPath(path)` a `Tree` node, opening every ancestor hiding it. Each call answers whether it
-reached anything. Revealing is a gesture and not a declaration: it scrolls where it is called and
-leaves nothing behind, so no later pass scrolls back and where the user scrolls afterwards stands. A
-state drives one component at a time - passing it to a second moves it there.
+`revealIndex(index)` reveals a `ListBox` row, `revealRow(rowIndex)` a `Table` row, and `revealPath(path)` a `Tree` node, opening every ancestor hiding it. Each call answers whether it reached anything. Revealing scrolls where it is called and leaves nothing behind, so where the user scrolls afterwards stands. A state drives one component at a time - passing it to a second moves it there.
 
-A row is revealed once the list holds it, so reveal from an effect that runs after the composition
-declaring it, not from the callback that declared it.
+A row is revealed once the list holds it, so reveal from an effect that runs after the composition declaring it, not from the callback that declared it.
 
 ```kotlin
 val state = rememberListState()
@@ -533,25 +366,17 @@ ScrollPane {
 
 <!--- CLEAR -->
 
-Each state also reads back what its widget currently shows, rather than what the composition declared:
-see [`ListState`](#liststate), [`TableState`](#tablestate) and [`TreeState`](#treestate).
+Each state also reads back what its widget currently shows, rather than what the composition declared: see [`ListState`](#liststate), [`TableState`](#tablestate) and [`TreeState`](#treestate).
 
-To reveal a region of a scroll pane's content rather than a row of a widget, use
-[`ScrollState.revealRect`](#scrollstate).
+To reveal a region of a scroll pane's content rather than a row of a widget, use [`ScrollState.revealRect`](#scrollstate).
 
 ---
 
 ## Containers and layout
 
-Swing lays everything out, so a container is a layout manager plus the children you declare into it.
-Children are written plainly in a container's content, and where a child sits inside its container is
-part of what that child declares: a container gives its content a scope, and the scope's modifier
-builders - `north()`, `item(...)`, `tab(...)` - append the placement to that child's own `modifier`.
-A builder is only callable where its scope is the receiver, so a region belongs to the container that
-offers it and cannot be named anywhere else.
+Swing lays everything out, so a container is a layout manager plus the children you declare into it. Children are written plainly in a container's content, and where a child sits inside its container is part of what that child declares: a container gives its content a scope, and the scope's modifier builders - `north()`, `item(...)`, `tab(...)` - append the placement to that child's own `modifier`. A builder is only callable where its scope is the receiver, so a region belongs to the container that offers it and cannot be named anywhere else.
 
-For Compose-style constraint-based layouts (`Row`, `Column`, `Box`) and layout modifiers, see
-[`FOUNDATION.md`](FOUNDATION.md).
+For Compose-style constraint-based layouts (`Row`, `Column`, `Box`) and layout modifiers, see [Foundation](FOUNDATION.md).
 
 | Component     | What it is                                                                           |
 |---------------|--------------------------------------------------------------------------------------|
@@ -577,28 +402,13 @@ For Compose-style constraint-based layouts (`Row`, `Column`, `Box`) and layout m
 
 A `Panel` that names no layout takes the one a `JPanel` builds itself with, a `PanelLayout.Flow()`.
 
-Each layout carries its own parameters and hands the content the scope through which children declare
-their placement under it. Changing those parameters applies to the manager already standing; changing
-the layout to another kind installs the new manager on the same panel and builds its children anew. A
-manager these do not name is declared by subclassing `PanelLayout` - see
-[A layout of your own](CUSTOM-CONTAINERS.md#a-layout-of-your-own).
+Each layout carries its own parameters and hands the content the scope through which children declare their placement under it. Changing those parameters applies to the manager already standing; changing the layout to another kind installs the new manager on the same panel and builds its children anew. A manager these do not name is declared by subclassing `PanelLayout` - see [A layout of your own](CUSTOM-CONTAINERS.md#a-layout-of-your-own).
 
-Showing and hiding part of a layout is composing and not composing it: emitting a child adds it where
-it declares it belongs, dropping the child takes it out, and declaring a different placement moves it
-without costing the component it already has.
+Showing and hiding part of a layout is composing and not composing it: emitting a child adds it where it declares it belongs, dropping the child takes it out, and declaring a different placement moves it without costing the component it already has.
 
-Where a region holds a single child, what a second child naming it costs is the region's own: a
-`PanelLayout.Border` region is taken by the last child registered in it and the panel lays nothing out
-for the first, while a `SplitPane` side and a `PanelLayout.Card` card are refused to a second child,
-naming the side or the card. That refusal is over what the composition declares once its changes have
-reached the components, so a child replacing another on a side or a card is a single occupant
-throughout, whichever order the two changes reach the container in. A `PanelLayout.Border` child that
-names no region occupies `center`, the region a `BorderLayout` registers a constraintless child under.
+Where a region holds a single child, what a second child naming it costs is the region's own: a `PanelLayout.Border` region is taken by the last child registered in it and the panel lays nothing out for the first, while a `SplitPane` side and a `PanelLayout.Card` card are refused to a second child, naming the side or the card. That refusal is over what the composition declares once its changes have reached the components, so a child replacing another on a side or a card is a single occupant throughout, whichever order the two changes reach the container in. A `PanelLayout.Border` child that names no region occupies `center`, the region a `BorderLayout` registers a constraintless child under.
 
-`PanelLayout.Border` offers two families of edge: the absolute compass (`north`, `south`, `east`,
-`west`) and the orientation-aware one (`pageStart`, `pageEnd`, `lineStart`, `lineEnd`), which resolve
-against the panel's `ComponentOrientation`. `center` is shared. Use one family per edge. Its
-`hgap`/`vgap` default to `0`.
+`PanelLayout.Border` offers two families of edge: the absolute compass (`north`, `south`, `east`, `west`) and the orientation-aware one (`pageStart`, `pageEnd`, `lineStart`, `lineEnd`), which resolve against the panel's `ComponentOrientation`. `center` is shared. Use one family per edge. Its `hgap`/`vgap` default to `0`.
 
 ```kotlin
 Panel(PanelLayout.Border()) {
@@ -610,16 +420,9 @@ Panel(PanelLayout.Border()) {
 
 <!--- CLEAR -->
 
-`PanelLayout.Box` is `BoxLayout` itself, and a `ToolBar` lays its controls out the same way: each
-shares its leftover space out among the children that can still grow between the size they prefer
-and their maximum size, in proportion to how much they can grow. `Glue` is empty space that can grow
-without limit, so it takes the largest share, and `Strut`, `RigidArea` and `Spacer` (a `RigidArea` square) are the fixed
-gaps between items. `PanelLayout.Flow` centers its children and gaps them by `5` in user-space
-coordinates, and `PanelLayout.Grid` starts as a single row that grows a column per child, with no gaps.
+`PanelLayout.Box` is `BoxLayout` itself, and a `ToolBar` lays its controls out the same way: each shares its leftover space out among the children that can still grow between the size they prefer and their maximum size, in proportion to how much they can grow. `Glue` is empty space that can grow without limit, so it takes the largest share, and `Strut`, `RigidArea` and `Spacer` (a `RigidArea` square) are the fixed gaps between items. `PanelLayout.Flow` centers its children and gaps them by `5` in user-space coordinates, and `PanelLayout.Grid` starts as a single row that grows a column per child, with no gaps.
 
-`PanelLayout.GridBag`'s `item` takes one parameter per `GridBagConstraints` field, under the field's
-own name and with its own default, so a grid-bag layout written against Swing carries over field for
-field.
+`PanelLayout.GridBag`'s `item` takes one parameter per `GridBagConstraints` field, under the field's own name and with its own default, so a grid-bag layout written against Swing carries over field for field.
 
 ```kotlin
 var name by remember { mutableStateOf("") }
@@ -645,14 +448,9 @@ Panel(PanelLayout.GridBag) {
 
 <!--- KNIT example-components-content-07.kt -->
 
-A child that declares no `item` is laid out under `GridBagConstraints`' own defaults, which place it
-relative to the child before it.
+A child that declares no `item` is laid out under `GridBagConstraints`' own defaults, which place it relative to the child before it.
 
-`PanelLayout.Card` shows the card whose key equals its `selectedCard`, so switching pages is a state
-write. A card holds one child, and two children naming the same card are refused. A child that
-declares no card is the card keyed by the empty string, shown by `selectedCard = ""`. The key names
-the card, not the child: a child that declares a new key moves to that card keeping its position among
-its siblings, and its composition identity is the place it is written at, as any child's is.
+`PanelLayout.Card` shows the card whose key equals its `selectedCard`, so switching pages is a state write. A card holds one child, and two children naming the same card are refused. A child that declares no card is the card keyed by the empty string, shown by `selectedCard = ""`. The key names the card, not the child: a child that declares a new key moves to that card keeping its position among its siblings.
 
 ```kotlin
 var step by remember { mutableStateOf("details") }
@@ -665,16 +463,7 @@ Button("Next", onClick = { step = "payment" })
 
 <!--- CLEAR -->
 
-Every child of a `TabbedPane` is one tab's body and declares that tab with `tab(...)`, which carries the
-tab's title, icon, tooltip, enabled flag, mnemonic and colors, and can take over what the tab strip
-renders with a `header` composable - the title and icon still name the tab, for accessibility and as
-the values recomposition writes. A tab keeps what its body remembers, and the components that body was
-realized as, for as long as the child holding the declaration keeps its composition identity: a body
-written at a place of its own keeps its tab however the tabs around it come and go, and bodies written
-at one place - a loop over the open documents - are told apart by the position they arrive in until
-`key` gives each one of its own, so an unkeyed body is handed the tab that used to stand in its
-position. `tabPlacement` defaults to `JTabbedPane.TOP` and `tabLayoutPolicy` to
-`JTabbedPane.WRAP_TAB_LAYOUT`.
+Every child of a `TabbedPane` is one tab's body and declares that tab with `tab(...)`, which carries the tab's title, icon, tooltip, enabled flag, mnemonic and colors, and can take over what the tab strip renders with a `header` composable - the title and icon still name the tab, for accessibility and as the values recomposition writes. A tab keeps its body and what the body remembers however the tabs around it come and go. Bodies written at one place - a loop over the open documents - are told apart by position until `key` gives each one of its own, so an unkeyed body takes the tab at its position. `tabPlacement` defaults to `JTabbedPane.TOP` and `tabLayoutPolicy` to `JTabbedPane.WRAP_TAB_LAYOUT`.
 
 ```kotlin
 var tab by remember { mutableStateOf(0) }
@@ -697,14 +486,7 @@ TabbedPane(selectedIndex = tab, onSelectedIndexChange = { tab = it }) {
 
 <!--- CLEAR -->
 
-A `SplitPane`'s `first` side is the left or the top depending on `orientation`, which defaults to
-`JSplitPane.HORIZONTAL_SPLIT`. `dividerLocation` is declared and `onDividerLocationChange` reports
-where the user dragged it; `resizeWeight` decides which side keeps extra space, and
-`oneTouchExpandable` and `dividerSize` shape the divider itself. `continuousLayout` lays the two sides
-out as the divider is dragged rather than once it is released. Each of those three leaves the choice to
-the look and feel while it is `null`. `oneTouchExpandable` and `dividerSize` are installed onto the
-pane by its own UI, so withdrawing a declared value hands back what the pane was already carrying;
-`continuousLayout` is resolved from the look and feel's own answer instead.
+A `SplitPane`'s `first` side is the left or the top depending on `orientation`, which defaults to `JSplitPane.HORIZONTAL_SPLIT`. `dividerLocation` is declared and `onDividerLocationChange` reports where the user dragged it; `resizeWeight` decides which side keeps extra space, and `oneTouchExpandable` and `dividerSize` shape the divider itself. `continuousLayout` lays the two sides out as the divider is dragged rather than once it is released. Each of those three leaves the choice to the look and feel while it is `null`. `oneTouchExpandable` and `dividerSize` are installed onto the pane by its own UI, so withdrawing a declared value hands back what the pane was already carrying; `continuousLayout` is resolved from the look and feel's own answer instead.
 
 ```kotlin
 var divider by remember { mutableStateOf(240) }
@@ -722,18 +504,7 @@ SplitPane(
 
 <!--- CLEAR -->
 
-A `ScrollPane` builds its viewport and both scroll bars itself, and every child declares either one
-of those parts or one of the regions that stay empty until filled. `Viewport { }` configures the
-pane's viewport and holds the one child it scrolls - a second child there is refused;
-`VerticalScrollbar()` and `HorizontalScrollbar()` configure the bars; `rowHeader()`,
-`columnHeader()` and `corner(...)` name a region on a child's `modifier`. A part gets back the
-values its modifier replaced when its declaration goes. `Viewport` also carries how far the pane
-scrolls per arrow button and per page - each `null` by default, which leaves the increment to the
-content, as a table, list, tree or text area answers with its own rows or lines. Both scrollbar
-policies default to as-needed. `viewportBorder` draws a border around the viewport, inside the
-pane's own border and outside the scrolled content, and leaves it to the look and feel while it is
-`null`; `wheelScrollingEnabled` decides whether the mouse wheel scrolls the pane at all. The scroll
-position is hoisted into a [`ScrollState`](#scrollstate).
+A `ScrollPane` builds its viewport and both scroll bars itself, and every child declares either one of those parts or one of the regions that stay empty until filled. `Viewport { }` configures the pane's viewport and holds the one child it scrolls - a second child there is refused; `VerticalScrollbar()` and `HorizontalScrollbar()` configure the bars; `rowHeader()`, `columnHeader()` and `corner(...)` name a region on a child's `modifier`. A part gets back the values its modifier replaced when its declaration goes. `Viewport` also carries how far the pane scrolls per arrow button and per page - each `null` by default, which leaves the increment to the content, as a table, list, tree or text area answers with its own rows or lines. Both scrollbar policies default to as-needed. `viewportBorder` draws a border around the viewport, inside the pane's own border and outside the scrolled content, and leaves it to the look and feel while it is `null`; `wheelScrollingEnabled` decides whether the mouse wheel scrolls the pane at all. The scroll position is hoisted into a [`ScrollState`](#scrollstate).
 
 ```kotlin
 ScrollPane(horizontalScrollbar = JScrollPane.HORIZONTAL_SCROLLBAR_NEVER) {
@@ -746,12 +517,7 @@ ScrollPane(horizontalScrollbar = JScrollPane.HORIZONTAL_SCROLLBAR_NEVER) {
 
 <!--- CLEAR -->
 
-A `ToolBar` is horizontal by default, and leaves `floatable` - whether the user can drag it out - at
-the choice the bar already carries unless declared. A bar that declares `floatable = true` has to
-stand in a container laid out by a `BorderLayout` - a `PanelLayout.Border` panel, or a window's own
-content - and is refused anywhere else. `floating` declares whether the bar stands in a window of its
-own, and `onFloatingChange` reports where the user dragged it - or hands back the docked state a bar
-that cannot float settles for.
+A `ToolBar` is horizontal by default, and leaves `floatable` - whether the user can drag it out - at the choice the bar already carries unless declared. A bar that declares `floatable = true` has to stand in a container laid out by a `BorderLayout` - a `PanelLayout.Border` panel, or a window's own content - and is refused anywhere else. `floating` declares whether the bar stands in a window of its own, and `onFloatingChange` reports where the user dragged it - or hands back the docked state a bar that cannot float settles for.
 
 ```kotlin
 ToolBar(floatable = false, rollover = true) {
@@ -764,16 +530,9 @@ ToolBar(floatable = false, rollover = true) {
 
 <!--- CLEAR -->
 
-`Layer` wraps one component in a `JLayer` while keeping that component as the layer's view, so its
-preferred size and component-specific behavior continue through the layer. Use the callbacks
-for painting or observing mouse events. `onPaint` may call `paintView` before or after its own drawing,
-more than once, or not at all. The graphics copy and `paintView` are
-valid only during the callback. Snapshot state read by `onPaint` causes the layer to repaint when that
-state changes.
+`Layer` wraps one component in a `JLayer` while keeping that component as the layer's view, so its preferred size and component-specific behavior continue through the layer. Use the callbacks for painting or observing mouse events. `onPaint` may call `paintView` before or after its own drawing, more than once, or not at all. The graphics copy and `paintView` are valid only during the callback. Snapshot state read by `onPaint` causes the layer to repaint when that state changes.
 
-The mouse callbacks observe mouse, mouse-motion and mouse-wheel events. Returning from a callback does not
-consume the mutable event or prevent it from reaching the view; a callback may consume it explicitly by
-calling `consume()`.
+The mouse callbacks observe mouse, mouse-motion and mouse-wheel events. Returning from a callback does not consume the mutable event or prevent it from reaching the view; a callback may consume it explicitly by calling `consume()`.
 
 ```kotlin
 Layer(
@@ -788,38 +547,17 @@ Layer(
 }
 ```
 
-`Layer` content receives a `LayerScope` that offers `GlassPane` only. The child that declares no region
-becomes the wrapped view, as with `new JLayer(view)`. `GlassPane { ... }` shows the layer's own
-transparent glass pane over the view. Its content is laid out under an optional layout passed first, as
-`Panel` lays out its own panel - `GlassPane(PanelLayout.Border()) { ... }` lets a single child fill it -
-and its `modifier` reaches the pane itself. A layer shows one view, so a second child that declares no
-region is refused, and so is a second `GlassPane` composed at once. An `if` makes a conditional overlay:
-removing the glass pane hides it and removes its children.
+`Layer` content receives a `LayerScope` that offers `GlassPane` only. The child that declares no region becomes the wrapped view, as with `new JLayer(view)`. `GlassPane { ... }` shows the layer's own transparent glass pane over the view. Its content is laid out under an optional layout passed first, as `Panel` lays out its own panel - `GlassPane(PanelLayout.Border()) { ... }` lets a single child fill it - and its `modifier` reaches the pane itself. A layer shows one view, so a second child that declares no region is refused, and so is a second `GlassPane` composed at once. An `if` makes a conditional overlay: removing the glass pane hides it and removes its children.
 
-The overlay is transparent where its content paints nothing. It takes pointer targeting where a visible
-child lies, where it has a mouse, motion or wheel listener, or where it has an explicit cursor. Empty
-areas continue through to the view. Give an overlay child or the pane's `modifier` a listener when it must
-take the pointer.
+The overlay is transparent where its content paints nothing. It takes pointer targeting where a visible child lies, where it has a mouse, motion or wheel listener, or where it has an explicit cursor. Empty areas continue through to the view. Give an overlay child or the pane's `modifier` a listener when it must take the pointer.
 
-`Layer` is a normal Swing component in its parent, and its `GlassPane` declarations are valid
-only in the `LayerScope` that supplied them. The composition owns the `JLayer`, its view, the glass
-pane's declared properties and content, the delegate, callbacks and event mask; the glass pane itself
-is the layer's. Do not mutate that structure behind the composition. For a layer built from `SwingNode`,
-`factory` creates its component once, `update` reapplies state during recomposition, and `onRelease` is
-for teardown when the node leaves the composition. A parked node is released; content that becomes
-active later receives a new component.
+`Layer` is a normal Swing component in its parent, and its `GlassPane` declarations are valid only in the `LayerScope` that supplied them. The composition owns the `JLayer`, its view, the glass pane's declared properties and content, the delegate, callbacks and event mask; the glass pane itself is the layer's. Do not mutate that structure behind the composition. For a layer built from `SwingNode`, `factory` creates its component once, `update` reapplies state during recomposition, and `onRelease` is for teardown when the node leaves the composition. A parked node is released; content that becomes active later receives a new component.
 
-Mount compositions and mutate Swing components on the Event Dispatch Thread. Layer painting and event
-callbacks run on the EDT; use `Dispatchers.Swing` for coroutines that touch the layer or its children,
-and keep blocking work out of those callbacks.
+Mount compositions and mutate Swing components on the Event Dispatch Thread. Layer painting and event callbacks run on the EDT; use `Dispatchers.Swing` for coroutines that touch the layer or its children, and keep blocking work out of those callbacks.
 
 <!--- CLEAR -->
 
-A `LayeredPane` stacks children on integer depths - higher layers paint above lower ones, and within
-one layer the children stack in the order the composition declares them, the first of them on top. A
-child that declares no layer stands on `JLayeredPane.DEFAULT_LAYER`. It lays nothing out, so each
-child carries its own bounds. Changing a child's layer moves the existing component to the top of its
-new layer.
+A `LayeredPane` stacks children on integer depths - higher layers paint above lower ones, and within one layer the children stack in the order the composition declares them, the first of them on top. A child that declares no layer stands on `JLayeredPane.DEFAULT_LAYER`. It lays nothing out, so each child carries its own bounds. Changing a child's layer moves the existing component to the top of its new layer.
 
 ```kotlin
 LayeredPane {
@@ -834,19 +572,9 @@ LayeredPane {
 
 <!--- CLEAR -->
 
-A `DesktopPane` hosts internal frames. Each frame declares a title, its window controls, and either
-plain `bounds` - where it starts, and wherever the user then leaves it - or an
-[`InternalFrameState`](#internalframestate), which makes its geometry and its window state two-way.
-The close control is controlled: activating it calls `onClose`, and the frame closes when you stop
-declaring it. Every control is off by default, matching a fresh `JInternalFrame`.
+A `DesktopPane` hosts internal frames. Each frame declares a title, its window controls, and either plain `bounds` - where it starts, and wherever the user then leaves it - or an [`InternalFrameState`](#internalframestate), which makes its geometry and its window state two-way. The close control is controlled: activating it calls `onClose`, and the frame closes when you stop declaring it. Every control is off by default, matching a fresh `JInternalFrame`.
 
-A frame keeps the window it was realized as, and the position the user dragged it to, for as long as
-the composition declares it in the same place - the same identity rule a `TabbedPane` tab keeps its
-body by, earlier in this section. Frames declared from one place, as a loop over a list declares
-them, are told apart by the position they arrive in, so wrap each one in `key`; a frame's
-`InternalFrameState` serves as the key. Without it, removing a frame hands every frame after it its
-predecessor's window, and the positions the user chose are lost. One state drives one frame: a second
-frame taking a state another frame already holds is refused.
+A frame keeps the window it was realized as, and the position the user dragged it to, for as long as the composition declares it in the same place - the same identity rule a `TabbedPane` tab keeps its body by, earlier in this section. Frames declared from one place, as a loop over a list declares them, are told apart by the position they arrive in, so wrap each one in `key`; a frame's `InternalFrameState` serves as the key. Without it, removing a frame hands every frame after it its predecessor's window, and the positions the user chose are lost. One state drives one frame: a second frame taking a state another frame already holds is refused.
 
 ```kotlin
 val palette = rememberInternalFrameState(Rectangle(24, 24, 320, 200))
@@ -870,15 +598,9 @@ DesktopPane {
 
 <!--- CLEAR -->
 
-A frame's content receives an `InternalFrameScope`: what it composes lands in the frame's content pane,
-and `GlassPane { ... }` shows the frame's own glass pane over it. It is valid only directly in the frame's
-content; composed anywhere else it is refused. Otherwise it behaves as a `Layer`'s `GlassPane` does: it
-takes a layout and a `modifier`, a second one composed at once is refused, and removing it gives back what
-it declared.
+A frame's content receives an `InternalFrameScope`: what it composes lands in the frame's content pane, and `GlassPane { ... }` shows the frame's own glass pane over it. It is valid only directly in the frame's content; composed anywhere else it is refused. Otherwise it behaves as a `Layer`'s `GlassPane` does: it takes a layout and a `modifier`, a second one composed at once is refused, and removing it gives back what it declared.
 
-To place children under a layout manager of your own, `layoutConstraint` is the builder a container you
-write yourself names its own placements over - see
-[`CUSTOM-CONTAINERS.md`](CUSTOM-CONTAINERS.md#placing-children-under-constraints).
+To place children under a layout manager of your own, `layoutConstraint` is the builder a container you write yourself names its own placements over - see [Placing children under constraints](CUSTOM-CONTAINERS.md#placing-children-under-constraints).
 
 ---
 
@@ -892,16 +614,11 @@ write yourself names its own placements over - see
 | `Window`                               | A top-level frame over `JFrame`, geometry hoisted into a [`WindowState`](#windowstate). |
 | `Dialog`                               | A dialog over `JDialog`, geometry hoisted into a [`DialogState`](#dialogstate).         |
 
-All three entry points take the same `ApplicationScope` content and give it `exitApplication()`.
-Windows and dialogs composed inside one run as part of that application's composition, so
-application-scope state and `CompositionLocal`s flow into their content.
+All three entry points take the same `ApplicationScope` content and give it `exitApplication()`. Windows and dialogs composed inside one run as part of that application's composition, so application-scope state and `CompositionLocal`s flow into their content.
 
-A window's content is given the window as its scope, and what the window carries besides that content
-is declared there: `MenuBar { }` can only be written directly in the content of a window, not in
-that of a container inside it.
+A window's content is given the window as its scope, and what the window carries besides that content is declared there: `MenuBar { }` can only be written directly in the content of a window, not in that of a container inside it.
 
-A window-wide overlay is a `Layer` wrapped around the window's content, with the content as its view
-and the overlay in the layer's own glass pane. It covers the window's content pane, not its menu bar:
+A window-wide overlay is a `Layer` wrapped around the window's content, with the content as its view and the overlay in the layer's own glass pane. It covers the window's content pane, not its menu bar:
 
 ```kotlin
 Window(onCloseRequest = ::exitApplication) {
@@ -920,12 +637,7 @@ Window(onCloseRequest = ::exitApplication) {
 
 <!--- CLEAR -->
 
-A window exists while it is composed: opening one is composing it, closing it is not composing it,
-and `onCloseRequest` is where you flip the state that decides. `title` starts empty, `resizable` is
-`true`, `alwaysOnTop` is `false`, `undecorated` is `false`, and a dialog's `modality` is
-`ModalityType.MODELESS`. A `Dialog` composed inside a window's content takes that window as its
-owner - the window its modality blocks and the one `WindowPosition.CenteredOnOwner` centers it on -
-and `owner` names a different window to be owned by instead.
+A window exists while it is composed: opening one is composing it, closing it is not composing it, and `onCloseRequest` is where you flip the state that decides. `title` starts empty, `resizable` is `true`, `alwaysOnTop` is `false`, `undecorated` is `false`, and a dialog's `modality` is `ModalityType.MODELESS`. A `Dialog` composed inside a window's content takes that window as its owner - the window its modality blocks and the one `WindowPosition.CenteredOnOwner` centers it on - and `owner` names a different window to be owned by instead.
 
 ```kotlin
 application {
@@ -964,23 +676,11 @@ if (asking) {
 
 <!--- KNIT example-components-content-08.kt -->
 
-To mount a composition into a Swing window or container you already own, use `setContent` - see
-[`ARCHITECTURE.md`](ARCHITECTURE.md#mounting-a-composition).
+To mount a composition into a Swing window or container you already own, use `setContent` - see [Mounting a composition](ARCHITECTURE.md#mounting-a-composition).
 
-Content reads the window it lives in as `LocalWindow`, whether that window was composed or is one you
-own and mounted into, so a `Dialog` finds its owner without being told and a menu item's callback can
-reach the window its bar hangs off. Read it where plain Swing wants a parent window - `JFileChooser`,
-`JOptionPane`, `toFront()`. It is `null` wherever the content stands in no window at all: under a bare
-`application { }` scope that has created no window, and in content composed under a composition of your
-own before its container has been added anywhere. Such content reads the window it is added to from the
-moment it arrives there.
+Content reads the window it lives in as `LocalWindow`, whether that window was composed or is one you own and mounted into, so a `Dialog` finds its owner without being told and a menu item's callback can reach the window its bar hangs off. Read it where plain Swing wants a parent window - `JFileChooser`, `JOptionPane`, `toFront()`. It is `null` wherever the content stands in no window at all: under a bare `application { }` scope that has created no window, and in content composed under a composition of your own before its container has been added anywhere. Such content reads the window it is added to from the moment it arrives there.
 
-A file chooser and a message box are calls rather than components: each blocks where it is called and
-returns an answer, so they stay plain Swing. `JFileChooser` and `JOptionPane` work as they are from a
-callback, and the library ships no wrapper for them - where a plain Swing class already works well
-from composable code, it stays plain Swing. What such a call wants from the composition is a parent
-window, and that is what `LocalWindow.current` is: read it while composing, use it where the call
-takes an owner.
+A file chooser and a message box are calls rather than components: each blocks where it is called and returns an answer. Call `JFileChooser` and `JOptionPane` directly from a callback. What such a call wants from the composition is a parent window, and that is what `LocalWindow.current` is: read it while composing, use it where the call takes an owner.
 
 ```kotlin
 val window = LocalWindow.current
@@ -1031,18 +731,7 @@ Panel {
 | `ContextMenu`          | A menu the platform's popup gesture opens over an anchored component.               |
 | `PopupMenu`            | A menu the application opens and dismisses through state.                           |
 
-Menu content is composed like any other content: `MenuBar { }` in the content of a `Window` or a
-`Dialog` declares that window's menu bar, `JMenuBar.setContent { }` composes a bar you own yourself,
-and the same tree serves a `ContextMenu`, a `PopupMenu` and a [`Tray`](#system-tray) popup. Both menus
-name the component they open over through a `PopupAnchor`, bound with the `popupAnchor` modifier. A
-`ContextMenu` becomes that component's own popup menu, so the pointer gesture and the keyboard binding a
-look and feel gives a context menu both open it; the anchored component must therefore be a
-`JComponent`, and one anchor carries one context menu. A `PopupMenu` opens and closes on the state the
-caller gives it. An item's label, checked flag and enabled state follow
-composition state like any other component's, and a checkable item takes its state the way the
-two-state controls do: what the composition declares is what the item shows, so a choice the caller
-does not adopt goes back where it was. An `accelerator` is a `KeyStroke` that fires the item without
-opening the menu; a mnemonic is set with `mnemonic` in the item's `style`.
+Menu content is composed like any other content: `MenuBar { }` in the content of a `Window` or a `Dialog` declares that window's menu bar, `JMenuBar.setContent { }` composes a bar you own yourself, and the same tree serves a `ContextMenu`, a `PopupMenu` and a [`Tray`](#system-tray) popup. Both menus name the component they open over through a `PopupAnchor`, bound with the `popupAnchor` modifier. A `ContextMenu` becomes that component's own popup menu, so the pointer gesture and the keyboard binding a look and feel gives a context menu both open it; the anchored component must therefore be a `JComponent`, and one anchor carries one context menu. A `PopupMenu` opens and closes on the state the caller gives it. An item's label, checked flag and enabled state follow composition state like any other component's, and a checkable item takes its state the way the two-state controls do: what the composition declares is what the item shows, so a choice the caller does not adopt goes back where it was. An `accelerator` is a `KeyStroke` that fires the item without opening the menu; a mnemonic is set with `mnemonic` in the item's `style`.
 
 ```kotlin
 val bar = JMenuBar()
@@ -1069,9 +758,7 @@ frame.jMenuBar = bar
 
 <!--- CLEAR -->
 
-There is no command type, so one command reached from two surfaces - a menu item and a toolbar button
-that go gray together - is a shared value. Both surfaces read the one state in the style each builds,
-so enabling and disabling them is a single state write.
+One command reached from two surfaces - a menu item and a toolbar button that go gray together - is a shared state value. Both surfaces read the one state in the style each builds, so enabling and disabling them is a single state write.
 
 ```kotlin
 Window(onCloseRequest = ::exitApplication) {
@@ -1099,9 +786,7 @@ Window(onCloseRequest = ::exitApplication) {
 
 ## Drawing
 
-`Canvas` hands you a `DrawScope` over a blank surface, with declarative drawing primitives and direct
-access to the underlying `Graphics2D`. See [Foundation](FOUNDATION.md) for the drawing and decoration guide. Snapshot state read inside the draw lambda, at paint time, is observed:
-when it changes the surface repaints. Size the surface with `preferredSize` inside `SwingModifier.styleable { ... }`.
+`Canvas` hands you a `DrawScope` over a blank surface, with declarative drawing primitives and direct access to the underlying `Graphics2D`. See [Foundation](FOUNDATION.md) for the drawing and decoration guide. Snapshot state read inside the draw lambda, at paint time, is observed: when it changes the surface repaints. Size the surface with `preferredSize` inside `SwingModifier.styleable { ... }`.
 
 ```kotlin
 var radius by remember { mutableStateOf(24) }
@@ -1119,10 +804,7 @@ Panel(PanelLayout.Border()) {
 
 ## System tray
 
-`Tray` registers a system-tray icon for as long as it is composed. Its popup is a menu tree,
-composed fresh each time the icon is asked for one, so the items reflect current state. Activating
-the icon runs `onAction`. `imageAutoSize` defaults to `false`, painting the image at its own size;
-`java.awt.SystemTray.isSupported()` tells you whether the platform has a tray at all.
+`Tray` registers a system-tray icon for as long as it is composed. Its popup is a menu tree, composed fresh each time the icon is asked for one, so the items reflect current state. Activating the icon runs `onAction`. `imageAutoSize` defaults to `false`, painting the image at its own size; `java.awt.SystemTray.isSupported()` tells you whether the platform has a tray at all.
 
 ```kotlin
 application {
@@ -1142,38 +824,21 @@ application {
 
 ## Hoisted state
 
-Some values are awkward to pass down and report back one at a time: the whole content of an editor,
-where the user dragged a window. For those, the library hands you a state holder to hoist next to
-your own state - the owner of the value (the document, the geometry), read as
-snapshot state and two-way like every
-[hoistable state holder](ARCHITECTURE.md#shapes-for-state-the-user-can-change).
+Some values are awkward to pass down and report back one at a time: the whole content of an editor, where the user dragged a window. For those, the library hands you a state holder to hoist next to your own state - the owner of the value (the document, the geometry), read as snapshot state and two-way like every [hoistable state holder](ARCHITECTURE.md#shapes-for-state-the-user-can-change).
 
-Create one with its `remember*` factory. The initial values seed the holder on first composition and
-are not re-read afterwards: to change the value later, assign to the property.
+Create one with its `remember*` factory. The initial values seed the holder on first composition and are not re-read afterwards: to change the value later, assign to the property.
 
 ### `DocumentState`
 
-Owns the `Document` a text component renders. Because the state and the component share one
-document, an edit made through the state is what the component displays, and text the user types is
-what the state reports. `text` is materialized on demand, so typing a character does not pay for a
-read of the whole document.
+Owns the `Document` a text component renders. Because the state and the component share one document, an edit made through the state is what the component displays, and text the user types is what the state reports. `text` is materialized on demand, so typing a character does not pay for a read of the whole document.
 
 - `text` - the content, readable and assignable; assigning applies only the changed span.
-- `edit { }` - a batch of `insert`/`replace`/`delete`/`append`/`setText` calls committed as one
-  change, with `placeCaretAtEnd()` and `selectAll()` to place the caret afterwards.
-- `undo()`, `redo()`, `canUndo`, `canRedo` - one `edit { }` block, or one assignment to `text`, is one
-  undoable step.
+- `edit { }` - a batch of `insert`/`replace`/`delete`/`append`/`setText` calls committed as one change, with `placeCaretAtEnd()` and `selectAll()` to place the caret afterwards.
+- `undo()`, `redo()`, `canUndo`, `canRedo` - one `edit { }` block, or one assignment to `text`, is one undoable step.
 
-Create it with `rememberDocumentState(initialText)`, or `rememberDocumentState(document)` to adopt a
-document you already have. Pass it to `TextField`, `TextArea`, `TextPane` or `EditorPane` as
-`state`.
+Create it with `rememberDocumentState(initialText)`, or `rememberDocumentState(document)` to adopt a document you already have. Pass it to `TextField`, `TextArea`, `TextPane` or `EditorPane` as `state`.
 
-A `contentType` names the language the document is written in, and the editor kit registered for it
-both builds the document and reads `initialText` as source: `"text/html"` gives an `HTMLDocument`
-holding parsed markup, `"text/rtf"` the styled model a `TextPane` requires, and the default
-`"text/plain"` a plain document holding the text as characters. An `EditorPane` renders the state
-through that same kit. Pass `kit` instead when the kit is configured - a style sheet of your own, a
-custom parser - or alongside `document` to name the language of a document you are adopting.
+A `contentType` names the language the document is written in, and the editor kit registered for it both builds the document and reads `initialText` as source: `"text/html"` gives an `HTMLDocument` holding parsed markup, `"text/rtf"` the styled model a `TextPane` requires, and the default `"text/plain"` a plain document holding the text as characters. An `EditorPane` renders the state through that same kit. Pass `kit` instead when the kit is configured - a style sheet of your own, a custom parser - or alongside `document` to name the language of a document you are adopting.
 
 ```kotlin
 val report = rememberDocumentState("<h1>Report</h1><p>Q3 was <b>strong</b>.</p>", contentType = "text/html")
@@ -1205,173 +870,80 @@ Panel(PanelLayout.Box()) {
 
 ### `FormattedValueState`
 
-Owns the value a `FormattedTextField` renders, typed as the field's formatter produces it - an `Int`,
-a `Date`, a `String`. A value the field commits, whether the user pressed Enter or the field lost the
-focus, is written back into the state, and the state is where the value lives, so a state-driven field
-takes no `onValueChange` and no `onEditValidChange`.
+Owns the value a `FormattedTextField` renders, typed as the field's formatter produces it - an `Int`, a `Date`, a `String`. A value the field commits, whether the user pressed Enter or the field lost the focus, is written back into the state, and the state is where the value lives, so a state-driven field takes no `onValueChange` and no `onEditValidChange`.
 
-- `value` - the committed value, readable and assignable; assigning it re-renders the field's
-  characters, which replaces characters the user has typed but not committed.
-- `isEditValid` - whether the characters the field currently shows parse. It follows what the user
-  types rather than what the field commits, so a part-typed edit reports `false` while `value` stands
-  where the last commit left it - which is what gates a form's save button.
-- `commit()` - takes the field's current text as its value and answers whether it was taken. It is how
-  a caller outside the field - a dialog's OK button - takes an edit the user typed but never entered;
-  the typed text stays either way.
+- `value` - the committed value, readable and assignable; assigning it re-renders the field's characters, which replaces characters the user has typed but not committed.
+- `isEditValid` - whether the characters the field currently shows parse. It follows what the user types rather than what the field commits, so a part-typed edit reports `false` while `value` stands where the last commit left it - which is what gates a form's save button.
+- `commit()` - takes the field's current text as its value and answers whether it was taken. It is how a caller outside the field - a dialog's OK button - takes an edit the user typed but never entered; the typed text stays either way.
 
-Create it with `rememberFormattedValueState(initialValue)` and pass it to `FormattedTextField` as
-`state`. A state renders one field at a time - declaring it on a second moves it there.
+Create it with `rememberFormattedValueState(initialValue)` and pass it to `FormattedTextField` as `state`. A state renders one field at a time - declaring it on a second moves it there.
 
 ### `WindowState`
 
-Owns a `Window`'s geometry: `position`, `width`, `height`, `size`, and `extendedState`
-(`Frame.MAXIMIZED_BOTH`, `Frame.ICONIFIED`, `Frame.NORMAL`). Assigning moves, resizes, maximizes,
-minimizes or restores the window; the user dragging, resizing or maximizing it writes the new value
-back. `rememberWindowState(position, size, extendedState)` creates one, and a `null` initial `size`
-sizes the window to its content.
+Owns a `Window`'s geometry: `position`, `width`, `height`, `size`, and `extendedState` (`Frame.MAXIMIZED_BOTH`, `Frame.ICONIFIED`, `Frame.NORMAL`). Assigning moves, resizes, maximizes, minimizes or restores the window; the user dragging, resizing or maximizing it writes the new value back. `rememberWindowState(position, size, extendedState)` creates one, and a `null` initial `size` sizes the window to its content.
 
-`position` is a `WindowPosition`: either `Absolute(x, y)` or a placement request -
-`PlatformDefault`, `CenteredOnScreen`, `CenteredOnOwner`, `CenteredOn(window)`. A request carries no
-coordinates of its own, and the placement it resolves to is written back as an `Absolute`, so reading
-`position` after the window is shown always gives concrete coordinates.
+`position` is a `WindowPosition`: either `Absolute(x, y)` or a placement request - `PlatformDefault`, `CenteredOnScreen`, `CenteredOnOwner`, `CenteredOn(window)`. A request carries no coordinates of its own, and the placement it resolves to is written back as an `Absolute`, so reading `position` after the window is shown always gives concrete coordinates.
 
-`CenteredOn(window)` centers on any window - `LocalWindow.current` is the window the declaring content
-sits in - on the bounds that window holds as the position is applied, so the centered window stands
-where it was put once the other one moves on.
+`CenteredOn(window)` centers on any window - `LocalWindow.current` is the window the declaring content sits in - on the bounds that window holds as the position is applied, so the centered window stands where it was put once the other one moves on.
 
 ### `DialogState`
 
-The same for a `Dialog`: `position`, `width`, `height` and `size`, created with
-`rememberDialogState(position, size)`.
+The same for a `Dialog`: `position`, `width`, `height` and `size`, created with `rememberDialogState(position, size)`.
 
 ### `InternalFrameState`
 
-The same for one internal frame of a `DesktopPane`: `x`, `y`, `width`, `height` and `bounds`, plus the
-frame's two window states, `iconified` and `maximized`. Created with
-`rememberInternalFrameState(bounds, iconified, maximized)`. Declare a frame with a state instead of
-plain `bounds` to make all of it two-way - see [`DesktopPane`](#containers-and-layout).
+The same for one internal frame of a `DesktopPane`: `x`, `y`, `width`, `height` and `bounds`, plus the frame's two window states, `iconified` and `maximized`. Created with `rememberInternalFrameState(bounds, iconified, maximized)`. Declare a frame with a state instead of plain `bounds` to make all of it two-way - see [`DesktopPane`](#containers-and-layout).
 
-A maximized frame stands on the whole desktop, and the geometry the state carries is where restoring
-it returns it to, so a frame comes back where the user left it however it was maximized. A frame can
-be iconified and maximized at once: its icon restores to a frame that fills the desktop.
+A maximized frame stands on the whole desktop, and the geometry the state carries is where restoring it returns it to, so a frame comes back where the user left it however it was maximized. A frame can be iconified and maximized at once: its icon restores to a frame that fills the desktop.
 
 ### `ScrollState`
 
-Owns where a `ScrollPane` is scrolled to: `x` and `y` are the view coordinates shown at the viewport's
-leading and top edge. Assigning one scrolls the pane; the user scrolling it - by wheel, scrollbar or
-keyboard - writes the new position back. `rememberScrollState(x, y)` creates one, and it reaches the pane
-as `ScrollPane`'s `state`.
+Owns where a `ScrollPane` is scrolled to: `x` and `y` are the view coordinates shown at the viewport's leading and top edge. Assigning one scrolls the pane; the user scrolling it - by wheel, scrollbar or keyboard - writes the new position back. `rememberScrollState(x, y)` creates one, and it reaches the pane as `ScrollPane`'s `state`.
 
-The metrics the position moves within are read-only and follow both the content and the pane's size:
-`extentWidth` and `extentHeight` are the visible part of the content, `viewWidth` and `viewHeight` the
-whole of it, and `maxX` and `maxY` the largest position that still shows content - so `state.y =
-state.maxY` scrolls to the bottom of whatever is currently there. Each is `0` while no pane renders the
-state.
+The metrics the position moves within are read-only and follow both the content and the pane's size: `extentWidth` and `extentHeight` are the visible part of the content, `viewWidth` and `viewHeight` the whole of it, and `maxX` and `maxY` the largest position that still shows content - so `state.y = state.maxY` scrolls to the bottom of whatever is currently there. Each is `0` while no pane renders the state.
 
-`canScrollForwardX`, `canScrollBackwardX`, `canScrollForwardY` and `canScrollBackwardY` answer whether an
-axis has anywhere left to scroll, for a caller that offers a way to scroll further and wants it disabled
-at the end. The forward pair is `false` once the position stands at `maxX` or `maxY`, so content the
-viewport shows whole can be scrolled forward nowhere; the backward pair is `false` while the position
-stands at `0`. A reader of one of them stands still until the answer itself changes, rather than
-following every scroll step.
+`canScrollForwardX`, `canScrollBackwardX`, `canScrollForwardY` and `canScrollBackwardY` answer whether an axis has anywhere left to scroll, for a caller that offers a way to scroll further and wants it disabled at the end. The forward pair is `false` once the position stands at `maxX` or `maxY`, so content the viewport shows whole can be scrolled forward nowhere; the backward pair is `false` while the position stands at `0`. A reader of one of them stands still until the answer itself changes, rather than following every scroll step.
 
-The position outlives the content it was reached in, so a pane that leaves the composition and returns
-comes back where the user left it.
+The position outlives the content it was reached in, so a pane that leaves the composition and returns comes back where the user left it.
 
-`revealRect(rect)` scrolls to a region of the content instead of to a coordinate, for a caller that knows
-where something is but not where the pane has to stand to show it. The rectangle is in the content's own
-coordinates, whatever the pane is currently scrolled to, and the call answers whether a pane renders the
-state. Wherever it lands is reported back through `x` and `y`, like the user's own
-scrolling. A reveal issued before the pane's content arrives is delivered once that content is laid out; a later
-reveal replaces one still waiting, and one waiting for a pane that stops rendering the state is discarded.
+`revealRect(rect)` scrolls to a region of the content instead of to a coordinate, for a caller that knows where something is but not where the pane has to stand to show it. The rectangle is in the content's own coordinates, whatever the pane is currently scrolled to, and the call answers whether a pane renders the state. Wherever it lands is reported back through `x` and `y`, like the user's own scrolling. A reveal issued before the pane's content arrives is delivered once that content is laid out; a later reveal replaces one still waiting, and one waiting for a pane that stops rendering the state is discarded.
 
-`scroll { }` runs a block that holds the position for as long as it lasts, for a caller that moves the
-pane over time - a step per frame - rather than in one write: `state.scroll { scrollTo(0, state.maxY) }`,
-launched from a `rememberCoroutineScope()`. The block moves the pane through `scrollTo(x, y)`, and
-whatever else moves the position - the user scrolling, a write to `x` or `y`, a `revealRect`, a later
-`scroll` taking the position for itself - ends the block with a `CancellationException` at the call, so a
-scroll in progress gives way to the user. `isScrollInProgress` is `true` from the moment a block takes
-the position until it returns or is ended, for a caller that shows or disables something while the pane
-is traveling.
+`scroll { }` runs a block that holds the position for as long as it lasts, for a caller that moves the pane over time - a step per frame - rather than in one write: `state.scroll { scrollTo(0, state.maxY) }`, launched from a `rememberCoroutineScope()`. The block moves the pane through `scrollTo(x, y)`, and whatever else moves the position - the user scrolling, a write to `x` or `y`, a `revealRect`, a later `scroll` taking the position for itself - ends the block with a `CancellationException` at the call, so a scroll in progress gives way to the user. `isScrollInProgress` is `true` from the moment a block takes the position until it returns or is ended, for a caller that shows or disables something while the pane is traveling.
 
 ### `ListState`
 
-Owns what one `ListBox` has selected. `selectedIndices` is two-way: assigning it selects those rows,
-and the user selecting others - by click, drag or keyboard - writes them back. The rows it names are
-the composition's own and are re-applied on every pass, so a list driven by a state never stands on a
-selection the state does not hold, and a row the items do not reach goes on being named here until
-items that reach it show it selected again.
+Owns what one `ListBox` has selected. `selectedIndices` is two-way: assigning it selects those rows, and the user selecting others - by click, drag or keyboard - writes them back. The rows it names are the composition's own and are re-applied on every pass, so a list driven by a state never stands on a selection the state does not hold, and a row the items do not reach goes on being named here until items that reach it show it selected again.
 
-`revealIndex(index)` brings a row into view when the application decides to - a row just added, a
-search hit - and answers whether the list held one to reveal. Revealing is a gesture rather than a
-declaration: it scrolls where it is called and leaves nothing behind, so no later pass scrolls back and
-where the user scrolls afterwards stands.
+`revealIndex(index)` brings a row into view when the application decides to - a row just added, a search hit - and answers whether the list held one to reveal. Revealing is a gesture rather than a declaration: it scrolls where it is called and leaves nothing behind, so no later pass scrolls back and where the user scrolls afterwards stands.
 
-`itemCount` and `shownSelectedIndices` answer for the list rather than for the declaration: how many
-items it shows, and which rows it has selected. The two differ where the list cannot stand on what was
-declared - a selection mode narrower than the declaration keeps only part of a selection, and an index
-the items do not reach has no row to be selected at. Neither is snapshot state, so reading one
-subscribes to nothing; a composable that has to follow the user reads `selectedIndices`. An unbound
-state reports no items and nothing selected.
+`itemCount` and `shownSelectedIndices` answer for the list rather than for the declaration: how many items it shows, and which rows it has selected. The two differ where the list cannot stand on what was declared - a selection mode narrower than the declaration keeps only part of a selection, and an index the items do not reach has no row to be selected at. Neither is snapshot state, so reading one subscribes to nothing; a composable that has to follow the user reads `selectedIndices`. An unbound state reports no items and nothing selected.
 
-Create it with `rememberListState(initialSelectedIndices)` and pass it to `ListBox` as `state`. A state
-drives one list at a time - passing it to a second moves it there. See [Lists and tables](#lists-and-tables).
+Create it with `rememberListState(initialSelectedIndices)` and pass it to `ListBox` as `state`. A state drives one list at a time - passing it to a second moves it there. See [Lists and tables](#lists-and-tables).
 
 ### `TableState`
 
-The same for one `Table`, over row indices, holding three facets: `selectedRowIndices`, `sortKeys` and
-`columnLayout`. All three are two-way. The selection is re-applied on every pass. The sort order and the
-column layout are applied when assigned, and the state is the only place they are held: a table built
-again over the state starts on them, and the rows and columns a table is declared with, a new `model`
-and a new column model keep them. A column the table drops goes on being named here until columns that
-bring it back put it in its place again. A structure change the caller makes to their own model in place
-starts the order and the columns over, as it does on a `JTable`, and the state is written back with the
-result. An index names a row in the model's own row space and never the position the row is drawn at, so
-sorting and filtering move where a row is shown and leave the index naming it alone. `sortKeys` applies
-while the table is `sortable`; an empty list leaves the rows unsorted. `columnLayout` holds no layout
-while `null`, leaving the columns in the layout they are already in, which starts as declared; the
-user's own column drag or resize writes it back.
+The same for one `Table`, over row indices, holding three facets: `selectedRowIndices`, `sortKeys` and `columnLayout`. All three are two-way. The selection is re-applied on every pass. The sort order and the column layout are applied when assigned, and the state is the only place they are held: a table built again over the state starts on them, and the rows and columns a table is declared with, a new `model` and a new column model keep them. A column the table drops goes on being named here until columns that bring it back put it in its place again. A structure change the caller makes to their own model in place starts the order and the columns over, as it does on a `JTable`, and the state is written back with the result. An index names a row in the model's own row space and never the position the row is drawn at, so sorting and filtering move where a row is shown and leave the index naming it alone. `sortKeys` applies while the table is `sortable`; an empty list leaves the rows unsorted. `columnLayout` holds no layout while `null`, leaving the columns in the layout they are already in, which starts as declared; the user's own column drag or resize writes it back.
 
-`revealRow(rowIndex)` brings a row into view and answers whether the table held one to reveal. A row
-hidden by a row filter has nowhere to be shown, so revealing it reaches nothing.
+`revealRow(rowIndex)` brings a row into view and answers whether the table held one to reveal. A row hidden by a row filter has nowhere to be shown, so revealing it reaches nothing.
 
-`rowCount` and `shownSelectedRowIndices` are the same read-back over the table: how many rows it
-shows - its model's rows, less the ones a row filter hides - and which rows it has selected, named by
-model index like `selectedRowIndices`. A row a filter hides has nowhere to be shown, so it is not
-among them.
+`rowCount` and `shownSelectedRowIndices` are the same read-back over the table: how many rows it shows - its model's rows, less the ones a row filter hides - and which rows it has selected, named by model index like `selectedRowIndices`. A row a filter hides has nowhere to be shown, so it is not among them.
 
-Create it with `rememberTableState(initialSelectedRowIndices, initialSortKeys, initialColumnLayout)`
-and pass it to `Table` as `state`. A state drives one table at a time.
+Create it with `rememberTableState(initialSelectedRowIndices, initialSortKeys, initialColumnLayout)` and pass it to `Table` as `state`. A state drives one table at a time.
 
 ### `TreeState`
 
-The same for one `Tree`, over index paths from the root: `[]` is the root, `[0]` its first child, and
-`[0, 2]` that child's third child. `selectedPaths` and `expandedPaths` are both two-way. The selection is
-re-applied on every pass. The expansion is applied when it is assigned and again on each new structure,
-so a state starting on the empty expansion opens nothing - start it on `setOf(emptyList())` for a tree
-that opens on its root.
+The same for one `Tree`, over index paths from the root: `[]` is the root, `[0]` its first child, and `[0, 2]` that child's third child. `selectedPaths` and `expandedPaths` are both two-way. The selection is re-applied on every pass. The expansion is applied when it is assigned and again on each new structure, so a state starting on the empty expansion opens nothing - start it on `setOf(emptyList())` for a tree that opens on its root.
 
-`revealPath(path)` brings a node into view, opening every ancestor that hides it, and answers whether
-the tree held such a node. The ancestors it opens arrive in `expandedPaths` like the user's own
-opening.
+`revealPath(path)` brings a node into view, opening every ancestor that hides it, and answers whether the tree held such a node. The ancestors it opens arrive in `expandedPaths` like the user's own opening.
 
-`rowCount`, `shownSelectedPaths` and `isExpanded(path)` are the same read-back over the tree: how many
-rows it shows, which nodes it has selected, and whether one node shows its children below it. A node
-the tree's current structure does not have is in none of the three answers.
+`rowCount`, `shownSelectedPaths` and `isExpanded(path)` are the same read-back over the tree: how many rows it shows, which nodes it has selected, and whether one node shows its children below it. A node the tree's current structure does not have is in none of the three answers.
 
-The tree settles the two facets the way a `JTree` does and writes the result back into the state.
-Closing a node over selected descendants selects that node in their place, in `selectedPaths`.
-Selecting a node under a closed one opens the nodes above it, in `expandedPaths`.
+The tree settles the two facets the way a `JTree` does and writes the result back into the state. Closing a node over selected descendants selects that node in their place, in `selectedPaths`. Selecting a node under a closed one opens the nodes above it, in `expandedPaths`.
 
-Create it with `rememberTreeState(initialSelectedPaths, initialExpandedPaths)` and pass it to `Tree` as
-`state`. A state is the only place a tree's expansion is held, and it drives one tree at a time.
+Create it with `rememberTreeState(initialSelectedPaths, initialExpandedPaths)` and pass it to `Tree` as `state`. A state is the only place a tree's expansion is held, and it drives one tree at a time.
 
 ---
 
 ## Anything else
 
-The catalog is not the boundary of what you can compose. Any Swing `Component` can be hosted
-directly with `SwingNode`, any menu component with `MenuNode`, and a property no builder covers can be
-written as a modifier element of your own. Hosting a component is
-[`CUSTOM-COMPONENTS.md`](CUSTOM-COMPONENTS.md); writing a modifier element is
-[`MODIFIERS.md`](MODIFIERS.md).
+Any Swing `Component` can be hosted directly with `SwingNode`, any menu component with `MenuNode`, and a property no builder covers can be written as a modifier element of your own. See [Writing components](CUSTOM-COMPONENTS.md) to host a component and [Modifiers](MODIFIERS.md) to write a modifier element.

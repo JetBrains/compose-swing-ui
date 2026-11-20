@@ -1,8 +1,6 @@
 # todo-app sample
 
-A small to-do application built with Compose Swing UI. It shows the Compose-over-Swing shape: a thin
-`main` - `application { Window(...) }` - and a reactive composable tree that knows nothing about
-frames or look-and-feels.
+A small to-do application built with Compose Swing UI. It shows the Compose-over-Swing shape: a thin `main` - `application { Window(...) }` - and a reactive composable tree that knows nothing about frames or look-and-feels.
 
 ## Run
 
@@ -12,5 +10,5 @@ frames or look-and-feels.
 
 ## Related
 
-- [`../../README.md`](../../README.md) — project overview and quick start.
-- [`../widgets-gallery/README.md`](../widgets-gallery/README.md) — the broader widget showcase.
+- [Compose Swing UI](../../README.md) — project overview and quick start.
+- [Widgets gallery sample](../widgets-gallery/README.md) — the broader widget showcase.

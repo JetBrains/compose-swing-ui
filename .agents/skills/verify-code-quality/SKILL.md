@@ -13,7 +13,7 @@ description: Run lint, static analysis, ABI validation and coverage gates for co
 4. Run the full gate once before committing:
 
 ```bash
-./gradlew :buildSrc:ktlintCheck :buildSrc:detekt detektMain detektTest detektTestFixtures
+./gradlew :buildSrc:ktlintCheck :buildSrc:detekt :buildSrc:test
 ./gradlew build --continue
 ```
 
@@ -22,11 +22,13 @@ every module's `check` — compile, `staticAnalysis` (ktlint and the type-resolu
 plain `detekt`), tests, `checkKotlinAbi` and the coverage floors — plus `assemble`. `--continue`
 reports every failure in one run instead of stopping at the first.
 
+After the gate, read the diff against the design rules under "Code style" in `CONTRIBUTING.md`.
+
 ## Scoping a run
 
 Work with the narrowest tasks that cover the change; the full gate is what settles it before a commit.
 Do not add `clean` or `--rerun-tasks`: Gradle's up-to-date checks are correct here, and discarding them
-turns a targeted check into a full rebuild.
+turns a targeted check into a full rebuild. The facade case under "Stale results" is the one exception.
 
 ```bash
 ./gradlew :swing-ui:ktlintCheck :swing-ui:detektMain :swing-ui:detektTest
@@ -40,19 +42,26 @@ turns a targeted check into a full rebuild.
 exception: it configures detekt itself, and plain `:buildSrc:detekt` is its gate. `CONTRIBUTING.md`
 explains what the plain task misses everywhere else.
 
+## Stale results
+
+- **After changing a rule in `swing-ui-detekt`, add `--no-daemon`** to the detekt runs of the modules
+  that consume it. A running Gradle daemon can keep the previous rule jar loaded: a new rule then
+  reports nothing, or the run fails with `NoClassDefFoundError` on a rule class.
+- **After adding a file to a `@JvmMultifileClass` facade, or removing one, add `--rerun-tasks`.** The
+  build cache can serve the facade class without one of its parts. The signs are
+  `NoClassDefFoundError` on a `...Kt` class in unrelated tests, or `Key ...Kt is missing in the map`
+  from the ABI tasks.
+
 ## What applies where
 
-| Module               | ktlint / detekt                            | ABI dump |
-|----------------------|---------------------------------------------|----------|
-| `buildSrc`           | ktlint and detekt only, invoked explicitly | no       |
-| `swing-ui`           | yes                                        | yes      |
-| `swing-ui-test`      | yes                                        | yes      |
-| `swing-ui-animation` | yes, except `animation.core`               | yes      |
-| `samples/*`          | yes                                        | no       |
+A module carries the gates of the convention plugins its `build.gradle.kts` applies, and an ABI dump
+when it commits `<module>/api/<module>.api`. `buildSrc` is gated by its own tasks, invoked explicitly.
 
-`swing-ui-animation` applies the shared quality convention, but detekt and ktlint exclude the package
-`org.jetbrains.compose.swing.animation.core`, which is upstream-derived Compose animation-core. Keep that package
-comparable to upstream: do not restyle it, and do not bring it under those gates.
+The `animation.core` package of `swing-ui-animation` contains the Android Open Source Project's
+Jetpack Compose `animation-core` in upstream's format, with the adaptations its `META-INF/NOTICE`
+lists, so it is exempt from the shared style gates by design. Keep it comparable to that upstream: do
+not restyle it, and do not bring it under those gates. The module's hand-written animation APIs and
+containers stay under them.
 
 Which modules carry a coverage floor, and each one's line and branch minimums, is set in that
 module's own `build.gradle.kts` - read it there rather than here. `CONTRIBUTING.md` explains how the

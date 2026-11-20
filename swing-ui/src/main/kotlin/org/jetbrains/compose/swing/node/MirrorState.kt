@@ -475,8 +475,8 @@ public class MirrorState<V>
  * - and the widget built in its place keeps the value its constructor gave it instead of the standing
  * declaration.
  *
- * @param initial what the widget holds before anything is declared onto it, read once when the record is
- *   created.
+ * @param initial what the widget will actually hold on the first pass, which is not always what the
+ *   composition declares for it, read once when the record is created.
  * @return the record to hand [declare] for every pass of the node it belongs to.
  */
 @Composable

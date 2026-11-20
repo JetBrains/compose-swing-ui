@@ -86,7 +86,7 @@ internal fun assertComponentTreesEquivalent(
 /**
  * State a widget of one kind holds, compared only where both nodes are that kind.
  *
- * [read] is handed a component [type] has already accepted, which is what makes its cast safe.
+ * `read` is handed a component [type] has already accepted, which is what makes its cast safe.
  */
 internal class WidgetState(
     private val type: Class<*>,

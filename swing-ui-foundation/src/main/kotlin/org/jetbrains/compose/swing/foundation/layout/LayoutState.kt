@@ -30,8 +30,8 @@ internal enum class LayoutState {
 
 /**
  * Starts running the block [state] names over the children of the last layout pass, and answers the state to set
- * [layoutState] back to. A measure block starts a pass; a placement block may measure and place again a child the
- * previous placement run measured and placed.
+ * [ChildMeasurables.layoutState] back to. A measure block starts a pass; a placement block may measure and place
+ * again a child the previous placement run measured and placed.
  */
 internal fun ChildMeasurables.enter(state: LayoutState): LayoutState {
     for (index in layoutPass.indices) {
