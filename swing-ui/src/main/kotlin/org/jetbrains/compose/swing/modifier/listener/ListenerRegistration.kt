@@ -30,7 +30,7 @@ import kotlin.reflect.KProperty1
  *     the registration is held in a `val` and is therefore identified by being that object.
  */
 @SwingComponentLibraryApi
-public class ListenerRegistration<in T : Component, L : Any>(
+public class ListenerRegistration<in T : Component, L : EventListener>(
     internal val name: String,
     internal val attach: (component: T, listener: L) -> Unit,
     internal val detach: (component: T, listener: L) -> Unit,
@@ -92,7 +92,7 @@ public class DeclaredCallback<C : Any>
  *   the value itself.
  */
 @SwingComponentLibraryApi
-public class CallbackRegistration<in T : Component, C : Any, L : Any> private constructor(
+public class CallbackRegistration<in T : Component, C : Any, L : EventListener> private constructor(
     internal val adapter: (callback: DeclaredCallback<C>) -> L,
     private val registration: ListenerRegistration<T, L>,
     private val callbackProperties: Array<out KProperty1<C, Function<*>?>>?,

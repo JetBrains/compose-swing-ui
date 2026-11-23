@@ -6,6 +6,7 @@ import org.jetbrains.compose.swing.modifier.applyModifierDiff
 import org.jetbrains.compose.swing.modifier.listener.ListenerRegistration
 import org.jetbrains.compose.swing.modifier.listener.listener
 import java.awt.Rectangle
+import java.util.EventListener
 import javax.swing.JButton
 import javax.swing.JPanel
 import kotlin.test.Test
@@ -32,7 +33,7 @@ import kotlin.test.assertNull
  */
 class SwingNodeHolderLifecycleTest {
     /** A stable marker: the listener never fires in these tests, it only attaches and detaches. */
-    private val markerInstance = Any()
+    private val markerInstance = object : EventListener {}
 
     private val attach = IntArray(1)
     private val detach = IntArray(1)
@@ -42,7 +43,7 @@ class SwingNodeHolderLifecycleTest {
      * modifier while it is attached is the same registration and writes nothing.
      */
     private val counted =
-        ListenerRegistration<JButton, Any>(
+        ListenerRegistration<JButton, EventListener>(
             name = "any",
             { _, _ -> attach[0]++ },
             { _, _ -> detach[0]++ },

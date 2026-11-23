@@ -6,6 +6,7 @@ package org.jetbrains.compose.swing.modifier.listener
 
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import java.awt.Component
+import java.util.EventListener
 import java.util.EventObject
 import kotlin.reflect.KClass
 
@@ -37,7 +38,7 @@ import kotlin.reflect.KClass
  * @param registration where [instance] is registered.
  * @return this chain with [instance] declared on it.
  */
-public inline fun <reified T : Component, L : Any> SwingModifier.listener(
+public inline fun <reified T : Component, L : EventListener> SwingModifier.listener(
     instance: L,
     registration: ListenerRegistration<T, L>,
 ): SwingModifier = listener(T::class, instance, registration)
@@ -63,7 +64,7 @@ public inline fun <reified T : Component, L : Any> SwingModifier.listener(
  * @param registration where the built listener is registered, and how it is built.
  * @return this chain with the built listener declared on it.
  */
-public inline fun <reified T : Component, C : Any, L : Any> SwingModifier.listener(
+public inline fun <reified T : Component, C : Any, L : EventListener> SwingModifier.listener(
     callback: C,
     registration: CallbackRegistration<T, C, L>,
 ): SwingModifier = listener(T::class, callback, registration)
@@ -80,7 +81,7 @@ public inline fun <reified T : Component, C : Any, L : Any> SwingModifier.listen
  * @param registration where [instance] is registered.
  * @return this chain with [instance] declared on it.
  */
-public fun <T : Component, L : Any> SwingModifier.listener(
+public fun <T : Component, L : EventListener> SwingModifier.listener(
     targetType: KClass<T>,
     instance: L,
     registration: ListenerRegistration<T, L>,
@@ -98,7 +99,7 @@ public fun <T : Component, L : Any> SwingModifier.listener(
  * @param registration where the built listener is registered, and how it is built.
  * @return this chain with the built listener declared on it.
  */
-public fun <T : Component, C : Any, L : Any> SwingModifier.listener(
+public fun <T : Component, C : Any, L : EventListener> SwingModifier.listener(
     targetType: KClass<T>,
     callback: C,
     registration: CallbackRegistration<T, C, L>,
@@ -119,7 +120,7 @@ public fun <T : Component, C : Any, L : Any> SwingModifier.listener(
  * @param registration where the built listener is registered, and how it is built.
  * @param onEvent what the built listener runs; refreshed on every pass.
  */
-public fun <T : Component, E : EventObject, L : Any> SwingModifier.listener(
+public fun <T : Component, E : EventObject, L : EventListener> SwingModifier.listener(
     targetType: KClass<T>,
     registration: CallbackRegistration<T, (E) -> Unit, L>,
     onEvent: T.(E) -> Unit,
@@ -145,7 +146,7 @@ private class ScopedCallback<T : Component, E : EventObject>(
  * The element of the scoped overload: it declares a [ScopedCallback] built afresh on every pass, so the
  * scope's handler, which is what the caller keeps, stands in for the callback's identity.
  */
-private class ScopedListenerElement<T : Component, E : EventObject, L : Any>(
+private class ScopedListenerElement<T : Component, E : EventObject, L : EventListener>(
     targetType: KClass<T>,
     private val onEvent: T.(E) -> Unit,
     registration: CallbackRegistration<T, (E) -> Unit, L>,
@@ -170,7 +171,7 @@ private class ScopedListenerElement<T : Component, E : EventObject, L : Any>(
  * compare equal to the one already installed, so a listener stays where it is until the declaration
  * names a different registration.
  */
-private class InstanceListenerElement<T : Component, L : Any>(
+private class InstanceListenerElement<T : Component, L : EventListener>(
     override val targetType: Class<T>,
     val instance: L,
     val registration: ListenerRegistration<T, L>,
@@ -207,7 +208,7 @@ private class InstanceListenerElement<T : Component, L : Any>(
  * through its own registration, even after a positional update hands the node an element carrying a
  * different listener type.
  */
-private class InstanceListenerNode<T : Component, L : Any> : SwingModifier.ComponentNode<T>() {
+private class InstanceListenerNode<T : Component, L : EventListener> : SwingModifier.ComponentNode<T>() {
     private var attached: InstanceListenerElement<T, L>? = null
 
     /**
@@ -246,7 +247,7 @@ private class InstanceListenerNode<T : Component, L : Any> : SwingModifier.Compo
  * A callback of a new identity is the caller declaring something new, so it has to leave the chain unequal,
  * or the callback the caller replaced would be the one that keeps firing.
  */
-private open class LiveCallbackListenerElement<T : Component, C : Any, L : Any>(
+private open class LiveCallbackListenerElement<T : Component, C : Any, L : EventListener>(
     override val targetType: Class<T>,
     val declared: C,
     val registration: CallbackRegistration<T, C, L>,
@@ -317,7 +318,7 @@ private open class LiveCallbackListenerElement<T : Component, C : Any, L : Any>(
  * the callback that registration's listener reads, so the listener runs what the current composition
  * declares, and is always removed through the registration that added it.
  */
-private class LiveCallbackListenerNode<T : Component, C : Any, L : Any>(
+private class LiveCallbackListenerNode<T : Component, C : Any, L : EventListener>(
     private var element: LiveCallbackListenerElement<T, C, L>,
 ) : SwingModifier.ComponentNode<T>() {
     /** What the built listener runs when it fires: the callback the latest pass declared for this slot. */

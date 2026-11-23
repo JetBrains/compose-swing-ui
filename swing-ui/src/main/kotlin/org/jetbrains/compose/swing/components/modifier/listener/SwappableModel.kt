@@ -5,6 +5,7 @@ import org.jetbrains.compose.swing.modifier.listener.ListenerRegistration
 import java.awt.Component
 import java.beans.PropertyChangeEvent
 import java.beans.PropertyChangeListener
+import java.util.EventListener
 
 /*
  * Several widgets publish their events through a model they hold under a bound property, and that model
@@ -35,7 +36,7 @@ import java.beans.PropertyChangeListener
  * @param add registers a listener on a model.
  * @param remove unregisters a listener from a model.
  */
-internal class SwappableModel<C : Component, M : Any, L : Any>(
+internal class SwappableModel<C : Component, M : Any, L : EventListener>(
     private val property: String,
     private val modelType: Class<M>,
     private val model: (C) -> M,
@@ -105,7 +106,7 @@ internal class SwappableModel<C : Component, M : Any, L : Any>(
  * that rebuilds the chain. [owner] together with [listener] is what tells the instance a detach has to
  * remove apart from the ones other registrations on the same property installed.
  */
-private class ModelSwapListener<M : Any, L : Any>(
+private class ModelSwapListener<M : Any, L : EventListener>(
     val owner: SwappableModel<*, M, L>,
     val listener: L,
     private val modelType: Class<M>,
