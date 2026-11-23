@@ -52,9 +52,10 @@ public inline fun <reified T : Component> SwingModifier.actionListener(
 
 /**
  * Runs [onAction] on the action event of a component of type [targetType] that fires one, with that
- * component as `this`. An event sourced anywhere else is refused; see [listener].
+ * component as `this`. The callback runs on the attached component whatever the event's source is; see
+ * [listener].
  *
- * @param targetType the component type the node and every event's source are both checked against.
+ * @param targetType the component type the node is checked against.
  * @param onAction read when the event fires.
  * @return this chain with the action callback declared on it.
  * @see java.awt.event.ActionListener

@@ -44,9 +44,9 @@ public inline fun <reified T : JList<*>> SwingModifier.listSelectionListener(
 
 /**
  * Runs [onSelectionChange] on the selection event of a list of type [targetType], with that list as
- * `this`. An event sourced anywhere else is refused; see [listener].
+ * `this`. The callback runs on the attached component whatever the event's source is; see [listener].
  *
- * @param targetType the list type the node and every event's source are both checked against.
+ * @param targetType the list type the node is checked against.
  * @param onSelectionChange read when the event fires.
  * @return this chain with the selection callback declared on it.
  * @see javax.swing.JList.addListSelectionListener

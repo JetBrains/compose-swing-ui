@@ -4,23 +4,34 @@ package org.jetbrains.compose.swing.modifier.listener
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.components.Slider
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.modifier.listener.actionListener
 import org.jetbrains.compose.swing.countTests
 import org.jetbrains.compose.swing.fixtures.modifier.listener.ListenerCallbackFixture
+import org.jetbrains.compose.swing.modifier.DeclaredNodesListener
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.node.SwingComponentNode
+import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.style.toolTip
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.performClick
+import org.jetbrains.compose.swing.test.interaction.performSetValue
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.DynamicTest
+import org.junit.jupiter.api.DynamicTest.dynamicTest
 import org.junit.jupiter.api.TestFactory
 import java.awt.event.ActionListener
 import javax.swing.JButton
+import javax.swing.JSlider
+import javax.swing.event.ChangeEvent
+import javax.swing.event.ChangeListener
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertSame
 
 /**
  * A callback that changes between passes reaches the built listener without the listener being removed
@@ -40,6 +51,8 @@ import kotlin.test.assertEquals
 class LiveCallbackListenerTest {
     private var attachments = 0
     private var removals = 0
+    private var installed: ChangeListener? = null
+    private val otherSlider = JSlider()
 
     private val counted =
         CallbackRegistration<JButton, () -> Unit, ActionListener>(
@@ -57,6 +70,179 @@ class LiveCallbackListenerTest {
                     },
                 ),
         )
+
+    private val onModel =
+        CallbackRegistration<JSlider, (ChangeEvent) -> Unit, ChangeListener>(
+            adapter = { callback -> ChangeListener { event -> callback.report { it(event) } } },
+            registration =
+                ListenerRegistration(
+                    name = "modelChange",
+                    { component, listener ->
+                        installed = listener
+                        attachments++
+                        component.model.addChangeListener(listener)
+                    },
+                    { component, listener -> component.model.removeChangeListener(listener) },
+                ),
+        )
+
+    /** Listens on a second slider sharing the attached slider's model, so that slider sources the events. */
+    private val onSharingSlider =
+        CallbackRegistration<JSlider, (ChangeEvent) -> Unit, ChangeListener>(
+            adapter = { callback -> ChangeListener { event -> callback.report { it(event) } } },
+            registration =
+                ListenerRegistration(
+                    name = "sharingSliderChange",
+                    { component, listener ->
+                        otherSlider.model = component.model
+                        otherSlider.addChangeListener(listener)
+                    },
+                    { _, listener -> otherSlider.removeChangeListener(listener) },
+                ),
+        )
+
+    private class SourceCase(
+        val name: String,
+        val registration: CallbackRegistration<JSlider, (ChangeEvent) -> Unit, ChangeListener>,
+        val source: (JSlider) -> Any,
+        val observe: (JSlider, ChangeListener) -> Unit,
+    )
+
+    @TestFactory
+    fun aScopedListenerRunsOnTheComponentItIsAttachedToWhateverSourcedTheEvent(): List<DynamicTest> = listOf(
+        SourceCase("the model", onModel, { it.model }, { slider, l -> slider.model.addChangeListener(l) }),
+        SourceCase(
+            "another slider",
+            onSharingSlider,
+            { otherSlider },
+            { _, l -> otherSlider.addChangeListener(l) },
+        ),
+    ).map { case ->
+        dynamicTest(case.name) {
+            runComposeSwingTest {
+                val receivers = mutableListOf<JSlider>()
+                var delivered: ChangeEvent? = null
+                setContent {
+                    Slider(
+                        value = 10,
+                        onValueChange = {},
+                        modifier =
+                            SwingModifier.listener(JSlider::class, case.registration) { event ->
+                                receivers += this
+                                delivered = event
+                            },
+                    )
+                }
+
+                val slider = onNodeOfType<JSlider>().fetch<JSlider>()
+                var sent: ChangeEvent? = null
+                case.observe(slider) { sent = it }
+                slider.model.value = 20
+
+                assertEquals(
+                    listOf(slider),
+                    receivers,
+                    "${case.name} sources the event and the slider is the receiver",
+                )
+                assertSame(case.source(slider), delivered?.source, "the event keeps the source that sent it")
+                assertSame(sent, delivered, "the attached slider receives the event that was sent, not a copy")
+            }
+        }
+    }
+
+    @Test
+    fun aChangedScopedHandlerReachesTheNextEventWithoutRegisteringTheListenerAgain() = runComposeSwingTest {
+        val calls = mutableListOf<String>()
+        var handler by mutableStateOf("first")
+        var value by mutableStateOf(10)
+        setContent {
+            val name = handler
+            Slider(
+                value = value,
+                onValueChange = { value = it },
+                modifier = SwingModifier.listener(JSlider::class, onModel) { calls += name },
+            )
+        }
+        onNodeOfType<JSlider>().performSetValue(20)
+
+        handler = "second"
+        awaitIdle()
+        onNodeOfType<JSlider>().performSetValue(30)
+
+        assertEquals(listOf("first", "second"), calls, "the next event reaches the handler declared last")
+        assertEquals(1, attachments, "the listener is not registered again")
+    }
+
+    @Test
+    fun aScopedSwapToADifferentRegistrationDetachesTheOldListenerAndAttachesTheNewOne() = runComposeSwingTest {
+        val calls = mutableListOf<String>()
+        var useSharing by mutableStateOf(false)
+        var value by mutableStateOf(10)
+        setContent {
+            Slider(
+                value = value,
+                onValueChange = { value = it },
+                modifier =
+                    SwingModifier.listener(JSlider::class, if (useSharing) onSharingSlider else onModel) {
+                        calls += if (useSharing) "sharing" else "model"
+                    },
+            )
+        }
+        onNodeOfType<JSlider>().performSetValue(20)
+
+        useSharing = true
+        awaitIdle()
+        onNodeOfType<JSlider>().performSetValue(30)
+
+        assertEquals(listOf("model", "sharing"), calls, "the old listener is detached and the new one runs once")
+        assertEquals(1, otherSlider.changeListeners.size, "the new registration is attached once")
+    }
+
+    @Test
+    fun aScopedListenerTheSwingSnapshotStillHoldsAfterTheModifierLeftRunsNothing() = runComposeSwingTest {
+        var calls = 0
+        var shown by mutableStateOf(true)
+        setContent {
+            if (shown) {
+                Slider(
+                    value = 10,
+                    onValueChange = {},
+                    modifier = SwingModifier.listener(JSlider::class, onModel) { calls++ },
+                )
+            }
+        }
+        val snapshot = checkNotNull(installed)
+
+        shown = false
+        awaitIdle()
+        snapshot.stateChanged(ChangeEvent(JSlider()))
+        awaitIdle()
+
+        assertEquals(0, calls, "a detached listener runs nothing and reports nothing")
+    }
+
+    @Test
+    fun aChangedScopedHandlerHandsNoDeclaredNodesOverAndEqualRegistrationsShareOneListener() = runComposeSwingTest {
+        var handler by mutableStateOf("first")
+        val calls = mutableListOf<String>()
+        var notifications = 0
+        setContent {
+            val name = handler
+            SwingNode(
+                factory = { NotifiedSlider { notifications++ } },
+                modifier = SwingModifier.listener(JSlider::class, onModel) { calls += name },
+            )
+        }
+        val before = notifications
+
+        handler = "second"
+        awaitIdle()
+        checkNotNull(installed).stateChanged(ChangeEvent(JSlider()))
+
+        assertEquals(listOf("second"), calls, "the handler declared last runs")
+        assertEquals(before, notifications, "a handler of another identity changes no declared node")
+        assertEquals(1, attachments, "the equal registration keeps its one installed listener")
+    }
 
     @Test
     fun aChangedCallbackReachesTheListenerWithoutReRegistering() = runComposeSwingTest {
@@ -373,4 +559,17 @@ class LiveCallbackListenerTest {
         into: MutableList<String>,
         label: String,
     ): () -> Unit = { into += label }
+}
+
+/** A slider that counts the declared-node notifications it receives. */
+private class NotifiedSlider(
+    private val onNotified: () -> Unit,
+) : JSlider(),
+    DeclaredNodesListener {
+    override fun onDeclaredNodesChanged(
+        componentNode: SwingComponentNode<*>,
+        nodes: List<SwingModifier.Node>,
+    ) {
+        onNotified()
+    }
 }

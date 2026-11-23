@@ -106,59 +106,89 @@ public fun <T : Component, C : Any, L : EventListener> SwingModifier.listener(
 ): SwingModifier = this then LiveCallbackListenerElement(targetType.java, callback, registration)
 
 /**
- * Registers a listener built by [registration] that runs [onEvent] with the component the event names as
- * its source as the receiver - the scoped counterpart of the callback overload above.
+ * Registers a listener built by [registration] that runs [onEvent] with the component the modifier is
+ * attached to as its receiver - the scoped counterpart of the callback overload above.
  *
- * A component this attaches to fires with itself as the source, so the receiver is the component the
- * modifier is on. An event carrying any other source is one the scope cannot be given, and it is refused
- * rather than dropped - the overload's whole contract is that receiver.
+ * The receiver is the component this listener is attached to when the event arrives, whatever the event's
+ * source is: a model or another component may be the source, and the event reaches [onEvent] unchanged.
+ * Nothing is delivered once the modifier has detached.
  *
  * Read the receiver's properties through `this` where the enclosing composable declares a parameter of
  * the same name: an enclosing local shadows the receiver.
  *
  * @param targetType the component type the listener is scoped to, checked against the node as well.
  * @param registration where the built listener is registered, and how it is built.
- * @param onEvent what the built listener runs; refreshed on every pass.
+ * @param onEvent what the built listener runs; compared by identity and refreshed on every pass without
+ *     changing the registration.
  */
 public fun <T : Component, E : EventObject, L : EventListener> SwingModifier.listener(
     targetType: KClass<T>,
     registration: CallbackRegistration<T, (E) -> Unit, L>,
     onEvent: T.(E) -> Unit,
-): SwingModifier = this then ScopedListenerElement(targetType, onEvent, registration)
+): SwingModifier = this then ScopedListenerElement(targetType.java, registration, onEvent)
 
-/** Runs [onEvent] with the event's source as the receiver. */
-private class ScopedCallback<T : Component, E : EventObject>(
-    val targetType: KClass<T>,
+/**
+ * The additive [SwingModifier.NodeElement] backing the scoped overload of `listener`.
+ *
+ * Like the live callback element it registers one listener object, identified by [targetType] and
+ * [registration], and carries the handler that listener reads. [equals] compares the handler by identity
+ * as well, so a slot given a new handler is updated in place: the node takes the element through [update],
+ * keeps the listener while the registration is equal and swaps only the handler it runs.
+ */
+private class ScopedListenerElement<T : Component, E : EventObject, L : EventListener>(
+    override val targetType: Class<T>,
+    val registration: CallbackRegistration<T, (E) -> Unit, L>,
     val onEvent: T.(E) -> Unit,
-) : (E) -> Unit {
-    override fun invoke(event: E) {
-        val source = event.source
-        check(targetType.isInstance(source)) {
-            "a ${event.javaClass.simpleName} sourced at $source is not scoped to ${targetType.simpleName}"
-        }
-        // The check above is the instance test the cast needs.
-        @Suppress("UNCHECKED_CAST")
-        (source as T).onEvent(event)
+) : SwingModifier.NodeElement<T, ScopedListenerNode<T, E, L>>() {
+    override val additive: Boolean get() = true
+
+    override val name: String get() = registration.name
+
+    override val declaredValues: Map<String, Any?> get() = mapOf("callback" to onEvent)
+
+    override fun create(): ScopedListenerNode<T, E, L> = ScopedListenerNode(this)
+
+    override fun update(node: ScopedListenerNode<T, E, L>): Unit = node.swapTo(this)
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is ScopedListenerElement<*, *, *>) return false
+        return targetType == other.targetType && onEvent === other.onEvent && registration == other.registration
+    }
+
+    override fun hashCode(): Int {
+        var result = targetType.hashCode()
+        result = 31 * result + System.identityHashCode(onEvent)
+        result = 31 * result + registration.hashCode()
+        return result
     }
 }
 
 /**
- * The element of the scoped overload: it declares a [ScopedCallback] built afresh on every pass, so the
- * scope's handler, which is what the caller keeps, stands in for the callback's identity.
+ * The node backing [ScopedListenerElement]. The built listener runs the node's current handler on the
+ * component the node is attached to when the event arrives, so a listener never holds a component of its own.
+ * An event reaching a listener Swing still holds after the node detached runs nothing.
  */
-private class ScopedListenerElement<T : Component, E : EventObject, L : EventListener>(
-    targetType: KClass<T>,
-    private val onEvent: T.(E) -> Unit,
-    registration: CallbackRegistration<T, (E) -> Unit, L>,
-) : LiveCallbackListenerElement<T, (E) -> Unit, L>(
-        targetType.java,
-        ScopedCallback(targetType, onEvent),
-        registration,
-    ) {
-    override fun declaresSamePayload(other: LiveCallbackListenerElement<*, *, *>): Boolean =
-        other is ScopedListenerElement<*, *, *> && onEvent === other.onEvent
+private class ScopedListenerNode<T : Component, E : EventObject, L : EventListener>(
+    private var element: ScopedListenerElement<T, E, L>,
+) : SwingModifier.ComponentNode<T>() {
+    private val dispatch: (E) -> Unit = { event -> if (isAttached) component.(element.onEvent)(event) }
 
-    override fun payloadHash(): Int = System.identityHashCode(onEvent)
+    private var listener: L = element.registration.adapter(DeclaredCallback { dispatch })
+
+    override fun onAttach(): Unit = element.registration.attach(component, listener)
+
+    override fun onDetach(): Unit = element.registration.detach(component, listener)
+
+    /** Takes [next] as this node's element, whose handler is the one the listener runs. */
+    fun swapTo(next: ScopedListenerElement<T, E, L>) {
+        val current = element
+        element = next
+        if (current.registration == next.registration) return
+        current.registration.detach(component, listener)
+        listener = next.registration.adapter(DeclaredCallback { dispatch })
+        next.registration.attach(component, listener)
+    }
 }
 
 /**
@@ -247,7 +277,7 @@ private class InstanceListenerNode<T : Component, L : EventListener> : SwingModi
  * A callback of a new identity is the caller declaring something new, so it has to leave the chain unequal,
  * or the callback the caller replaced would be the one that keeps firing.
  */
-private open class LiveCallbackListenerElement<T : Component, C : Any, L : EventListener>(
+private class LiveCallbackListenerElement<T : Component, C : Any, L : EventListener>(
     override val targetType: Class<T>,
     val declared: C,
     val registration: CallbackRegistration<T, C, L>,
@@ -284,30 +314,22 @@ private open class LiveCallbackListenerElement<T : Component, C : Any, L : Event
             targetType == next.targetType &&
             registration == next.registration
 
-    /** Whether [other], which sits on an equal registration, declares the same callback as this element. */
-    protected open fun declaresSamePayload(other: LiveCallbackListenerElement<*, *, *>): Boolean {
-        val mine = declaredIdentities()
-        val theirs = other.declaredIdentities()
-        return mine.size == theirs.size && mine.indices.all { mine[it] === theirs[it] }
-    }
-
-    /** The identities [registration] compares this element's callback by, read through its own typed registration. */
-    private fun declaredIdentities(): List<*> = registration.identities(declared)
-
-    /** The hash code agreeing with [declaresSamePayload]. */
-    protected open fun payloadHash(): Int = registration.payloadHash(declared)
-
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is LiveCallbackListenerElement<*, *, *>) return false
         if (targetType != other.targetType) return false
         if (registration != other.registration) return false
-        return declaresSamePayload(other)
+        val mine = registration.identities(declared)
+        val theirs = other.declaredIdentities()
+        return mine.size == theirs.size && mine.indices.all { mine[it] === theirs[it] }
     }
+
+    /** The callbacks [declared] holds, as this element's own registration reads them. */
+    private fun declaredIdentities(): List<*> = registration.identities(declared)
 
     override fun hashCode(): Int {
         var result = targetType.hashCode()
-        result = 31 * result + payloadHash()
+        result = 31 * result + registration.payloadHash(declared)
         result = 31 * result + registration.hashCode()
         return result
     }

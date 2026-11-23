@@ -52,12 +52,13 @@ public inline fun <reified T : Component> SwingModifier.changeListener(
 
 /**
  * Runs [onChange] on the change event of a component of type [targetType] that fires one, with that
- * component as `this`. An event sourced anywhere else is refused; see [listener].
+ * component as `this`. The callback runs on the attached component whatever the event's source is; see
+ * [listener].
  *
- * A `JColorChooser` publishes through its selection model, so its change events name that model rather
- * than the chooser and are not ones this overload can scope.
+ * A `JColorChooser` publishes through its selection model, so its change events name that model as their
+ * source; the callback still runs on the chooser.
  *
- * @param targetType the component type the node and every event's source are both checked against.
+ * @param targetType the component type the node is checked against.
  * @param onChange read when the event fires.
  * @return this chain with the change callback declared on it.
  * @see javax.swing.event.ChangeListener

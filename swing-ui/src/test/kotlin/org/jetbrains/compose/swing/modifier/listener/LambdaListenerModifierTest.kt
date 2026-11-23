@@ -23,7 +23,6 @@ import javax.swing.JCheckBox
 import javax.swing.JSlider
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 /**
@@ -128,16 +127,18 @@ class LambdaListenerModifierTest {
     }
 
     @Test
-    fun aScopedListenerRefusesAnEventSourcedSomewhereElse() = runComposeSwingTest {
+    fun aScopedListenerRunsOnTheButtonForAnEventSourcedSomewhereElse() = runComposeSwingTest {
+        var receiver: JButton? = null
         setContent {
-            Button(text = "Click", onClick = {}, modifier = SwingModifier.actionListener<JButton> { })
+            Button(text = "Click", onClick = {}, modifier = SwingModifier.actionListener<JButton> { receiver = this })
         }
 
         val button = onNodeOfType<JButton>().fetch<JButton>()
         val foreign = ActionEvent(Any(), ActionEvent.ACTION_PERFORMED, "test")
         button.actionListeners.forEach { it.actionPerformed(foreign) }
-        assertFailsWith<IllegalStateException> { awaitIdle() }
-        assertEquals("Click", button.text)
+        awaitIdle()
+
+        assertEquals(button, receiver, "the attached button is the receiver, not the event's source")
     }
 
     @Test

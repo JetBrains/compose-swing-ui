@@ -62,10 +62,11 @@ public inline fun <reified T : Component> SwingModifier.propertyChangeListener(
 
 /**
  * Runs [onPropertyChange] on changes to the property [name] of a component of type [targetType], with
- * that component as `this`. An event sourced anywhere else is refused; see [listener].
+ * that component as `this`. The callback runs on the attached component whatever the event's source is; see
+ * [listener].
  *
  * @param name the bound property, spelled as the component fires it.
- * @param targetType the component type the node and every event's source are both checked against.
+ * @param targetType the component type the node is checked against.
  * @param onPropertyChange read when the event fires.
  * @return this chain with the property change callback declared on it.
  * @see java.awt.Component.addPropertyChangeListener
