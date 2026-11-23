@@ -4439,7 +4439,16 @@ fun taskStatus(): String = progressText(85)
 
 ### RestrictedApi
 
-The rule reports references outside the library, test, or subclass scope named by `@RestrictTo`. A helper reserved for subclasses can assume those callers maintain the object's invariants. A regular caller should use the supported operation, which in this example checks a status before storing it. Detekt checks `LIBRARY_GROUP` and `LIBRARY_GROUP_PREFIX` at the declaring library boundary, like `LIBRARY`.
+The rule reports references outside the library, test, or subclass scope named by `@RestrictTo`. A helper reserved for subclasses can assume those callers maintain the object's invariants. A regular caller should use the supported operation, which in this example checks a status before storing it.
+
+The rule ports androidx's Lint `RestrictToDetector`, which decides `LIBRARY`, `LIBRARY_GROUP` and `LIBRARY_GROUP_PREFIX` by the Maven coordinates of the reference and of the declaration. Detekt cannot read Gradle's model, so the build must write two configuration keys under `androidx-annotations` > `RestrictedApi`:
+
+- `moduleCoordinates` holds the analyzed module's `group:name`.
+- `libraryCoordinates` lists `<class directory or jar>=group:name` for each resolved dependency, project or external.
+
+A dependency whose coordinates the build does not write is unknown, and a declaration of unknown coordinates is never reported, as in Lint. Without `moduleCoordinates` the analyzed module's coordinates are unknown, so a declaration from a library with known coordinates is still reported. A dependency needs `libraryCoordinates`, wherever its jar lives. This repository's build writes both keys for every detekt task of every module that applies the `kotlin-quality` convention except `:swing-ui-detekt`.
+
+The rule reports a `LIBRARY_GROUP` use from another group, a `LIBRARY_GROUP_PREFIX` use from a group of another prefix, and a `LIBRARY` use from another group and artifact, so a project that publishes several artifacts in one group can use `LIBRARY` across them.
 
 <table>
 <thead>

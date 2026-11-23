@@ -5,14 +5,9 @@ import dev.detekt.api.Finding
 import dev.detekt.test.lintWithContext
 import dev.detekt.test.utils.KotlinEnvironmentContainer
 import dev.detekt.test.utils.createEnvironment
-import org.jetbrains.compose.swing.rules.androidx.ModuleBoundary
-import org.junit.jupiter.api.io.TempDir
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
-import java.nio.file.Path
-import kotlin.io.path.createDirectories
-import kotlin.io.path.createFile
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -416,8 +411,14 @@ class RestrictedApiTest {
         assertEquals("helper can only be called from tests", findings.single().message)
     }
 
-    @Test
-    fun `reports library restrictions on compiled declarations`() {
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("libraryScopes")
+    fun `decides each library scope by the Maven coordinates of the reference and of the compiled declaration`(
+        label: String,
+        module: String?,
+        library: String?,
+        expected: List<String?>,
+    ) {
         val source =
             """
             import org.jetbrains.compose.swing.detekt.fixture.RestrictedLibrary
@@ -427,98 +428,77 @@ class RestrictedApiTest {
                 api.prefix()
             }
             """.trimIndent()
-        val findings = subject.lintWithContext(env, source)
-        assertEquals(3, findings.size)
-        listOf("library", "group", "prefix").forEachIndexed { index, name ->
-            val finding = findings[index]
-            assertEquals("RestrictedLibrary.$name can only be called from within the same library", finding.message)
-            val location = finding.entity.location.text
-            assertEquals(name, source.substring(location.start, location.end))
-            assertEquals(index + 3, source.substring(0, location.start).count { it == '\n' } + 1)
-        }
-    }
 
-    @ParameterizedTest(name = "{0}")
-    @MethodSource("moduleMembership")
-    fun `decides whether a compiled declaration belongs to the module of the reference`(
-        label: String,
-        reference: String,
-        roots: List<String>,
-        expected: Boolean,
-        @TempDir workspace: Path,
-    ) {
-        listOf("app", "app/nested", "other").forEach { module ->
-            workspace
-                .resolve(module)
-                .createDirectories()
-                .resolve("build.gradle.kts")
-                .createFile()
-        }
-        workspace.resolve("orphan").createDirectories()
+        val findings = restrictedApiRule(module, library).lintWithContext(env, source)
 
-        val actual = ModuleBoundary.isWithinModule(workspace.resolve(reference), roots.map(workspace::resolve))
-
-        assertEquals(expected, actual, label)
+        val actual =
+            findings.map { finding ->
+                val location = finding.entity.location.text
+                source.substring(location.start, location.end) to finding.message
+            }
+        val wanted =
+            listOf("library", "group", "prefix").zip(expected).mapNotNull { (name, restriction) ->
+                restriction?.let { name to "RestrictedLibrary.$name can only be called $it" }
+            }
+        assertEquals(wanted, actual, label)
     }
 
     companion object {
+        private fun library(artifact: String) = "from within the same library ($artifact)"
+
+        private fun group(
+            referenced: String,
+            from: String,
+        ) = "from within the same library group (referenced groupId=`$referenced` from groupId=`$from`)"
+
+        private fun prefix(
+            referenced: String,
+            prefix: String,
+            from: String?,
+        ) = "from within the same library group prefix (referenced groupId=`$referenced` with prefix $prefix" +
+            from?.let { " from groupId=`$it`" }.orEmpty() + ")"
+
         @JvmStatic
-        fun moduleMembership(): List<Arguments> =
+        fun libraryScopes(): List<Arguments> =
             listOf(
+                Arguments.of("the same group and artifact", "org.a:app", "org.a:app", listOf(null, null, null)),
+                Arguments.of("the same group, another artifact", "org.a:app", "org.a:lib", listOf(null, null, null)),
                 Arguments.of(
-                    "a root under the build directory of the module holding the reference",
-                    "app/src/main/kotlin/Use.kt",
-                    listOf("app/build/classes/kotlin/main"),
-                    true,
+                    "another group, the same artifact",
+                    "org.a:lib",
+                    "org.b:lib",
+                    listOf(null, group("org.b", "org.a"), null),
                 ),
                 Arguments.of(
-                    "every root under the build directory of the module holding the reference",
-                    "app/src/main/kotlin/Use.kt",
-                    listOf("app/build/classes/kotlin/main", "app/build/libs/app.jar"),
-                    true,
+                    "another group and artifact in one prefix",
+                    "org.a:app",
+                    "org.b:lib",
+                    listOf(library("org.b:lib"), group("org.b", "org.a"), null),
                 ),
                 Arguments.of(
-                    "a root under the build directory of another module",
-                    "app/src/main/kotlin/Use.kt",
-                    listOf("other/build/classes/kotlin/main"),
-                    false,
+                    "another group and artifact in another prefix",
+                    "com.a:app",
+                    "org.b:lib",
+                    listOf(library("org.b:lib"), group("org.b", "com.a"), prefix("org.b", "org", "com.a")),
                 ),
                 Arguments.of(
-                    "a root under the build directory of an enclosing module rather than the nearest one",
-                    "app/nested/src/main/kotlin/Use.kt",
-                    listOf("app/build/classes/kotlin/main"),
-                    false,
+                    "groups without a dot",
+                    "a:app",
+                    "b:lib",
+                    listOf(library("b:lib"), group("b", "a"), prefix("b", "\"\"", "a")),
                 ),
                 Arguments.of(
-                    "a jar outside any build directory",
-                    "app/src/main/kotlin/Use.kt",
-                    listOf("cache/modules/library.jar"),
-                    false,
+                    "an unknown module and a known library",
+                    null,
+                    "org.b:lib",
+                    listOf(
+                        library("org.b:lib"),
+                        group("org.b", "<unknown>"),
+                        prefix("org.b", "org", null),
+                    ),
                 ),
-                Arguments.of(
-                    "a root inside the module but outside its build directory",
-                    "app/src/main/kotlin/Use.kt",
-                    listOf("app/libs/library.jar"),
-                    false,
-                ),
-                Arguments.of(
-                    "a root beside the build directory whose name only starts the same",
-                    "app/src/main/kotlin/Use.kt",
-                    listOf("app/build-cache/classes"),
-                    false,
-                ),
-                Arguments.of(
-                    "one root under the build directory and one outside it",
-                    "app/src/main/kotlin/Use.kt",
-                    listOf("app/build/classes/kotlin/main", "cache/modules/library.jar"),
-                    false,
-                ),
-                Arguments.of(
-                    "a reference with no module root",
-                    "orphan/src/Use.kt",
-                    listOf("orphan/build/classes/kotlin/main"),
-                    false,
-                ),
+                Arguments.of("a known module and an unknown library", "org.a:app", null, listOf(null, null, null)),
+                Arguments.of("an unknown module and an unknown library", null, null, listOf(null, null, null)),
             )
     }
 }

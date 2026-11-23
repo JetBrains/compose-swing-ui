@@ -8,13 +8,11 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
 import kotlin.test.assertEquals
-import kotlin.test.assertIs
 
 class RestrictedApiInheritanceTest {
     private val env: KotlinEnvironmentContainer by lazy { createEnvironment() }
 
-    private val subject =
-        assertIs<AnalysisComposeSwingRuleAdapter>(composeSwingRule("RestrictedApi"))
+    private val subject = restrictedApiRule(module = "org.app:app", library = "org.fixture:lib")
 
     @ParameterizedTest(name = "{0}")
     @MethodSource("inheritedUses")
@@ -42,8 +40,10 @@ class RestrictedApiInheritanceTest {
 
     companion object {
         @JvmStatic
-        fun inheritedUses(): List<Arguments> {
-            val library = "from within the same library"
+        fun inheritedUses(): List<Arguments> = libraryUses() + groupUses()
+
+        private fun libraryUses(): List<Arguments> {
+            val library = "from within the same library (org.fixture:lib)"
             return listOf(
                 Arguments.of(
                     "an unqualified call to a member inherited from a compiled class",
@@ -61,30 +61,6 @@ class RestrictedApiInheritanceTest {
                     listOf("library: RestrictedLibrary.library can only be called $library"),
                 ),
                 Arguments.of(
-                    "an unqualified read of a property inherited from a restricted compiled class",
-                    "class Child : RestrictedLibraryParent() { fun test() = value }",
-                    listOf(
-                        "RestrictedLibraryParent: RestrictedLibraryParent can only be called $library",
-                        "value: RestrictedLibraryParent.value can only be accessed $library",
-                    ),
-                ),
-                Arguments.of(
-                    "an override of a function of a restricted compiled class",
-                    "class Child : RestrictedLibraryParent() { override fun method() {} }",
-                    listOf(
-                        "RestrictedLibraryParent: RestrictedLibraryParent can only be called $library",
-                        "method: RestrictedLibraryParent.method can only be called $library",
-                    ),
-                ),
-                Arguments.of(
-                    "an override of a property of a restricted compiled class",
-                    "class Child : RestrictedLibraryParent() { override val value: Int get() = 1 }",
-                    listOf(
-                        "RestrictedLibraryParent: RestrictedLibraryParent can only be called $library",
-                        "value: RestrictedLibraryParent.value can only be accessed $library",
-                    ),
-                ),
-                Arguments.of(
                     "an override of a restricted member of a compiled class that is not itself restricted",
                     "class Child : RestrictedLibrary() { override fun library() {} }",
                     listOf("library: RestrictedLibrary.library can only be called $library"),
@@ -99,6 +75,37 @@ class RestrictedApiInheritanceTest {
                     "an override of a member of a class declared in source",
                     "open class Base { open fun method() {} }\nclass Child : Base() { override fun method() {} }",
                     emptyList<String>(),
+                ),
+            )
+        }
+
+        private fun groupUses(): List<Arguments> {
+            val group =
+                "from within the same library group (referenced groupId=`org.fixture` from groupId=`org.app`)"
+            return listOf(
+                Arguments.of(
+                    "an unqualified read of a property inherited from a restricted compiled class",
+                    "class Child : RestrictedLibraryParent() { fun test() = value }",
+                    listOf(
+                        "RestrictedLibraryParent: RestrictedLibraryParent can only be called $group",
+                        "value: RestrictedLibraryParent.value can only be accessed $group",
+                    ),
+                ),
+                Arguments.of(
+                    "an override of a function of a restricted compiled class",
+                    "class Child : RestrictedLibraryParent() { override fun method() {} }",
+                    listOf(
+                        "RestrictedLibraryParent: RestrictedLibraryParent can only be called $group",
+                        "method: RestrictedLibraryParent.method can only be called $group",
+                    ),
+                ),
+                Arguments.of(
+                    "an override of a property of a restricted compiled class",
+                    "class Child : RestrictedLibraryParent() { override val value: Int get() = 1 }",
+                    listOf(
+                        "RestrictedLibraryParent: RestrictedLibraryParent can only be called $group",
+                        "value: RestrictedLibraryParent.value can only be accessed $group",
+                    ),
                 ),
             )
         }

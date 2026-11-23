@@ -31,6 +31,8 @@ detekt {
 
 Use the guide's rule-set IDs as top-level keys in your Detekt YAML. Put each rule ID under its rule set.
 
+The `RestrictedApi` rule needs the build to supply Maven coordinates; [Static analysis](../docs/STATIC-ANALYSIS.md#restrictedapi) shows the convention.
+
 Run `detektMain`, `detektTest`, or the type-resolving task for your source set to include rules that need type information.
 
 Set `failOnSeverity` to `Warning` to make warnings fail the build.

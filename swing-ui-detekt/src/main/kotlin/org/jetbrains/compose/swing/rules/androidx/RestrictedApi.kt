@@ -15,21 +15,19 @@
  */
 
 // Ported from androidx's RestrictToDetector (frameworks/support/lint-checks/src/main/java/androidx/build/
-// lint/RestrictToDetector.kt), an Android Lint SourceCodeScanner, to a rule of this library. This port has neither
-// Lint's UAST view of Kotlin nor its Maven-coordinate machinery, so the following are substituted or
-// dropped rather than reproduced:
-//  - Scope.LIBRARY: reported when the resolved declaration's origin is compiled/binary rather than
-//    source under analysis (`KaSymbolOrigin.LIBRARY`/`JAVA_LIBRARY`), instead of comparing Maven
-//    groupId:artifactId between the reference and the declaration. A Gradle module counts as one
-//    library, as it does for Lint: a declaration whose class file lies under the build directory of the
-//    module holding the reference file (the nearest ancestor directory with a build.gradle.kts or build.gradle) is not
-//    reported, whether it was compiled from that module's own sources or excluded from the analyzed
-//    input. A reference file with no such module reports every compiled declaration. The
-//    library coordinate named in upstream's message is dropped; the message only states that the
-//    usage crosses a library boundary.
-//  - Scope.LIBRARY_GROUP and Scope.LIBRARY_GROUP_PREFIX: no Maven group id is available to detekt, so
-//    both widen to the same check as Scope.LIBRARY. Package-prefix matching is deliberately not used as
-//    a stand-in for the group id, matching upstream's own refusal to approximate a group by a package.
+// lint/RestrictToDetector.kt, `checkRestrictTo`), an Android Lint SourceCodeScanner, to a rule of this library.
+// This port does not have Lint's UAST view of Kotlin, so the following are substituted or dropped rather
+// than reproduced:
+//  - Scope.LIBRARY, Scope.LIBRARY_GROUP and Scope.LIBRARY_GROUP_PREFIX: decided as upstream does, by the
+//    Maven coordinates of the reference and of the declaration, in the same if/else-if order (RestrictToLibrary
+//    in ModuleBoundary.kt, with upstream's `sameLibraryGroupPrefix`). Lint's `getLibrary(node) ?: project
+//    .mavenCoordinate` is the analyzed module's coordinates and `findMavenCoordinate(member)` is the
+//    coordinates of the compiled library that holds the declaration. Detekt has no Gradle model, so the build
+//    supplies both through this rule's configuration (`moduleCoordinates`, `libraryCoordinates`; see
+//    LibraryCoordinates). Coordinates the
+//    build did not supply are unknown, which is upstream's null: they are never reported. A declaration in
+//    source is the analyzed module's own, so upstream's "source of another Gradle project" branch of
+//    Scope.LIBRARY has no counterpart.
 //  - Scope.TESTS: decided by whether the reference's file path sits under a test source root, plus the
 //    same enclosing-declaration walk upstream performs for `@VisibleForTesting`/`@TestOnly`, and for an
 //    enclosing declaration that itself carries `@RestrictTo(TESTS)` (see RestrictedApiAccess.kt).
@@ -87,7 +85,6 @@ import org.jetbrains.kotlin.psi.KtSimpleNameExpression
 import org.jetbrains.kotlin.psi.KtVisitorVoid
 import org.jetbrains.kotlin.psi.psiUtil.getStrictParentOfType
 import org.jetbrains.kotlin.resolve.jvm.JvmClassName
-import java.nio.file.Path
 
 /**
  * Reports a use of an API that `@RestrictTo` restricts to a scope the use does not meet.
@@ -103,36 +100,43 @@ internal object RestrictedApi : ComposeSwingRule {
     override fun createVisitor(
         reporter: ComposeSwingRuleReporter,
         config: ComposeSwingRuleConfig,
-    ): KtVisitorVoid =
-        object : KtVisitorVoid() {
+    ): KtVisitorVoid {
+        val libraries = LibraryCoordinates.from(config)
+        return object : KtVisitorVoid() {
             override fun visitSimpleNameExpression(expression: KtSimpleNameExpression) {
                 if (expression.getStrictParentOfType<KtImportDirective>() != null ||
                     expression.getStrictParentOfType<KtPackageDirective>() != null
                 ) {
                     return
                 }
-                val messages = analyze(expression) { restrictionMessages(expression) }
+                val messages = analyze(expression) { restrictionMessages(expression, libraries) }
                 messages.forEach { reporter.report(expression, it) }
             }
 
-            override fun visitNamedFunction(function: KtNamedFunction) = reportRestrictedOverride(function, reporter)
+            override fun visitNamedFunction(function: KtNamedFunction) =
+                reportRestrictedOverride(function, reporter, libraries)
 
-            override fun visitProperty(property: KtProperty) = reportRestrictedOverride(property, reporter)
+            override fun visitProperty(property: KtProperty) = reportRestrictedOverride(property, reporter, libraries)
         }
+    }
 }
 
-private fun KaSession.restrictionMessages(expression: KtSimpleNameExpression): List<String> {
+private fun KaSession.restrictionMessages(
+    expression: KtSimpleNameExpression,
+    libraries: LibraryCoordinates,
+): List<String> {
     val symbol = expression.mainReference.resolveToSymbol() as? KaDeclarationSymbol ?: return emptyList()
-    return restrictionMessages(symbol, expression, declaredRestrictionScope(symbol, expression))
+    return restrictionMessages(symbol, expression, declaredRestrictionScope(symbol, expression), libraries)
 }
 
 internal fun KaSession.restrictionMessages(
     symbol: KaDeclarationSymbol,
     expression: KtElement,
     scope: Int,
+    libraries: LibraryCoordinates,
 ): List<String> {
     val declaringClass = symbol as? KaClassSymbol ?: symbol.containingDeclaration as? KaClassSymbol
-    val restrictions = violatedRestrictions(symbol, expression, declaringClass, scope)
+    val restrictions = violatedRestrictions(symbol, expression, declaringClass, scope, libraries)
     val api = apiName(symbol, declaringClass)
     val refType = if (symbol is KaFunctionSymbol) "called" else "accessed"
     return if (api == null) emptyList() else restrictions.map { "$api can only be $refType $it" }
@@ -156,9 +160,10 @@ private fun KaSession.violatedRestrictions(
     expression: KtElement,
     declaringClass: KaClassSymbol?,
     scope: Int,
+    libraries: LibraryCoordinates,
 ): List<String> =
     buildList {
-        if (scope and SCOPE_LIBRARY != 0 && isFromOutsideModule(symbol, expression)) add("from within the same library")
+        libraryRestriction(scope, libraries.module) { declaringCoordinates(symbol, libraries) }?.let(::add)
         if (scope and SCOPE_TESTS != 0 && !isTestContext(expression)) add("from tests")
         if (scope and SCOPE_SUBCLASSES != 0 && declaringClass?.classId != null &&
             !isWithinSubclass(expression, declaringClass)
@@ -167,9 +172,11 @@ private fun KaSession.violatedRestrictions(
         }
     }
 
-private const val SCOPE_LIBRARY = 1 shl 0
-internal const val SCOPE_TESTS = 1 shl 1
-private const val SCOPE_SUBCLASSES = 1 shl 2
+private const val SCOPE_LIBRARY_GROUP = 1 shl 0
+private const val SCOPE_LIBRARY = 1 shl 1
+private const val SCOPE_LIBRARY_GROUP_PREFIX = 1 shl 2
+internal const val SCOPE_TESTS = 1 shl 3
+private const val SCOPE_SUBCLASSES = 1 shl 4
 
 internal fun KaAnnotationList.restrictToScope(): Int? {
     val annotation = this[ClassId.topLevel(FqName("androidx.annotation.RestrictTo"))].firstOrNull() ?: return null
@@ -187,7 +194,9 @@ private fun scopeBits(value: KaAnnotationValue): Int =
 
         is KaAnnotationValue.EnumEntryValue -> {
             when (value.callableId?.callableName?.asString()) {
-                "GROUP_ID", "LIBRARY_GROUP", "LIBRARY_GROUP_PREFIX", "LIBRARY" -> SCOPE_LIBRARY
+                "GROUP_ID", "LIBRARY_GROUP" -> SCOPE_LIBRARY_GROUP
+                "LIBRARY" -> SCOPE_LIBRARY
+                "LIBRARY_GROUP_PREFIX" -> SCOPE_LIBRARY_GROUP_PREFIX
                 "TESTS" -> SCOPE_TESTS
                 "SUBCLASSES" -> SCOPE_SUBCLASSES
                 else -> 0
@@ -199,25 +208,45 @@ private fun scopeBits(value: KaAnnotationValue): Int =
         }
     }
 
+/** Upstream's if/else-if chain over the library scopes; the declaration's coordinates are read only if one applies. */
+private fun libraryRestriction(
+    scope: Int,
+    thisCoordinates: MavenCoordinate?,
+    methodCoordinates: () -> MavenCoordinate?,
+): String? =
+    when {
+        scope and SCOPE_LIBRARY_GROUP != 0 -> {
+            RestrictToLibrary.libraryGroup(thisCoordinates, methodCoordinates())
+        }
+
+        scope and SCOPE_LIBRARY_GROUP_PREFIX != 0 -> {
+            RestrictToLibrary.libraryGroupPrefix(thisCoordinates, methodCoordinates())
+        }
+
+        scope and SCOPE_LIBRARY != 0 -> {
+            RestrictToLibrary.library(thisCoordinates, methodCoordinates())
+        }
+
+        else -> {
+            null
+        }
+    }
+
+/** Upstream's `findMavenCoordinate(member)`: the library holding a compiled declaration, else the analyzed module. */
 @OptIn(KaExperimentalApi::class)
-private fun KaSession.isFromOutsideModule(
+private fun KaSession.declaringCoordinates(
     symbol: KaDeclarationSymbol,
-    expression: KtElement,
-): Boolean {
+    libraries: LibraryCoordinates,
+): MavenCoordinate? {
     val declaration = (symbol as? KaCallableSymbol)?.fakeOverrideOriginal ?: symbol
     val compiled = declaration.origin == KaSymbolOrigin.LIBRARY || declaration.origin == KaSymbolOrigin.JAVA_LIBRARY
     val enclosing = generateSequence(declaration) { it.containingDeclaration }
     val classId = enclosing.filterIsInstance<KaClassSymbol>().firstOrNull()?.classId
     val facade = enclosing.filterIsInstance<KaCallableSymbol>().firstOrNull()?.containingJvmClassName
     val jvmClass = classId?.let(JvmClassName::byClassId)?.internalName ?: facade?.replace('.', '/')
-    val referenceFile =
-        expression.containingFile
-            ?.virtualFile
-            ?.path
-            ?.let(Path::of)
     val roots = (declaration.containingModule as? KaLibraryModule)?.binaryRoots.orEmpty()
     val declaringRoots = jvmClass?.let { ModuleBoundary.declaringRoots(roots, "$it.class") }.orEmpty()
-    return compiled && (referenceFile == null || !ModuleBoundary.isWithinModule(referenceFile, declaringRoots))
+    return if (compiled) libraries.of(declaringRoots) else libraries.module
 }
 
 private fun KaSession.isTestContext(expression: KtElement): Boolean {

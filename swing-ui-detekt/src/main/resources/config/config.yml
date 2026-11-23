@@ -221,6 +221,10 @@ androidx-annotations:
     active: true
   RestrictedApi:
     active: true
+    # The build supplies both; see docs/STATIC-ANALYSIS.md. Without them every coordinate is unknown and
+    # no library scope is reported.
+    moduleCoordinates: ''
+    libraryCoordinates: []
   VisibleForTests:
     active: true
 

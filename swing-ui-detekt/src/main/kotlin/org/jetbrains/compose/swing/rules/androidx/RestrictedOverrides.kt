@@ -17,19 +17,23 @@ import org.jetbrains.kotlin.psi.KtCallableDeclaration
 internal fun reportRestrictedOverride(
     declaration: KtCallableDeclaration,
     reporter: ComposeSwingRuleReporter,
+    libraries: LibraryCoordinates,
 ) {
     if (!declaration.hasModifier(KtTokens.OVERRIDE_KEYWORD)) return
-    val messages = analyze(declaration) { overrideRestrictionMessages(declaration) }
+    val messages = analyze(declaration) { overrideRestrictionMessages(declaration, libraries) }
     messages.forEach { reporter.report(declaration.nameIdentifier ?: declaration, it) }
 }
 
-private fun KaSession.overrideRestrictionMessages(declaration: KtCallableDeclaration): List<String> {
+private fun KaSession.overrideRestrictionMessages(
+    declaration: KtCallableDeclaration,
+    libraries: LibraryCoordinates,
+): List<String> {
     val override = declaration.symbol as? KaCallableSymbol
     if (override == null || override.annotations.restrictToScope() != null) return emptyList()
     return override.directlyOverriddenSymbols
         .toList()
         .flatMap { overridden ->
             val accessors = (overridden as? KaPropertySymbol)?.let { listOf(it.getter, it.setter) } ?: listOf(null)
-            restrictionMessages(overridden, declaration, restrictionScope(overridden, accessors))
+            restrictionMessages(overridden, declaration, restrictionScope(overridden, accessors), libraries)
         }.distinct()
 }

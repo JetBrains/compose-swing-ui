@@ -5,8 +5,11 @@ import dev.detekt.gradle.Detekt
 import dev.detekt.gradle.extensions.FailOnSeverity
 import org.gradle.api.Task
 import org.gradle.api.artifacts.VersionCatalogsExtension
+import org.gradle.api.plugins.JavaBasePlugin
+import org.gradle.api.tasks.SourceSetContainer
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.kotlin.dsl.getByType
+import org.gradle.kotlin.dsl.register
 import org.gradle.kotlin.dsl.withType
 
 plugins {
@@ -49,6 +52,26 @@ dependencies {
     // consumer adds.
     if (path != detektRuleSet) {
         "detektPlugins"(project(detektRuleSet))
+    }
+}
+
+// The RestrictedApi rule decides library membership by Maven coordinates, which detekt cannot read, so the
+// build writes the module's own and its project dependencies' into the rule's configuration.
+if (path != detektRuleSet) {
+    val moduleCoordinates = provider { "$group:$name" }
+    val restrictedApiCoordinates =
+        tasks.register<WriteRestrictedApiCoordinates>("writeRestrictedApiCoordinates") {
+            this.moduleCoordinates.set(moduleCoordinates)
+            configFile.set(layout.buildDirectory.file("detekt/restricted-api-coordinates.yml"))
+        }
+    plugins.withType<JavaBasePlugin> {
+        extensions.getByType<SourceSetContainer>().all {
+            val classpath = configurations.getByName(compileClasspathConfigurationName)
+            restrictedApiCoordinates.configure { libraryCoordinates.putAll(classpath.projectLibraryCoordinates()) }
+        }
+    }
+    tasks.withType<Detekt>().configureEach {
+        config.from(restrictedApiCoordinates.flatMap { writer -> writer.configFile })
     }
 }
 
