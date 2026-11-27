@@ -39,6 +39,7 @@ testing.suites.register<JvmTestSuite>("memoryTest") {
             "swing-ui-foundation",
             "swing-ui-animation-core",
             "swing-ui-animation",
+            "swing-ui-svg",
         ).forEach { module ->
             implementation(project(":$module")) {
                 capabilities { requireFeature("fixtures") }

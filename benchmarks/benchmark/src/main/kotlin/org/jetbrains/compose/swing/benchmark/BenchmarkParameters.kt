@@ -8,6 +8,7 @@ import org.jetbrains.compose.swing.fixtures.components.swingUiComponentsFixtures
 import org.jetbrains.compose.swing.fixtures.swingUiCoreFixtures
 import org.jetbrains.compose.swing.foundation.fixtures.swingUiFoundationFixtures
 import org.jetbrains.compose.swing.runSwingTest
+import org.jetbrains.compose.swing.svg.fixtures.swingUiSvgFixtures
 import java.awt.HeadlessException
 import java.nio.file.Files
 import java.nio.file.Path
@@ -36,6 +37,7 @@ internal object BenchmarkParameters {
             addAll(swingUiFoundationFixtures)
             addAll(swingUiAnimationCoreFixtures)
             addAll(swingUiAnimationFixtures)
+            addAll(swingUiSvgFixtures)
         }
 
     /** Every parameter, in fixture order. Run on the event dispatch thread, which window fixtures need. */

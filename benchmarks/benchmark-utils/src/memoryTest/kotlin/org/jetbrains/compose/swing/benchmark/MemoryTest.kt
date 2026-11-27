@@ -8,6 +8,7 @@ import org.jetbrains.compose.swing.fixtures.components.swingUiComponentsFixtures
 import org.jetbrains.compose.swing.fixtures.swingUiCoreFixtures
 import org.jetbrains.compose.swing.foundation.fixtures.swingUiFoundationFixtures
 import org.jetbrains.compose.swing.runSwingTest
+import org.jetbrains.compose.swing.svg.fixtures.swingUiSvgFixtures
 import org.junit.jupiter.api.Assumptions
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.DynamicTest
@@ -106,6 +107,7 @@ class MemoryTest {
                 addAll(swingUiFoundationFixtures)
                 addAll(swingUiAnimationCoreFixtures)
                 addAll(swingUiAnimationFixtures)
+                addAll(swingUiSvgFixtures)
             }
         val counts = all.groupingBy { it.name }.eachCount()
         val duplicates = counts.filterValues { it > 1 }.keys

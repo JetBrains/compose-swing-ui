@@ -3,6 +3,7 @@ import org.jetbrains.kotlin.gradle.dsl.abi.ExperimentalAbiValidation
 
 plugins {
     id("buildsrc.convention.kotlin-jvm")
+    id("buildsrc.convention.composable-fixtures")
     id("buildsrc.convention.kotlin-quality")
     id("buildsrc.convention.publishing")
     id("buildsrc.convention.jacoco-coverage")
@@ -18,6 +19,9 @@ kotlin {
     sourceSets.configureEach {
         languageSettings.optIn("org.jetbrains.compose.swing.annotations.SwingComponentLibraryApi")
     }
+    target.compilations.named("fixtures") {
+        associateWith(target.compilations.getByName("main"))
+    }
 }
 
 dependencies {
@@ -25,6 +29,14 @@ dependencies {
     api(libs.jsvg)
     api(project(":swing-ui-core"))
     implementation(libs.kotlinxCoroutinesCore)
+
+    fixturesImplementation(project(":swing-ui-core")) {
+        capabilities { requireFeature("fixtures") }
+    }
+    fixturesImplementation(project(":swing-ui-components"))
+    testRuntimeOnly(project(":swing-ui-svg")) {
+        capabilities { requireFeature("fixtures") }
+    }
 
     testImplementation(libs.mockk)
     testImplementation(kotlin("test"))

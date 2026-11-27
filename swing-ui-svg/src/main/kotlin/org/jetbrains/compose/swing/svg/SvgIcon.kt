@@ -4,6 +4,7 @@
 
 package org.jetbrains.compose.swing.svg
 
+import androidx.annotation.VisibleForTesting
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import com.github.weisj.jsvg.SVGDocument
@@ -37,7 +38,8 @@ public fun rememberSvgIcon(
 }
 
 /** The [Icon] that [rememberSvgIcon] returns. */
-private class SvgIcon(
+@VisibleForTesting
+internal class SvgIcon(
     private val document: SVGDocument,
     private val width: Int,
     private val height: Int,
